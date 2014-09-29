@@ -10,6 +10,7 @@ import logging
 import operator
 import os
 import re
+import shutil
 import stat
 import subprocess
 import threading
@@ -175,6 +176,23 @@ class Fan:
     """ Return True if fan is moving, False instead. """
     return (self.getRpm() > 0)
 
+  def waitStabilize(self):
+    """
+    Wait for the fan to have a stable rotational speed.
+
+    The algorithm only works if the fan is either slowing down, accelerating, or steady during the test, not if its speed
+    changes quickly ie. going up and down.
+    """
+    rpm = self.getRpm()
+    min_rpm, max_rpm = rpm, rpm
+    while True:
+      time.sleep(2)
+      rpm = self.getRpm()
+      if min_rpm <= rpm <= max_rpm:
+        break
+      min_rpm = min(min_rpm, rpm)
+      max_rpm = max(max_rpm, rpm)
+
   def setSpeed(self, speed_prct, min_prct):
     """ Set fan speed to a percentage of its maximum speed. """
     # preconditions
@@ -219,6 +237,145 @@ class Fan:
     with open(self.pwm_filepath, "wt") as pwm_file:
       self.logger.debug("Setting PWM value to %u" % (value))
       pwm_file.write("%u" % (value))
+
+
+class TestHardware:
+
+  """ Run basic drive tests, and analyze fan start/stop behaviour. """
+
+  def __init__(self, drives, fans):
+    self.drives = drives
+    self.fans = fans
+    self.ok_count = 0
+    self.ko_count = 0
+    self.logger = logging.getLogger(__class__.__name__)
+
+  def run(self):
+    self.logger.info("Running hardware tests, this may take a few minutes")
+    self.testDrives()
+    start_stop_values = self.testPwms()
+    if self.ko_count > 0:
+      print("%u/%u tests failed!" % (self.ko_count, self.ko_count + self.ok_count))
+    else:
+      print("%u/%u tests OK, all good :)" % (self.ok_count, self.ok_count))
+    self.logger.info("Recommended parameters: --pwm-start-value %s --pwm-stop-value %s"
+                     % (" ".join(str(min(255, x[0] + 32)) for x in start_stop_values),
+                        " ".join(str(x[1]) for x in start_stop_values)))
+
+  def testDrives(self):
+    for drive in self.drives:
+      self.reportTestGroupStart("Test of drive %s" % (drive))
+
+      test_desc = "Getting drive power state"
+      self.reportTestStart(test_desc)
+      try:
+        state = drive.getState()
+        test_ok = state in Drive.DriveState
+      except:
+        test_ok = False
+      self.reportTestResult(test_desc, test_ok)
+
+      test_desc = "Getting drive temperature"
+      self.reportTestStart(test_desc)
+      try:
+        temp = drive.getTemperature()
+        test_ok = isinstance(temp, int)
+      except:
+        test_ok = False
+      self.reportTestResult(test_desc, test_ok)
+
+      test_desc = "Getting drive activity statistics"
+      self.reportTestStart(test_desc)
+      try:
+        stats = drive.getActivityStats()
+        test_ok = isinstance(stats, tuple)
+      except:
+        test_ok = False
+      self.reportTestResult(test_desc, test_ok)
+
+  def testPwms(self):
+    start_stop_values = []
+    pwm_vals = (255,) + tuple(range(240, -1, -16))
+    for fan in self.fans:
+      self.reportTestGroupStart("Test of fan #%u" % (fan.id))
+      start_value, stop_value = 255, 0
+
+      test_desc = "Stopping fan"
+      self.reportTestStart(test_desc)
+      try:
+        fan.setPwmValue(0)
+        fan.waitStabilize()
+        test_ok = not fan.isRunning()
+      except:
+        test_ok = False
+      self.reportTestResult(test_desc, test_ok)
+
+      test_desc = "Starting fan"
+      self.reportTestStart(test_desc)
+      try:
+        fan.setPwmValue(255)
+        fan.waitStabilize()
+        test_ok = fan.isRunning()
+      except:
+        test_ok = False
+      self.reportTestResult(test_desc, test_ok)
+
+      test_desc = "Finding exact start value of fan"
+      self.reportTestStart(test_desc)
+      test_ok = False
+      try:
+        for v in reversed(pwm_vals):
+          fan.setPwmValue(v)
+          fan.waitStabilize()
+          test_ok = fan.isRunning()
+          if test_ok:
+            start_value = v
+            break
+      except:
+        pass
+      self.reportTestResult(test_desc, test_ok)
+
+      test_desc = "Finding exact stop value of fan"
+      self.reportTestStart(test_desc)
+      test_ok = False
+      try:
+        for v in pwm_vals:
+          fan.setPwmValue(v)
+          fan.waitStabilize()
+          test_ok = not fan.isRunning()
+          if test_ok:
+            stop_value = v
+            break
+      except:
+        pass
+      self.reportTestResult(test_desc, test_ok)
+
+      start_stop_values.append((start_value, stop_value))
+
+    return start_stop_values
+
+  def reportTestGroupStart(self, desc):
+    print("%s %s" % (desc, "-" * (shutil.get_terminal_size()[0] - len(desc) - 1)))
+
+  def reportTestStart(self, desc):
+    print(desc, end=" ", flush=True)
+
+  def reportTestResult(self, desc, ok):
+    if ok:
+      self.ok_count += 1
+    else:
+      self.ko_count += 1
+    print(("[ %s ]" % ("OK" if ok else "KO")).rjust(shutil.get_terminal_size()[0] - len(desc) - 1))
+
+
+def test(drive_filepaths, fan_pwm_filepaths, stat_filepaths):
+  fans = [Fan(i, fan_pwm_filepath, 0, 0) for i, fan_pwm_filepath in enumerate(fan_pwm_filepaths, 1)]
+  drives = [Drive(drive_filepath,
+                  stat_filepath) for drive_filepath, stat_filepath in zip(drive_filepaths,
+                                                                          stat_filepaths)]
+
+  tester = TestHardware(drives, fans)
+  tester.run()
 
 
 def main(drive_filepaths, fan_pwm_filepaths, fan_start_values, fan_stop_values, min_fan_speed_prct, min_temp, max_temp,
@@ -320,19 +477,19 @@ if __name__ == "__main__":
                           dest="fan_pwm_filepath",
                           help="PWM filepath(s) to control fan speed (under /sys)")
   arg_parser.add_argument("--pwm-start-value",
-                          required=True,
                           type=int,
+                          default=None,
                           nargs="+",
                           dest="fan_start_value",
                           help="""PWM value (0-255), at which the fan starts moving.
-                                  Run pwmconfig to find this value.""")
+                                  Use the -t parameter, or run pwmconfig to find this value.""")
   arg_parser.add_argument("--pwm-stop-value",
-                          required=True,
                           type=int,
+                          default=None,
                           nargs="+",
                           dest="fan_stop_value",
                           help="""PWM value (0-255), at which the fan stop moving.
-                                  Run pwmconfig to find this value.
+                                  Use the -t parameter, or run pwmconfig to find this value.
                                   Often 20-40 lower than start speed.""")
   arg_parser.add_argument("--min-temp",
                           type=int,
@@ -390,9 +547,16 @@ if __name__ == "__main__":
                           default=None,
                           dest="pid_filepath",
                           help="Filepath for lock file when using deamon mode")
+  arg_parser.add_argument("-t",
+                          "--test",
+                          action="store_true",
+                          default=False,
+                          dest="test_mode",
+                          help="Run some tests and exit")
   args = arg_parser.parse_args()
-  if not (len(args.fan_pwm_filepath) == len(args.fan_start_value) == len(args.fan_stop_value) ==
-          len(args.stat_filepaths)):
+  if ((len(args.fan_pwm_filepath) != len(args.stat_filepaths)) or
+      ((args.fan_start_value is not None) and (len(args.fan_pwm_filepath) != len(args.fan_start_value))) or
+      ((args.fan_stop_value is not None) and (len(args.fan_pwm_filepath) != len(args.fan_stop_value)))):
     raise ValueError("Invalid parameter count")
 
   # setup logger
@@ -407,29 +571,37 @@ if __name__ == "__main__":
 
   # check if root
   if os.geteuid() != 0:
-    logging.getLogger().error("You need to run this script as root")
+    logging.getLogger("Startup").error("You need to run this script as root")
     exit(1)
 
-  # main
-  with contextlib.ExitStack() as deamon_context:
-    if args.daemonize:
-      preserved_fds = None
-      if args.log_filepath is not None:
-        log_output = deamon_context.enter_context(open(args.log_filepath, "at+"))
-        preserved_fds = [log_output.fileno()]
-      else:
-        log_output = None
-      if args.pid_filepath is not None:
-        pidfile = daemon.pidlockfile.PIDLockFile(args.pid_filepath)
-        if pidfile.is_locked():
-          logging.getLogger().error("Daemon already running")
-          exit(1)
-      else:
-        pidfile = None
-      deamon_context.enter_context(daemon.DaemonContext(stdout=log_output,
-                                                        stderr=log_output,
-                                                        pidfile=pidfile,
-                                                        files_preserve=preserved_fds))
+  if args.test_mode or (args.fan_start_value is None) or (args.fan_stop_value is None):
+    if (args.fan_start_value is None) or (args.fan_stop_value is None):
+      logging.getLogger("Startup").warning("Missing --pwm-start-value or --pwm-stop-value argument, running hardware test to find values")
+    test(args.drive_filepaths,
+         args.fan_pwm_filepath,
+         args.stat_filepaths)
+
+  else:
+    # main
+    with contextlib.ExitStack() as deamon_context:
+      if args.daemonize:
+        preserved_fds = None
+        if args.log_filepath is not None:
+          log_output = deamon_context.enter_context(open(args.log_filepath, "at+"))
+          preserved_fds = [log_output.fileno()]
+        else:
+          log_output = None
+        if args.pid_filepath is not None:
+          pidfile = daemon.pidlockfile.PIDLockFile(args.pid_filepath)
+          if pidfile.is_locked():
+            logging.getLogger().error("Daemon already running")
+            exit(1)
+        else:
+          pidfile = None
+        deamon_context.enter_context(daemon.DaemonContext(stdout=log_output,
+                                                          stderr=log_output,
+                                                          pidfile=pidfile,
+                                                          files_preserve=preserved_fds))
     main(args.drive_filepaths,
          args.fan_pwm_filepath,
          args.fan_start_value,

@@ -69,7 +69,10 @@ Before using HDD Fan control unmonitored for long  period of time, I recommend k
 
 ### Fan configuration
 
-To get the value  for the `--pwm`,  `--pwm-start-value` and `--pwm-stop-value` parameters, use the [pwmconfig tool](http://www.lm-sensors.org/wiki/man/pwmconfig).
+To get the value  for the `--pwm`,  `--pwm-start-value` and `--pwm-stop-value` parameters, you can either:
+
+* Use the `-t` or `--test` parameter, which will run some tests and detect the values at which the fans start and stop. However you need to have previously identified the PWM file (the `--pwm` parameter)
+* use the [pwmconfig tool](http://www.lm-sensors.org/wiki/man/pwmconfig).
 
 ### Drive auto spin down
 
@@ -91,16 +94,15 @@ Some Hitachi (now HGST) drives support a special way of querying temperature tha
 
     usage: hdd_fancontrol.py [-h] -d DRIVE_FILEPATHS [DRIVE_FILEPATHS ...] -p
                              FAN_PWM_FILEPATH [FAN_PWM_FILEPATH ...]
-                             --pwm-start-value FAN_START_VALUE
-                             [FAN_START_VALUE ...] --pwm-stop-value FAN_STOP_VALUE
-                             [FAN_STOP_VALUE ...] [--min-temp MIN_TEMP]
-                             [--max-temp MAX_TEMP]
+                             [--pwm-start-value FAN_START_VALUE [FAN_START_VALUE ...]]
+                             [--pwm-stop-value FAN_STOP_VALUE [FAN_STOP_VALUE ...]]
+                             [--min-temp MIN_TEMP] [--max-temp MAX_TEMP]
                              [--min-fan-speed-prct MIN_FAN_SPEED_PRCT]
                              [-i INTERVAL_S] --stat-files STAT_FILEPATHS
                              [STAT_FILEPATHS ...]
                              [--spin-down-time SPIN_DOWN_TIME_S]
                              [-v {warning,normal,debug}] [-b] [-l LOG_FILEPATH]
-                             [--pid-file PID_FILEPATH]
+                             [--pid-file PID_FILEPATH] [-t]
 
     Dynamically control fan speed according to hard drive temperature.
 
@@ -111,12 +113,12 @@ Some Hitachi (now HGST) drives support a special way of querying temperature tha
       -p FAN_PWM_FILEPATH [FAN_PWM_FILEPATH ...], --pwm FAN_PWM_FILEPATH [FAN_PWM_FILEPATH ...]
                             PWM filepath(s) to control fan speed (under /sys)
       --pwm-start-value FAN_START_VALUE [FAN_START_VALUE ...]
-                            PWM value (0-255), at which the fan starts moving. Run
-                            pwmconfig to find this value.
+                            PWM value (0-255), at which the fan starts moving. Use
+                            the -t parameter, or run pwmconfig to find this value.
       --pwm-stop-value FAN_STOP_VALUE [FAN_STOP_VALUE ...]
-                            PWM value (0-255), at which the fan stop moving. Run
-                            pwmconfig to find this value. Often 20-40 lower than
-                            start speed.
+                            PWM value (0-255), at which the fan stop moving. Use
+                            the -t parameter, or run pwmconfig to find this value.
+                            Often 20-40 lower than start speed.
       --min-temp MIN_TEMP   Temperature in Celcius at which the fan(s) will be set
                             to minimum speed.
       --max-temp MAX_TEMP   Temperature in Celcius at which the fan(s) will be set
@@ -141,6 +143,7 @@ Some Hitachi (now HGST) drives support a special way of querying temperature tha
                             Filepath for log output when using deamon mode
       --pid-file PID_FILEPATH
                             Filepath for lock file when using deamon mode
+      -t, --test            Run some tests and exit
 
 
 ## License
