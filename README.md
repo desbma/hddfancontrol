@@ -22,7 +22,7 @@ The ideal use case is for a NAS with several hard drives, a low power CPU (ie. A
 
 ## Features
 
-* Can be started in deamon mode
+* Can be started in daemon mode
 * Can control several fans and/or several drives with a single invocation
 * Can automatically spin down drives after a customizable period of inactivity
 * Can adapt to different fan caracteristics
@@ -140,9 +140,9 @@ Some Hitachi (now HGST) drives support a special way of querying temperature tha
                             Level of output to display
       -b, --background      Daemonize process
       -l LOG_FILEPATH, --log-file LOG_FILEPATH
-                            Filepath for log output when using deamon mode
+                            Filepath for log output when using daemon mode
       --pid-file PID_FILEPATH
-                            Filepath for lock file when using deamon mode
+                            Filepath for lock file when using daemon mode
       -t, --test            Run some tests and exit
 
 

@@ -541,12 +541,12 @@ if __name__ == "__main__":
                           action="store",
                           default=None,
                           dest="log_filepath",
-                          help="Filepath for log output when using deamon mode")
+                          help="Filepath for log output when using daemon mode")
   arg_parser.add_argument("--pid-file",
                           action="store",
                           default=None,
                           dest="pid_filepath",
-                          help="Filepath for lock file when using deamon mode")
+                          help="Filepath for lock file when using daemon mode")
   arg_parser.add_argument("-t",
                           "--test",
                           action="store_true",
@@ -583,11 +583,11 @@ if __name__ == "__main__":
 
   else:
     # main
-    with contextlib.ExitStack() as deamon_context:
+    with contextlib.ExitStack() as daemon_context:
       if args.daemonize:
         preserved_fds = None
         if args.log_filepath is not None:
-          log_output = deamon_context.enter_context(open(args.log_filepath, "at+"))
+          log_output = daemon_context.enter_context(open(args.log_filepath, "at+"))
           preserved_fds = [log_output.fileno()]
         else:
           log_output = None
@@ -598,7 +598,7 @@ if __name__ == "__main__":
             exit(1)
         else:
           pidfile = None
-        deamon_context.enter_context(daemon.DaemonContext(stdout=log_output,
+        daemon_context.enter_context(daemon.DaemonContext(stdout=log_output,
                                                           stderr=log_output,
                                                           pidfile=pidfile,
                                                           files_preserve=preserved_fds))
