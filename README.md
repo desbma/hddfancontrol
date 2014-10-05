@@ -1,7 +1,7 @@
 HDD Fan control
 ===============
 
-HDD Fan control is a tool to dynamically control fan speed according to hard drive temperature on Linux.
+HDD Fan control is a command line tool to dynamically control fan speed according to hard drive temperature on Linux.
 
 This has 3 benefits:
 
