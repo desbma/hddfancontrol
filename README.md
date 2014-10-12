@@ -57,7 +57,7 @@ On Ubuntu and other Debian derivatives: `sudo apt-get install hdparm hddtemp`.
 To query fan caracteristic, you may also need pwmconfig. On Ubuntu and other Debian derivatives, it is part of the fancontrol package, that you can install with `sudo apt-get install fancontrol`. HDD fancontrol and fancontrol are unrelated. The fancontrol daemon is **not** needed fot HDD fan control to operate. If you use both fancontrol and HDD fancontrol, be careful not to make them control the same fans.
 
 
-## Usage
+## Configuration
 
 ### A word of caution
 
@@ -90,60 +90,24 @@ Reading temperature while a drive is in low power state will make it spin up, so
 Some Hitachi (now HGST) drives support a special way of querying temperature that does not spin up drives, which HDD Fan control will detect and use, however it still prevents them from spinning down, so the above instructions still apply.
 
 
-## Command line reference
+## Command line usage
 
-    usage: hdd_fancontrol.py [-h] -d DRIVE_FILEPATHS [DRIVE_FILEPATHS ...] -p
-                             FAN_PWM_FILEPATH [FAN_PWM_FILEPATH ...]
-                             [--pwm-start-value FAN_START_VALUE [FAN_START_VALUE ...]]
-                             [--pwm-stop-value FAN_STOP_VALUE [FAN_STOP_VALUE ...]]
-                             [--min-temp MIN_TEMP] [--max-temp MAX_TEMP]
-                             [--min-fan-speed-prct MIN_FAN_SPEED_PRCT]
-                             [-i INTERVAL_S] --stat-files STAT_FILEPATHS
-                             [STAT_FILEPATHS ...]
-                             [--spin-down-time SPIN_DOWN_TIME_S]
-                             [-v {warning,normal,debug}] [-b] [-l LOG_FILEPATH]
-                             [--pid-file PID_FILEPATH] [-t]
+Run `./hdd_fancontrol.py -h` to get full command line reference.
 
-    Dynamically control fan speed according to hard drive temperature.
+As an example, the command line below will instruct HDD Fan control to:
 
-    optional arguments:
-      -h, --help            show this help message and exit
-      -d DRIVE_FILEPATHS [DRIVE_FILEPATHS ...], --drives DRIVE_FILEPATHS [DRIVE_FILEPATHS ...]
-                            Drive(s) to get temperature from (ie. /dev/sdX)
-      -p FAN_PWM_FILEPATH [FAN_PWM_FILEPATH ...], --pwm FAN_PWM_FILEPATH [FAN_PWM_FILEPATH ...]
-                            PWM filepath(s) to control fan speed (under /sys)
-      --pwm-start-value FAN_START_VALUE [FAN_START_VALUE ...]
-                            PWM value (0-255), at which the fan starts moving. Use
-                            the -t parameter, or run pwmconfig to find this value.
-      --pwm-stop-value FAN_STOP_VALUE [FAN_STOP_VALUE ...]
-                            PWM value (0-255), at which the fan stop moving. Use
-                            the -t parameter, or run pwmconfig to find this value.
-                            Often 20-40 lower than start speed.
-      --min-temp MIN_TEMP   Temperature in Celcius at which the fan(s) will be set
-                            to minimum speed.
-      --max-temp MAX_TEMP   Temperature in Celcius at which the fan(s) will be set
-                            to maximum speed.
-      --min-fan-speed-prct MIN_FAN_SPEED_PRCT
-                            Minimum percentage of full fan speed to set the fan
-                            to. Never set to 0 unless you have other fans to cool
-                            down your system, or a case specially designed for
-                            passive cooling.
-      -i INTERVAL_S, --interval INTERVAL_S
-                            Interval in seconds to check temperature and adjust
-                            fan speed.
-      --stat-files STAT_FILEPATHS [STAT_FILEPATHS ...]
-                            Filepath of drive stats file (ie. /sys/block/sdX/stat)
-      --spin-down-time SPIN_DOWN_TIME_S
-                            Interval in seconds after which inactive drives will
-                            be put to standby state.
-      -v {warning,normal,debug}, --verbosity {warning,normal,debug}
-                            Level of output to display
-      -b, --background      Daemonize process
-      -l LOG_FILEPATH, --log-file LOG_FILEPATH
-                            Filepath for log output when using daemon mode
-      --pid-file PID_FILEPATH
-                            Filepath for lock file when using daemon mode
-      -t, --test            Run some tests and exit
+* monitor temperature of drives `/dev/sda` and `/dev/sdb`
+* control fan speed using PWM 2 and 3 in `/sys/class/hwmon/hwmon1/device/`
+* start both fans using PWM value 200
+* consider the fans will stop with PWM value 75
+* never run the fans below 10% of their maximum speed
+* check temperature at least every minute
+* monitor drive activity using special files `/sys/block/sda/stat` and `/sys/block/sdb/stat`
+* automatically spin down drives if they are inactive for 2 hours (7200 seconds)
+* run in daemon mode
+* log what is going on to `/var/log/hdd_fancontrol.log`
+
+`./hdd_fancontrol.py -d /dev/sda /dev/sdb -p /sys/class/hwmon/hwmon1/device/pwm2 /sys/class/hwmon/hwmon1/device/pwm3 --pwm-start-value 200 200 --pwm-stop-value 75 75 --min-fan-speed-prct 10 -i 60 --stat-files /sys/block/sda/stat /sys/block/sdb/stat --spin-down-time 7200 -b -l /var/log/hdd_fancontrol.log`
 
 
 ## License
