@@ -530,7 +530,7 @@ if __name__ == "__main__":
                           choices=("warning", "normal", "debug"),
                           default="normal",
                           dest="verbosity",
-                          help="Level of output to display")
+                          help="Level of logging output")
   arg_parser.add_argument("-b",
                           "--background",
                           action="store_true",
