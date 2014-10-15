@@ -7,6 +7,7 @@ import argparse
 import contextlib
 import enum
 import logging
+import logging.handlers
 import operator
 import os
 import re
@@ -564,8 +565,19 @@ if __name__ == "__main__":
                    "normal": logging.INFO,
                    "debug": logging.DEBUG}
   logging.getLogger().setLevel(logging_level[args.verbosity])
-  logging_formatter = colored_logging.ColoredFormatter(fmt="%(asctime)s %(levelname)s [%(name)s] %(message)s")
-  logging_handler = logging.StreamHandler()
+  logging_fmt = "%(asctime)s %(levelname)s [%(name)s] %(message)s"
+  if args.daemonize:
+    logging_formatter = logging.Formatter(fmt=logging_fmt)
+    if args.log_filepath is not None:
+      # log to file
+      logging_handler = logging.handlers.WatchedFileHandler(args.log_filepath)
+    else:
+      # no logging output
+      logging_handler = logging.handlers.NullHandler()
+  else:
+    # log to stderr
+    logging_formatter = colored_logging.ColoredFormatter(fmt=logging_fmt)
+    logging_handler = logging.StreamHandler()
   logging_handler.setFormatter(logging_formatter)
   logging.getLogger().addHandler(logging_handler)
 
@@ -587,10 +599,7 @@ if __name__ == "__main__":
       if args.daemonize:
         preserved_fds = None
         if args.log_filepath is not None:
-          log_output = daemon_context.enter_context(open(args.log_filepath, "at+"))
-          preserved_fds = [log_output.fileno()]
-        else:
-          log_output = None
+          preserved_fds = [logging_handler.stream.fileno()]
         if args.pid_filepath is not None:
           pidfile = daemon.pidlockfile.PIDLockFile(args.pid_filepath)
           if pidfile.is_locked():
@@ -598,9 +607,7 @@ if __name__ == "__main__":
             exit(1)
         else:
           pidfile = None
-        daemon_context.enter_context(daemon.DaemonContext(stdout=log_output,
-                                                          stderr=log_output,
-                                                          pidfile=pidfile,
+        daemon_context.enter_context(daemon.DaemonContext(pidfile=pidfile,
                                                           files_preserve=preserved_fds))
     main(args.drive_filepaths,
          args.fan_pwm_filepath,
