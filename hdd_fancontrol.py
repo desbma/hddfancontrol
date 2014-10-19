@@ -93,7 +93,7 @@ class Drive:
 
   def spinDown(self):
     """ Spin down a drive, effectively setting it to DriveState.STANDBY state. """
-    logging.getLogger().info("Spinning down drive %s" % (self))
+    self.logger.info("Spinning down drive %s" % (self))
     cmd = ("hdparm", "-y", self.device_filepath)
     subprocess.check_call(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
@@ -111,18 +111,18 @@ class DriveSpinDownThread(threading.Thread):
   """ Thread responsible for spinning down a drive when it is not active for a certain amount of time. """
 
   def __init__(self, drive, spin_down_time_s):
+    super().__init__(name="%s-%s" % (__class__.__name__, drive))
     self.drive = drive
     self.spin_down_time_s = spin_down_time_s
-    super().__init__(name="%s-%s" % (__class__.__name__, drive))
+    self.logger = logging.getLogger(self.name)
 
   def run(self):
     """ Thread loop. """
     try:
-      logger = logging.getLogger(self.name)
       previous_stats = None
       while True:
         if self.drive.isSleeping():
-          logger.debug("Drive is already sleeping")
+          self.logger.debug("Drive is already sleeping")
           time.sleep(60)
           continue
 
@@ -138,16 +138,16 @@ class DriveSpinDownThread(threading.Thread):
         stats = self.drive.getActivityStats()
         now = time.time()
         if stats != previous_stats:
-          logger.debug("Drive is active")
+          self.logger.debug("Drive is active")
           previous_stats = None
         else:
           delta = now - previous_stats_time
-          logger.debug("Drive is inactive for %u min" % (int(delta / 60)))
+          self.logger.debug("Drive is inactive for %u min" % (int(delta / 60)))
           if delta > self.spin_down_time_s:
             self.drive.spinDown()
 
     except Exception as e:
-      logging.getLogger().error(e)
+      self.logger.error(e)
 
 
 class Fan:
@@ -381,6 +381,7 @@ def test(drive_filepaths, fan_pwm_filepaths, stat_filepaths):
 
 def main(drive_filepaths, fan_pwm_filepaths, fan_start_values, fan_stop_values, min_fan_speed_prct, min_temp, max_temp,
          interval_s, spin_down_time_s, stat_filepaths):
+  logger = logging.getLogger("Main")
   try:
     fans = [Fan(i,
                 fan_pwm_filepath,
@@ -412,7 +413,6 @@ def main(drive_filepaths, fan_pwm_filepaths, fan_start_values, fan_stop_values, 
       # calc max drive temperature
       temps = []
       awakes = []
-      logger = logging.getLogger("Fan speed control")
       for drive in drives:
         awake = not drive.isSleeping()
         awakes.append(awake)
@@ -455,7 +455,7 @@ def main(drive_filepaths, fan_pwm_filepaths, fan_start_values, fan_stop_values, 
       time.sleep(current_interval_s)
 
   except Exception as e:
-    logging.getLogger().error(e)
+    logger.error(e)
 
 
 # check deps
@@ -603,7 +603,7 @@ if __name__ == "__main__":
         if args.pid_filepath is not None:
           pidfile = daemon.pidlockfile.PIDLockFile(args.pid_filepath)
           if pidfile.is_locked():
-            logging.getLogger().error("Daemon already running")
+            logging.getLogger("Startup").error("Daemon already running")
             exit(1)
         else:
           pidfile = None
