@@ -12,6 +12,7 @@ import operator
 import os
 import re
 import shutil
+import signal
 import stat
 import subprocess
 import threading
@@ -22,6 +23,9 @@ import daemon.pidlockfile
 
 import bin_dep
 import colored_logging
+
+
+exit_evt = threading.Event()
 
 
 class Drive:
@@ -120,10 +124,10 @@ class DriveSpinDownThread(threading.Thread):
     """ Thread loop. """
     try:
       previous_stats = None
-      while True:
+      while not exit_evt.is_set():
         if self.drive.isSleeping():
           self.logger.debug("Drive is already sleeping")
-          time.sleep(60)
+          self.sleep(60)
           continue
 
         if previous_stats is None:
@@ -132,7 +136,9 @@ class DriveSpinDownThread(threading.Thread):
           previous_stats_time = time.time()
 
         # sleep
-        time.sleep(min(self.spin_down_time_s, 60))
+        self.sleep(min(self.spin_down_time_s, 60))
+        if exit_evt.is_set():
+          break
 
         # get stats again
         stats = self.drive.getActivityStats()
@@ -146,8 +152,17 @@ class DriveSpinDownThread(threading.Thread):
           if delta > self.spin_down_time_s:
             self.drive.spinDown()
 
+      self.logger.info("Exiting")
+
     except Exception as e:
       self.logger.error(e)
+
+  def sleep(self, s):
+    """ Sleep for s seconds, or less if exit event occurs. """
+    self.logger.debug("Sleeping for %u seconds" % (s))
+    interrupted = exit_evt.wait(timeout=s)
+    if interrupted:
+      self.logger.debug("Sleep interrupted")
 
 
 class Fan:
@@ -379,10 +394,21 @@ def test(drive_filepaths, fan_pwm_filepaths, stat_filepaths):
   tester.run()
 
 
+def signal_handler(sig, frame):
+  logging.getLogger("Signal handler").info("Catched signal %u" % (sig))
+  global exit_evt
+  exit_evt.set()
+
+
 def main(drive_filepaths, fan_pwm_filepaths, fan_start_values, fan_stop_values, min_fan_speed_prct, min_temp, max_temp,
          interval_s, spin_down_time_s, stat_filepaths):
   logger = logging.getLogger("Main")
   try:
+    # register signal handler
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+
+    # init
     fans = [Fan(i,
                 fan_pwm_filepath,
                 fan_start_value,
@@ -407,7 +433,7 @@ def main(drive_filepaths, fan_pwm_filepaths, fan_start_values, fan_stop_values, 
       for thread in spin_down_threads:
         thread.start()
 
-    while True:
+    while not exit_evt.is_set():
       now = time.time()
 
       # calc max drive temperature
@@ -452,7 +478,12 @@ def main(drive_filepaths, fan_pwm_filepaths, fan_start_values, fan_stop_values, 
       else:
         current_interval_s = interval_s
       logger.debug("Sleeping for %u seconds" % (current_interval_s))
-      time.sleep(current_interval_s)
+      exit_evt.wait(current_interval_s)
+
+    logger.info("Exiting")
+
+    for thread in spin_down_threads:
+      thread.join()
 
   except Exception as e:
     logger.error(e)
