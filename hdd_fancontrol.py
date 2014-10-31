@@ -558,7 +558,6 @@ if __name__ == "__main__":
                           help="Interval in seconds after which inactive drives will be put to standby state.")
   arg_parser.add_argument("-v",
                           "--verbosity",
-                          action="store",
                           choices=("warning", "normal", "debug"),
                           default="normal",
                           dest="verbosity",
@@ -570,12 +569,10 @@ if __name__ == "__main__":
                           help="Daemonize process")
   arg_parser.add_argument("-l",
                           "--log-file",
-                          action="store",
                           default=None,
                           dest="log_filepath",
                           help="Filepath for log output when using daemon mode")
   arg_parser.add_argument("--pid-file",
-                          action="store",
                           default=None,
                           dest="pid_filepath",
                           help="Filepath for lock file when using daemon mode")
