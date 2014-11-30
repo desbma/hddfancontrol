@@ -96,7 +96,7 @@ class Drive:
                                        stderr=subprocess.DEVNULL,
                                        universal_newlines=True)
       temp = int(re.search("drive temperature \(celsius\) is:\s*([0-9]*)", output).group(1))
-    self.logger.debug("Drive temperature: %u°C" % (temp))
+    self.logger.debug("Drive temperature: %u C" % (temp))
     return temp
 
   def spinDown(self):
@@ -452,7 +452,7 @@ def main(drive_filepaths, fan_pwm_filepaths, fan_start_values, fan_stop_values, 
           logger.debug("Drive %s is in low power state, unable to query temperature" % (drive))
       if temps:
         temp = max(temps)
-        logger.info("Maximum drive temperature: %u°C" % (temp))
+        logger.info("Maximum drive temperature: %u C" % (temp))
       else:
         assert(not any(awakes))
         logger.info("All drives are in low power state")
