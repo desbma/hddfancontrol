@@ -21,8 +21,8 @@ import time
 import daemon
 import daemon.pidlockfile
 
-import bin_dep
-import colored_logging
+from . import bin_dep
+from . import colored_logging
 
 
 exit_evt = threading.Event()
@@ -489,13 +489,10 @@ def main(drive_filepaths, fan_pwm_filepaths, fan_start_values, fan_stop_values, 
     logger.error(e)
 
 
-# check deps
-bin_dep.check_bin_dependency(("hddtemp", "hdparm"))
-
-
-if __name__ == "__main__":
+def cl_main():
   # parse args
-  arg_parser = argparse.ArgumentParser(description=__doc__)
+  arg_parser = argparse.ArgumentParser(description=__doc__,
+                                       formatter_class=argparse.ArgumentDefaultsHelpFormatter)
   arg_parser.add_argument("-d",
                           "--drives",
                           required=True,
@@ -647,3 +644,11 @@ if __name__ == "__main__":
          args.interval_s,
          args.spin_down_time_s,
          args.stat_filepaths)
+
+
+# check deps
+bin_dep.check_bin_dependency(("hddtemp", "hdparm"))
+
+
+if __name__ == "__main__":
+  cl_main()

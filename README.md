@@ -45,12 +45,20 @@ Most motherboards and SATA drives fit these requirements.
 
 ## Installation
 
-HDD Fan control needs Python >= 3.4. It probably works with Python 3.3 with minimum efforts, or even previous 3.x versions, but I have not tested it.
+**HDD Fan control needs Python >= 3.4.**
 
-1. Clone this repository
-2. If you don't have it, [install pip](http://www.pip-installer.org/en/latest/installing.html) for Python3 (may not be needed with Python >= 3.4).
-On Ubuntu and other Debian derivatives, you can install with `sudo apt-get install python3-pip`
-3. Install Python dependencies: `pip3 install -r requirements.txt`
+### From PyPI (with PIP)
+
+1. If you don't already have it, [install pip](http://www.pip-installer.org/en/latest/installing.html) for Python 3 (not needed if you are using Python >= 3.4)
+2. Install HDD Fan control: `pip3 install hddfancontrol`
+3. Install [hdparm](http://sourceforge.net/projects/hdparm/) and [hddtemp](http://www.guzu.net/linux/hddtemp.php).
+On Ubuntu and other Debian derivatives: `sudo apt-get install hdparm hddtemp`.
+
+### From source
+
+1. If you don't already have it, [install setuptools](https://pypi.python.org/pypi/setuptools#installation-instructions) for Python 3
+2. Clone this repository: `git clone https://github.com/desbma/hddfancontrol`
+3. Install HDD Fan control: `python3 setup.py install`
 4. Install [hdparm](http://sourceforge.net/projects/hdparm/) and [hddtemp](http://www.guzu.net/linux/hddtemp.php).
 On Ubuntu and other Debian derivatives: `sudo apt-get install hdparm hddtemp`.
 
@@ -92,7 +100,7 @@ Some Hitachi (now HGST) drives support a special way of querying temperature tha
 
 ## Command line usage
 
-Run `./hdd_fancontrol.py -h` to get full command line reference.
+Run `hddfancontrol -h` to get full command line reference.
 
 As an example, the command line below will instruct HDD Fan control to:
 
@@ -105,9 +113,9 @@ As an example, the command line below will instruct HDD Fan control to:
 * monitor drive activity using special files `/sys/block/sda/stat` and `/sys/block/sdb/stat`
 * automatically spin down drives if they are inactive for 2 hours (7200 seconds)
 * run in daemon mode
-* log what is going on to `/var/log/hdd_fancontrol.log`
+* log what is going on to `/var/log/hddfancontrol.log`
 
-`./hdd_fancontrol.py -d /dev/sda /dev/sdb -p /sys/class/hwmon/hwmon1/device/pwm2 /sys/class/hwmon/hwmon1/device/pwm3 --pwm-start-value 200 200 --pwm-stop-value 75 75 --min-fan-speed-prct 10 -i 60 --stat-files /sys/block/sda/stat /sys/block/sdb/stat --spin-down-time 7200 -b -l /var/log/hdd_fancontrol.log`
+`hddfancontrol -d /dev/sda /dev/sdb -p /sys/class/hwmon/hwmon1/device/pwm2 /sys/class/hwmon/hwmon1/device/pwm3 --pwm-start-value 200 200 --pwm-stop-value 75 75 --min-fan-speed-prct 10 -i 60 --stat-files /sys/block/sda/stat /sys/block/sdb/stat --spin-down-time 7200 -b -l /var/log/hddfancontrol.log`
 
 
 ## License

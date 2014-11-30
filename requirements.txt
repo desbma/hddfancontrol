@@ -1,1 +1,1 @@
--e git+https://github.com/Yuego/python-daemon@1.5.5#egg=python-daemon-py3k
+python-daemon-3K>=1.5.8
