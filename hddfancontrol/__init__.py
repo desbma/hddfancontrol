@@ -3,6 +3,10 @@
 
 """ Dynamically control fan speed according to hard drive temperature. """
 
+__version__ = "1.0.0"
+__author__ = "desbma"
+__license__ = "GPLv3"
+
 import argparse
 import contextlib
 import enum
@@ -491,7 +495,7 @@ def main(drive_filepaths, fan_pwm_filepaths, fan_start_values, fan_stop_values, 
 
 def cl_main():
   # parse args
-  arg_parser = argparse.ArgumentParser(description=__doc__,
+  arg_parser = argparse.ArgumentParser(description="HDD Fan Control v%s.%s" % (__version__, __doc__),
                                        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
   arg_parser.add_argument("-d",
                           "--drives",
