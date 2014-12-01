@@ -408,6 +408,19 @@ def main(drive_filepaths, fan_pwm_filepaths, fan_start_values, fan_stop_values, 
          interval_s, spin_down_time_s, stat_filepaths):
   logger = logging.getLogger("Main")
   try:
+    # renice to "real time" priority
+    target_niceness = -19
+    previous_niceness = os.nice(0)
+    delta_niceness = target_niceness - previous_niceness
+    try:
+      new_niceness = os.nice(delta_niceness)
+    except PermissionError:
+      new_niceness = previous_niceness
+    if new_niceness != target_niceness:
+      logger.warning("Unable to renice process to %d, current niceness is %d" % (target_niceness, new_niceness))
+    else:
+      logger.info("Process reniced from %d to %d" % (previous_niceness, new_niceness))
+
     # register signal handler
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
