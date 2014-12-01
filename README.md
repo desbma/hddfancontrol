@@ -49,7 +49,7 @@ Most motherboards and SATA drives fit these requirements.
 
 ## Installation
 
-**HDD Fan control needs Python >= 3.4.**
+**HDD Fan control needs Python >= 3.3.**
 
 ### From PyPI (with PIP)
 
