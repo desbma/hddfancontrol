@@ -1,6 +1,10 @@
 HDD Fan control
 ===============
 
+[![Latest Version](https://pypip.in/version/hddfancontrol/badge.svg?style=flat)](https://pypi.python.org/pypi/hddfancontrol/)
+[![Supported Python versions](https://pypip.in/py_versions/hddfancontrol/badge.svg?style=flat)](https://pypi.python.org/pypi/hddfancontrol/)
+[![License](https://pypip.in/license/hddfancontrol/badge.svg?style=flat)](https://pypi.python.org/pypi/hddfancontrol/)
+
 HDD Fan control is a command line tool to dynamically control fan speed according to hard drive temperature on Linux.
 
 This has 3 benefits:
