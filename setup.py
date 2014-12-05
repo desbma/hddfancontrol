@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import os
+import re
+
 from setuptools import find_packages, setup
 
-VERSION = "1.0.2"
 
+with open(os.path.join("hddfancontrol", "__init__.py"), "rt") as f:
+  version = re.search("__version__ = \"([^\"]+)\"", f.read()).group(1)
 
 with open("requirements.txt", "rt") as f:
   requirements = f.read().splitlines()
@@ -13,7 +17,7 @@ with open("README.md", "rt") as f:
   readme = f.read()
 
 setup(name="hddfancontrol",
-      version=VERSION,
+      version=version,
       author="desbma",
       packages=find_packages(),
       entry_points={"console_scripts": ["hddfancontrol = hddfancontrol:cl_main"]},
@@ -21,7 +25,7 @@ setup(name="hddfancontrol",
       description="Control system fan speed by monitoring hard drive temperature",
       long_description=readme,
       url="https://github.com/desbma/hddfancontrol",
-      download_url="https://github.com/desbma/hddfancontrol/archive/%s.tar.gz" % (VERSION),
+      download_url="https://github.com/desbma/hddfancontrol/archive/%s.tar.gz" % (version),
       keywords=["hdd", "drive", "temperature", "fan", "control", "speed"],
       classifiers=["Development Status :: 5 - Production/Stable",
                    "Environment :: Console",
