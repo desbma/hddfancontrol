@@ -159,7 +159,7 @@ class DriveSpinDownThread(threading.Thread):
       self.logger.info("Exiting")
 
     except Exception as e:
-      self.logger.error(e)
+      self.logger.error("%s: %s" % (e.__class__.__name__, e))
 
   def sleep(self, s):
     """ Sleep for s seconds, or less if exit event occurs. """
@@ -503,7 +503,7 @@ def main(drive_filepaths, fan_pwm_filepaths, fan_start_values, fan_stop_values, 
       thread.join()
 
   except Exception as e:
-    logger.error(e)
+    logger.error("%s: %s" % (e.__class__.__name__, e))
 
 
 def cl_main():
