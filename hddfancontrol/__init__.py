@@ -189,6 +189,7 @@ class Fan:
     pwm_num = int(__class__.LAST_DIGITS_REGEX.search(self.pwm_filepath).group(1))
     self.fan_input_filepath = os.path.join(os.path.dirname(self.pwm_filepath),
                                            "fan%u_input" % (pwm_num))
+    self.enable_filepath = "%s_enable" % (self.pwm_filepath)
     self.start_value = start_value
     self.stop_value = stop_value
     self.startup = False
@@ -255,13 +256,12 @@ class Fan:
   def setPwmValue(self, value):
     """ Set fan PWM value. """
     assert(0 <= value <= 255)
-    enabled_filepath = "%s_enable" % (self.pwm_filepath)
-    with open(enabled_filepath, "r+t") as enabled_file:
-      enabled_val = int(enabled_file.read().strip())
+    with open(self.enable_filepath, "r+t") as enable_file:
+      enabled_val = int(enable_file.read().strip())
       if enabled_val != 1:
-        self.logger.warning("%s was %u, setting it to 1", enabled_filepath, enabled_val)
-      enabled_file.seek(0)
-      enabled_file.write("1")
+        self.logger.warning("%s was %u, setting it to 1", enable_filepath, enabled_val)
+      enable_file.seek(0)
+      enable_file.write("1")
     with open(self.pwm_filepath, "wt") as pwm_file:
       self.logger.debug("Setting PWM value to %u" % (value))
       pwm_file.write("%u" % (value))
