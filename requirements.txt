@@ -1,1 +1,2 @@
+enum34
 python-daemon-3K>=1.5.8
