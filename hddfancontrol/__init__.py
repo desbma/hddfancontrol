@@ -182,6 +182,9 @@ class Fan:
     assert(0 <= stop_value <= 255)
     self.id = id
     self.pwm_filepath = pwm_filepath
+    pwm_num = int(__class__.LAST_DIGITS_REGEX.search(self.pwm_filepath).group(1))
+    self.fan_input_filepath = os.path.join(os.path.dirname(self.pwm_filepath),
+                                           "fan%u_input" % (pwm_num))
     self.start_value = start_value
     self.stop_value = stop_value
     self.startup = False
@@ -189,9 +192,7 @@ class Fan:
 
   def getRpm(self):
     """ Read fan speed in revolutions per minute. """
-    pwm_num = int(__class__.LAST_DIGITS_REGEX.search(self.pwm_filepath).group(1))
-    fan_input_filepath = os.path.join(os.path.dirname(self.pwm_filepath), "fan%u_input" % (pwm_num))
-    with open(fan_input_filepath, "rt") as fan_input_file:
+    with open(self.fan_input_filepath, "rt") as fan_input_file:
       rpm = int(fan_input_file.read().strip())
       self.logger.debug("Rotation speed is currently %u rpm" % (rpm))
     return rpm
