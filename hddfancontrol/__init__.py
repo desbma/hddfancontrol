@@ -182,6 +182,10 @@ class Fan:
     assert(0 <= stop_value <= 255)
     self.id = id
     self.pwm_filepath = pwm_filepath
+    if stat.S_ISBLK(os.stat(self.pwm_filepath).st_mode):
+      # we don't want to write to a block device in setPwmValue
+      # command line parameters have probably been mixed up
+      raise RuntimeError("%s is a block device, PWM /sys file expected" % (self.pwm_filepath))
     pwm_num = int(__class__.LAST_DIGITS_REGEX.search(self.pwm_filepath).group(1))
     self.fan_input_filepath = os.path.join(os.path.dirname(self.pwm_filepath),
                                            "fan%u_input" % (pwm_num))
@@ -251,7 +255,6 @@ class Fan:
   def setPwmValue(self, value):
     """ Set fan PWM value. """
     assert(0 <= value <= 255)
-    assert(not stat.S_ISBLK(os.stat(self.pwm_filepath).st_mode))  # check we are not mistakenly writing to a device file
     enabled_filepath = "%s_enable" % (self.pwm_filepath)
     with open(enabled_filepath, "r+t") as enabled_file:
       enabled_val = int(enabled_file.read().strip())
