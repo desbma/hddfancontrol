@@ -38,6 +38,8 @@ class Drive:
 
   DriveState = enum.Enum("DriveState", ("UNKNOWN", "ACTIVE_IDLE", "STANDBY", "SLEEPING"))
 
+  HDPARM_GET_TEMP_HITACHI_REGEX = re.compile("drive temperature \(celsius\) is:\s*([0-9]*)")
+
   def __init__(self, device_filepath, stat_filepath):
     assert(stat.S_ISBLK(os.stat(device_filepath).st_mode))
     self.device_filepath = device_filepath
@@ -95,7 +97,7 @@ class Drive:
                                        stdin=subprocess.DEVNULL,
                                        stderr=subprocess.DEVNULL,
                                        universal_newlines=True)
-      temp = int(re.search("drive temperature \(celsius\) is:\s*([0-9]*)", output).group(1))
+      temp = int(__class__.HDPARM_GET_TEMP_HITACHI_REGEX.search(output).group(1))
     self.logger.debug("Drive temperature: %u C" % (temp))
     return temp
 
@@ -173,6 +175,8 @@ class Fan:
 
   """ Represent a fan associated with a PWM file to control its speed. """
 
+  LAST_DIGITS_REGEX = re.compile("[^0-9]*([0-9]*)$")
+
   def __init__(self, id, pwm_filepath, start_value, stop_value):
     assert(0 <= start_value <= 255)
     assert(0 <= stop_value <= 255)
@@ -185,7 +189,7 @@ class Fan:
 
   def getRpm(self):
     """ Read fan speed in revolutions per minute. """
-    pwm_num = int(re.search("[^0-9]*([0-9]*)$", self.pwm_filepath).group(1))
+    pwm_num = int(__class__.LAST_DIGITS_REGEX.search(self.pwm_filepath).group(1))
     fan_input_filepath = os.path.join(os.path.dirname(self.pwm_filepath), "fan%u_input" % (pwm_num))
     with open(fan_input_filepath, "rt") as fan_input_file:
       rpm = int(fan_input_file.read().strip())
