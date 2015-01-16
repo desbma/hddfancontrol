@@ -302,7 +302,7 @@ class Fan:
     with open(self.enable_filepath, "r+t") as enable_file:
       enabled_val = int(enable_file.read().strip())
       if enabled_val != 1:
-        self.logger.warning("%s was %u, setting it to 1", enable_filepath, enabled_val)
+        self.logger.warning("%s was %u, setting it to 1", self.enable_filepath, enabled_val)
       enable_file.seek(0)
       enable_file.write("1")
     with open(self.pwm_filepath, "wt") as pwm_file:
