@@ -10,6 +10,7 @@ __license__ = "GPLv3"
 import argparse
 import contextlib
 import enum
+import itertools
 import logging
 import logging.handlers
 import operator
@@ -17,6 +18,7 @@ import os
 import re
 import shutil
 import signal
+import socket
 import stat
 import subprocess
 import threading
@@ -40,10 +42,11 @@ class Drive:
 
   HDPARM_GET_TEMP_HITACHI_REGEX = re.compile("drive temperature \(celsius\) is:\s*([0-9]*)")
 
-  def __init__(self, device_filepath, stat_filepath):
+  def __init__(self, device_filepath, stat_filepath, hddtemp_daemon_port):
     assert(stat.S_ISBLK(os.stat(device_filepath).st_mode))
     self.device_filepath = device_filepath
     self.stat_filepath = stat_filepath
+    self.hddtemp_daemon_port = hddtemp_daemon_port
     self.logger = logging.getLogger(str(self))
     # test if drive supports hdparm -H
     cmd = ("hdparm", "-H", self.device_filepath)
@@ -85,12 +88,41 @@ class Drive:
   def getTemperature(self):
     """ Get drive temperature in Celcius using either hddtemp or hdparm. """
     if not self.supports_hitachi_temp_query:
-      cmd = ("hddtemp", "-u", "C", "-n", self.device_filepath)
-      output = subprocess.check_output(cmd,
-                                       stdin=subprocess.DEVNULL,
-                                       stderr=subprocess.DEVNULL,
-                                       universal_newlines=True)
-      temp = int(output.strip())
+      if self.hddtemp_daemon_port is not None:
+        # get temp from daemon
+        daemon_data = bytearray()
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sckt:
+          sckt.connect(("127.0.0.1", self.hddtemp_daemon_port))
+          while True:
+            new_daemon_data = sckt.recv(4096)
+            if not new_daemon_data:
+              break
+            daemon_data.extend(new_daemon_data)
+        # parse it
+        daemon_data = daemon_data.decode("utf-8")
+        drives_data = iter(daemon_data.split("|")[:-1])
+        found = False
+        while True:
+          drive_data = tuple(itertools.islice(drives_data, 0, 5))
+          if not drive_data:
+            break
+          drive_path = drive_data[1]
+          if __class__.normalizeDrivePath(drive_path) == __class__.normalizeDrivePath(self.device_filepath):
+            temp_unit = drive_data[4]
+            if temp_unit != "C":
+              raise RuntimeError("hddtemp daemon is not returning temp as Celsius")
+            temp = int(drive_data[3])
+            found = True
+            break
+        if not found:
+          raise RuntimeError("Unable to get temperature from hddtemp daemon for drive %s" % (self))
+      else:
+        cmd = ("hddtemp", "-u", "C", "-n", self.device_filepath)
+        output = subprocess.check_output(cmd,
+                                         stdin=subprocess.DEVNULL,
+                                         stderr=subprocess.DEVNULL,
+                                         universal_newlines=True)
+        temp = int(output.strip())
     else:
       cmd = ("hdparm", "-H", self.device_filepath)
       output = subprocess.check_output(cmd,
@@ -114,6 +146,17 @@ class Drive:
     stats = filter(None, map(str.strip, stats.strip().split(" ")))
     stats = tuple(map(int, stats))
     return stats
+
+  @staticmethod
+  def normalizeDrivePath(path):
+    """ Normalize filepath by following symbolic links, and making it absolute. """
+    if os.path.islink(path):
+      r = os.readlink(path)
+      if not os.path.isabs(r):
+        r = os.path.join(os.path.dirname(path), r)
+    else:
+      r = path
+    return os.path.abspath(r)
 
 
 class DriveSpinDownThread(threading.Thread):
@@ -396,11 +439,12 @@ class TestHardware:
     print(("[ %s ]" % ("OK" if ok else "KO")).rjust(shutil.get_terminal_size()[0] - len(desc) - 1))
 
 
-def test(drive_filepaths, fan_pwm_filepaths, stat_filepaths):
+def test(drive_filepaths, fan_pwm_filepaths, stat_filepaths, hddtemp_daemon_port):
   fans = [Fan(i, fan_pwm_filepath, 0, 0) for i, fan_pwm_filepath in enumerate(fan_pwm_filepaths, 1)]
   drives = [Drive(drive_filepath,
-                  stat_filepath) for drive_filepath, stat_filepath in zip(drive_filepaths,
-                                                                          stat_filepaths)]
+                  stat_filepath,
+                  hddtemp_daemon_port) for drive_filepath, stat_filepath in zip(drive_filepaths,
+                                                                                stat_filepaths)]
 
   tester = TestHardware(drives, fans)
   tester.run()
@@ -413,7 +457,7 @@ def signal_handler(sig, frame):
 
 
 def main(drive_filepaths, fan_pwm_filepaths, fan_start_values, fan_stop_values, min_fan_speed_prct, min_temp, max_temp,
-         interval_s, spin_down_time_s, stat_filepaths):
+         interval_s, spin_down_time_s, stat_filepaths, hddtemp_daemon_port):
   logger = logging.getLogger("Main")
   try:
     # renice to "real time" priority
@@ -445,8 +489,9 @@ def main(drive_filepaths, fan_pwm_filepaths, fan_start_values, fan_stop_values, 
                                                                       fan_stop_values),
                                                                   1)]
     drives = [Drive(drive_filepath,
-                    stat_filepath) for drive_filepath, stat_filepath in zip(drive_filepaths,
-                                                                            stat_filepaths)]
+                    stat_filepath,
+                    hddtemp_daemon_port) for drive_filepath, stat_filepath in zip(drive_filepaths,
+                                                                                  stat_filepaths)]
 
     drives_startup_time = time.time()
 
@@ -604,6 +649,17 @@ def cl_main():
                           default=False,
                           dest="test_mode",
                           help="Run some tests and exit")
+  arg_parser.add_argument("--hddtemp-daemon",
+                          action="store_true",
+                          default=False,
+                          dest="hddtemp_daemon",
+                          help="""Get drive temperature from hddtemp daemon if possible instead of spawning
+                                  a new process each time""")
+  arg_parser.add_argument("--hddtemp-daemon-port",
+                          type=int,
+                          default=7634,
+                          dest="hddtemp_daemon_port",
+                          help="hddtemp daemon port if option --hddtemp-daemon is used")
   args = arg_parser.parse_args()
   if ((len(args.fan_pwm_filepath) != len(args.stat_filepaths)) or
       ((args.fan_start_value is not None) and (len(args.fan_pwm_filepath) != len(args.fan_start_value))) or
@@ -641,7 +697,8 @@ def cl_main():
       logging.getLogger("Startup").warning("Missing --pwm-start-value or --pwm-stop-value argument, running hardware test to find values")
     test(args.drive_filepaths,
          args.fan_pwm_filepath,
-         args.stat_filepaths)
+         args.stat_filepaths,
+         args.hddtemp_daemon_port if args.hddtemp_daemon else None)
 
   else:
     # main
@@ -668,7 +725,8 @@ def cl_main():
          args.max_temp,
          args.interval_s,
          args.spin_down_time_s,
-         args.stat_filepaths)
+         args.stat_filepaths,
+         args.hddtemp_daemon_port if args.hddtemp_daemon else None)
 
 
 # check deps
