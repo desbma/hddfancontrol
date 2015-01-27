@@ -552,6 +552,10 @@ def main(drive_filepaths, fan_pwm_filepaths, fan_start_values, fan_stop_values, 
 
     logger.info("Exiting")
 
+    # run fans at full speed at exit
+    for fan in fans:
+      fan.setSpeed(100, 100)
+
     for thread in spin_down_threads:
       thread.join()
 
