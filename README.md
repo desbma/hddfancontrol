@@ -2,6 +2,8 @@ HDD Fan control
 ===============
 
 [![Latest Version](https://pypip.in/version/hddfancontrol/badge.svg?style=flat)](https://pypi.python.org/pypi/hddfancontrol/)
+[![Tests Status](https://img.shields.io/travis/desbma/hddfancontrol/master.svg?label=tests&style=flat)](https://travis-ci.org/desbma/hddfancontrol)
+[![Coverage](https://img.shields.io/coveralls/desbma/hddfancontrol/master.svg?style=flat)](https://coveralls.io/r/desbma/hddfancontrol?branch=master)
 [![Supported Python versions](https://pypip.in/py_versions/hddfancontrol/badge.svg?style=flat)](https://pypi.python.org/pypi/hddfancontrol/)
 [![License](https://pypip.in/license/hddfancontrol/badge.svg?style=flat)](https://pypi.python.org/pypi/hddfancontrol/)
 
