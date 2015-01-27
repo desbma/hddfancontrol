@@ -3,12 +3,10 @@ python:
   - "3.3"
   - "3.4"
 install:
-#   - "pip install -r requirements.txt"
-#   - "pip install coveralls"
+  - "pip install -r requirements.txt"
+  - "pip install coveralls"
   - "sudo apt-get -yV install hddtemp hdparm"
 script:
-  # - "coverage run --source=hddfancontrol setup.py test"
-  - "./setup.py install"
-  - "hddfancontrol -h"
-# after_success:
-#   - "coveralls"
+  - "coverage run --source=hddfancontrol setup.py test"
+after_success:
+  - "coveralls"
