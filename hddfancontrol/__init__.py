@@ -459,6 +459,8 @@ def signal_handler(sig, frame):
 def main(drive_filepaths, fan_pwm_filepaths, fan_start_values, fan_stop_values, min_fan_speed_prct, min_temp, max_temp,
          interval_s, spin_down_time_s, stat_filepaths, hddtemp_daemon_port):
   logger = logging.getLogger("Main")
+
+  fans = []
   try:
     # renice to "real time" priority
     target_niceness = -19
@@ -552,15 +554,15 @@ def main(drive_filepaths, fan_pwm_filepaths, fan_start_values, fan_stop_values, 
 
     logger.info("Exiting")
 
-    # run fans at full speed at exit
-    for fan in fans:
-      fan.setSpeed(100, 100)
-
     for thread in spin_down_threads:
       thread.join()
 
   except Exception as e:
     logger.error("%s: %s" % (e.__class__.__name__, e))
+
+  # run fans at full speed at exit
+  for fan in fans:
+    fan.setSpeed(100, 100)
 
 
 def cl_main():
