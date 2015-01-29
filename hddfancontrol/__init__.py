@@ -145,6 +145,8 @@ class Drive:
       stats = stat_file.read()
     stats = filter(None, map(str.strip, stats.strip().split(" ")))
     stats = tuple(map(int, stats))
+    if not stats:
+      raise RuntimeError("Unable to get stats for drive %s" % (self))
     return stats
 
   @staticmethod

@@ -5,6 +5,7 @@ import logging
 import os
 import socketserver
 import subprocess
+import tempfile
 import threading
 import unittest
 import unittest.mock
@@ -83,6 +84,45 @@ class TestDrive(unittest.TestCase):
       subprocess_check_output_mock.return_value = "/dev/sdz: No such file or directory\n"
       with self.assertRaises(Exception):
         self.drive.getState()
+      subprocess_check_output_mock.assert_called_once_with(("hdparm", "-C", "/dev/sdz"),
+                                                           stdin=subprocess.DEVNULL,
+                                                           stderr=subprocess.DEVNULL,
+                                                           universal_newlines=True)
+
+  def test_isSleeping(self):
+    with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
+      subprocess_check_output_mock.return_value = "\n/dev/sdz:\n drive state is:  active/idle\n"
+      self.assertFalse(self.drive.isSleeping())
+      subprocess_check_output_mock.assert_called_once_with(("hdparm", "-C", "/dev/sdz"),
+                                                           stdin=subprocess.DEVNULL,
+                                                           stderr=subprocess.DEVNULL,
+                                                           universal_newlines=True)
+    with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
+      subprocess_check_output_mock.return_value = "\n/dev/sdz:\n drive state is:  standby\n"
+      self.assertTrue(self.drive.isSleeping())
+      subprocess_check_output_mock.assert_called_once_with(("hdparm", "-C", "/dev/sdz"),
+                                                           stdin=subprocess.DEVNULL,
+                                                           stderr=subprocess.DEVNULL,
+                                                           universal_newlines=True)
+    with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
+      subprocess_check_output_mock.return_value = "\n/dev/sdz:\n drive state is:  sleeping\n"
+      self.assertTrue(self.drive.isSleeping())
+      subprocess_check_output_mock.assert_called_once_with(("hdparm", "-C", "/dev/sdz"),
+                                                           stdin=subprocess.DEVNULL,
+                                                           stderr=subprocess.DEVNULL,
+                                                           universal_newlines=True)
+    with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
+      subprocess_check_output_mock.side_effect = subprocess.CalledProcessError(0, "")
+      with self.assertRaises(Exception):
+        self.drive.isSleeping()
+      subprocess_check_output_mock.assert_called_once_with(("hdparm", "-C", "/dev/sdz"),
+                                                           stdin=subprocess.DEVNULL,
+                                                           stderr=subprocess.DEVNULL,
+                                                           universal_newlines=True)
+    with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
+      subprocess_check_output_mock.return_value = "/dev/sdz: No such file or directory\n"
+      with self.assertRaises(Exception):
+        self.drive.isSleeping()
       subprocess_check_output_mock.assert_called_once_with(("hdparm", "-C", "/dev/sdz"),
                                                            stdin=subprocess.DEVNULL,
                                                            stderr=subprocess.DEVNULL,
@@ -172,6 +212,25 @@ class TestDrive(unittest.TestCase):
     FakeHddtempDaemon.outgoing = b""
     with self.assertRaises(Exception):
       self.drive.getTemperature()
+
+  def test_spinDown(self):
+    with unittest.mock.patch("hddfancontrol.subprocess.check_call") as subprocess_check_call_mock:
+      self.drive.spinDown()
+      subprocess_check_call_mock.assert_called_once_with(("hdparm", "-y", "/dev/sdz"),
+                                                         stdin=subprocess.DEVNULL,
+                                                         stdout=subprocess.DEVNULL,
+                                                         stderr=subprocess.DEVNULL)
+
+  def test_getActivityStats(self):
+    with self.assertRaises(Exception):
+      self.drive.getActivityStats()
+    with tempfile.NamedTemporaryFile("wt") as stat_file:
+      self.drive.stat_filepath = stat_file.name
+      with self.assertRaises(Exception):
+        self.drive.getActivityStats()
+      stat_file.write("   21695     7718  2913268    95136    13986      754   932032    55820        0    19032   150940\n")
+      stat_file.flush()
+      self.assertEqual(self.drive.getActivityStats(), (21695, 7718, 2913268, 95136, 13986, 754, 932032, 55820, 0, 19032, 150940))
 
 
 if __name__ == "__main__":
