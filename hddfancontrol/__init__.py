@@ -48,6 +48,13 @@ class Drive:
     self.stat_filepath = stat_filepath
     self.hddtemp_daemon_port = hddtemp_daemon_port
     self.logger = logging.getLogger(str(self))
+    self.supports_hitachi_temp_query = self.supportsHitachiTempQuery()
+
+  def __str__(self):
+    """ Return a pretty drive name. """
+    return os.path.basename(self.device_filepath).rsplit("-", 1)[-1]
+
+  def supportsHitachiTempQuery(self):
     # test if drive supports hdparm -H
     cmd = ("hdparm", "-H", self.device_filepath)
     try:
@@ -57,13 +64,8 @@ class Drive:
                             stderr=subprocess.DEVNULL)
     except subprocess.CalledProcessError:
       self.logger.warning("Drive does not allow querying temperature without going out of low power mode.")
-      self.supports_hitachi_temp_query = False
-    else:
-      self.supports_hitachi_temp_query = True
-
-  def __str__(self):
-    """ Return a pretty drive name. """
-    return os.path.basename(self.device_filepath).rsplit("-", 1)[-1]
+      return False
+    return True
 
   def getState(self):
     """ Get drive power state, as a DriveState enum. """
