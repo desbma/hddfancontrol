@@ -259,7 +259,7 @@ class Fan:
     """ Read fan speed in revolutions per minute. """
     with open(self.fan_input_filepath, "rt") as fan_input_file:
       rpm = int(fan_input_file.read().strip())
-      self.logger.debug("Rotation speed is currently %u rpm" % (rpm))
+    self.logger.debug("Rotation speed is currently %u rpm" % (rpm))
     return rpm
 
   def isRunning(self):
@@ -322,8 +322,8 @@ class Fan:
         self.logger.warning("%s was %u, setting it to 1", self.enable_filepath, enabled_val)
       enable_file.seek(0)
       enable_file.write("1")
+    self.logger.debug("Setting PWM value to %u" % (value))
     with open(self.pwm_filepath, "wt") as pwm_file:
-      self.logger.debug("Setting PWM value to %u" % (value))
       pwm_file.write("%u" % (value))
 
 
