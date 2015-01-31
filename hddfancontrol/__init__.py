@@ -41,18 +41,31 @@ class Drive:
   DriveState = enum.Enum("DriveState", ("UNKNOWN", "ACTIVE_IDLE", "STANDBY", "SLEEPING"))
 
   HDPARM_GET_TEMP_HITACHI_REGEX = re.compile("drive temperature \(celsius\) is:\s*([0-9]*)")
+  HDPARM_GET_MODEL_REGEX = re.compile("Model Number:\s*(.*)")
 
   def __init__(self, device_filepath, stat_filepath, hddtemp_daemon_port):
     assert(stat.S_ISBLK(os.stat(device_filepath).st_mode))
-    self.device_filepath = device_filepath
+    self.device_filepath = __class__.normalizeDrivePath(device_filepath)
     self.stat_filepath = stat_filepath
     self.hddtemp_daemon_port = hddtemp_daemon_port
+    self.pretty_name = self.getPrettyName()
     self.logger = logging.getLogger(str(self))
     self.supports_hitachi_temp_query = self.supportsHitachiTempQuery()
 
   def __str__(self):
     """ Return a pretty drive name. """
-    return os.path.basename(self.device_filepath).rsplit("-", 1)[-1]
+    return self.pretty_name
+
+  def getPrettyName(self):
+    """ Return a pretty drive name. """
+    # get device metadata to grab model string
+    cmd = ("hdparm", "-I", self.device_filepath)
+    output = subprocess.check_output(cmd,
+                                     stdin=subprocess.DEVNULL,
+                                     stderr=subprocess.DEVNULL,
+                                     universal_newlines=True)
+    model = __class__.HDPARM_GET_MODEL_REGEX.search(output).group(1).strip()
+    return "%s %s" % (os.path.basename(self.device_filepath), model)
 
   def supportsHitachiTempQuery(self):
     # test if drive supports hdparm -H
@@ -109,7 +122,7 @@ class Drive:
           if not drive_data:
             break
           drive_path = drive_data[1]
-          if __class__.normalizeDrivePath(drive_path) == __class__.normalizeDrivePath(self.device_filepath):
+          if __class__.normalizeDrivePath(drive_path) == self.device_filepath:
             temp_unit = drive_data[4]
             if temp_unit != "C":
               raise RuntimeError("hddtemp daemon is not returning temp as Celsius")
