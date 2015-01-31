@@ -36,7 +36,7 @@ The ideal use case is for a NAS with several hard drives, a low power CPU (ie. A
 * Can be configured to never set the fans below a certain speed (useful if the fans controlled by HDD Fan control are the only ones available in the chassis)
 
 
-## Prerequisities
+## Prerequisites
 
 * A Linux distribution
 * A least one SATA hard drive, that supports:
