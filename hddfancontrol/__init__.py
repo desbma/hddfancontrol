@@ -320,8 +320,8 @@ class Fan:
       enabled_val = int(enable_file.read().strip())
       if enabled_val != 1:
         self.logger.warning("%s was %u, setting it to 1", self.enable_filepath, enabled_val)
-      enable_file.seek(0)
-      enable_file.write("1")
+        enable_file.seek(0)
+        enable_file.write("1")
     self.logger.debug("Setting PWM value to %u" % (value))
     with open(self.pwm_filepath, "wt") as pwm_file:
       pwm_file.write("%u" % (value))
