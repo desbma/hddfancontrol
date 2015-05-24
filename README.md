@@ -31,7 +31,7 @@ The ideal use case is for a NAS with several hard drives, a low power CPU (ie. A
 * Can be started in daemon mode
 * Can control several fans and/or several drives with a single invocation
 * Can automatically spin down drives after a customizable period of inactivity
-* Can adapt to different fan caracteristics
+* Can adapt to different fan characteristics
 * Can be set to stop fans or run them at full speed at customizable temperatures
 * Can be configured to never set the fans below a certain speed (useful if the fans controlled by HDD Fan control are the only ones available in the chassis)
 
