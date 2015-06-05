@@ -684,7 +684,7 @@ def cl_main():
                           dest="hddtemp_daemon_port",
                           help="hddtemp daemon port if option --hddtemp-daemon is used")
   args = arg_parser.parse_args()
-  if ((len(args.fan_pwm_filepath) != len(args.stat_filepaths)) or
+  if ((len(args.drive_filepaths) != len(args.stat_filepaths)) or
       ((args.fan_start_value is not None) and (len(args.fan_pwm_filepath) != len(args.fan_start_value))) or
       ((args.fan_stop_value is not None) and (len(args.fan_pwm_filepath) != len(args.fan_stop_value)))):
     raise ValueError("Invalid parameter count")
