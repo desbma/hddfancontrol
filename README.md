@@ -97,7 +97,7 @@ To fix that, you can either:
 * use a value for the `--interval` parameter higher than your SATA spin down time (not recommended unless your spin down time is very low, ie < 2 min)
 * use the `--spin-down-time` parameter that will monitor drive activity and spin it down if inactive, independantly of the SATA feature (recommended)
 
-**Keep in mind that spinning down and up a drive repeatedly wears a it prematurly, so unless you are in a power constrained environement (ie. laptop), do not set the spin down time too low.**
+**Keep in mind that spinning down and up a drive repeatedly wears it prematurly, so unless you are in a power constrained environement (ie. laptop), do not set the spin down time too low.**
 
 Reading temperature while a drive is in low power state will make it spin up, so HDD Fan control will stop querying temperature in that case, and wait for the drive (which will be cooling down in low power state anyway) to spin up.
 
