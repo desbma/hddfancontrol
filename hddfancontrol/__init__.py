@@ -3,7 +3,7 @@
 
 """ Dynamically control fan speed according to hard drive temperature. """
 
-__version__ = "1.1.2"
+__version__ = "1.1.3"
 __author__ = "desbma"
 __license__ = "GPLv3"
 
