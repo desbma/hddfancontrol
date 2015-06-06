@@ -687,7 +687,8 @@ def cl_main():
   if ((len(args.drive_filepaths) != len(args.stat_filepaths)) or
       ((args.fan_start_value is not None) and (len(args.fan_pwm_filepath) != len(args.fan_start_value))) or
       ((args.fan_stop_value is not None) and (len(args.fan_pwm_filepath) != len(args.fan_stop_value)))):
-    raise ValueError("Invalid parameter count")
+    print("Invalid parameter count")
+    exit(1)
 
   # setup logger
   logging_level = {"warning": logging.WARNING,
