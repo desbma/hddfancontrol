@@ -116,12 +116,11 @@ As an example, the command line below will instruct HDD Fan control to:
 * consider the fans will stop with PWM value 75
 * never run the fans below 10% of their maximum speed
 * check temperature at least every minute
-* monitor drive activity using special files `/sys/block/sda/stat` and `/sys/block/sdb/stat`
 * automatically spin down drives if they are inactive for 2 hours (7200 seconds)
 * run in daemon mode
 * log what is going on to `/var/log/hddfancontrol.log`
 
-`hddfancontrol -d /dev/sda /dev/sdb -p /sys/class/hwmon/hwmon1/device/pwm2 /sys/class/hwmon/hwmon1/device/pwm3 --pwm-start-value 200 200 --pwm-stop-value 75 75 --min-fan-speed-prct 10 -i 60 --stat-files /sys/block/sda/stat /sys/block/sdb/stat --spin-down-time 7200 -b -l /var/log/hddfancontrol.log`
+`hddfancontrol -d /dev/sda /dev/sdb -p /sys/class/hwmon/hwmon1/device/pwm2 /sys/class/hwmon/hwmon1/device/pwm3 --pwm-start-value 200 200 --pwm-stop-value 75 75 --min-fan-speed-prct 10 -i 60 --spin-down-time 7200 -b -l /var/log/hddfancontrol.log`
 
 
 ## License

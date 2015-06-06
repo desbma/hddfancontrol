@@ -43,7 +43,7 @@ class TestDrive(unittest.TestCase):
       stat_mock.stat.S_IFBLK.return_value = True
       subprocess_check_call_mock.side_effect = subprocess.CalledProcessError(0, "")
       drive_getPrettyName.return_value = "drive_name"
-      self.drive = hddfancontrol.Drive("/dev/sdz", "/dummy", None)
+      self.drive = hddfancontrol.Drive("/dev/sdz", None)
     self.hddtemp_daemon = None
 
   def tearDown(self):

@@ -43,10 +43,10 @@ class Drive:
   HDPARM_GET_TEMP_HITACHI_REGEX = re.compile("drive temperature \(celsius\) is:\s*([0-9]*)")
   HDPARM_GET_MODEL_REGEX = re.compile("Model Number:\s*(.*)")
 
-  def __init__(self, device_filepath, stat_filepath, hddtemp_daemon_port):
+  def __init__(self, device_filepath, hddtemp_daemon_port):
     assert(stat.S_ISBLK(os.stat(device_filepath).st_mode))
     self.device_filepath = __class__.normalizeDrivePath(device_filepath)
-    self.stat_filepath = stat_filepath
+    self.stat_filepath = "/sys/block/%s/stat" % (os.path.basename(self.device_filepath))
     self.hddtemp_daemon_port = hddtemp_daemon_port
     self.pretty_name = self.getPrettyName()
     self.logger = logging.getLogger(str(self))
@@ -456,12 +456,9 @@ class TestHardware:
     print(("[ %s ]" % ("OK" if ok else "KO")).rjust(shutil.get_terminal_size()[0] - len(desc) - 1))
 
 
-def test(drive_filepaths, fan_pwm_filepaths, stat_filepaths, hddtemp_daemon_port):
+def test(drive_filepaths, fan_pwm_filepaths, hddtemp_daemon_port):
   fans = [Fan(i, fan_pwm_filepath, 0, 0) for i, fan_pwm_filepath in enumerate(fan_pwm_filepaths, 1)]
-  drives = [Drive(drive_filepath,
-                  stat_filepath,
-                  hddtemp_daemon_port) for drive_filepath, stat_filepath in zip(drive_filepaths,
-                                                                                stat_filepaths)]
+  drives = [Drive(drive_filepath, hddtemp_daemon_port) for drive_filepath in drive_filepaths]
 
   tester = TestHardware(drives, fans)
   tester.run()
@@ -474,7 +471,7 @@ def signal_handler(sig, frame):
 
 
 def main(drive_filepaths, fan_pwm_filepaths, fan_start_values, fan_stop_values, min_fan_speed_prct, min_temp, max_temp,
-         interval_s, spin_down_time_s, stat_filepaths, hddtemp_daemon_port):
+         interval_s, spin_down_time_s, hddtemp_daemon_port):
   logger = logging.getLogger("Main")
 
   fans = []
@@ -507,10 +504,7 @@ def main(drive_filepaths, fan_pwm_filepaths, fan_start_values, fan_stop_values, 
                                                                       fan_start_values,
                                                                       fan_stop_values),
                                                                   1)]
-    drives = [Drive(drive_filepath,
-                    stat_filepath,
-                    hddtemp_daemon_port) for drive_filepath, stat_filepath in zip(drive_filepaths,
-                                                                                  stat_filepaths)]
+    drives = [Drive(drive_filepath, hddtemp_daemon_port) for drive_filepath in drive_filepaths]
 
     drives_startup_time = time.time()
 
@@ -636,11 +630,6 @@ def cl_main():
                           default=60,
                           dest="interval_s",
                           help="Interval in seconds to check temperature and adjust fan speed.")
-  arg_parser.add_argument("--stat-files",
-                          required=True,
-                          nargs="+",
-                          dest="stat_filepaths",
-                          help="Filepath of drive stats file (ie. /sys/block/sdX/stat)")
   arg_parser.add_argument("--spin-down-time",
                           type=int,
                           default=None,
@@ -684,8 +673,7 @@ def cl_main():
                           dest="hddtemp_daemon_port",
                           help="hddtemp daemon port if option --hddtemp-daemon is used")
   args = arg_parser.parse_args()
-  if ((len(args.drive_filepaths) != len(args.stat_filepaths)) or
-      ((args.fan_start_value is not None) and (len(args.fan_pwm_filepath) != len(args.fan_start_value))) or
+  if (((args.fan_start_value is not None) and (len(args.fan_pwm_filepath) != len(args.fan_start_value))) or
       ((args.fan_stop_value is not None) and (len(args.fan_pwm_filepath) != len(args.fan_stop_value)))):
     print("Invalid parameter count")
     exit(1)
@@ -721,7 +709,6 @@ def cl_main():
       logging.getLogger("Startup").warning("Missing --pwm-start-value or --pwm-stop-value argument, running hardware test to find values")
     test(args.drive_filepaths,
          args.fan_pwm_filepath,
-         args.stat_filepaths,
          args.hddtemp_daemon_port if args.hddtemp_daemon else None)
 
   else:
@@ -749,7 +736,6 @@ def cl_main():
          args.max_temp,
          args.interval_s,
          args.spin_down_time_s,
-         args.stat_filepaths,
          args.hddtemp_daemon_port if args.hddtemp_daemon else None)
 
 
