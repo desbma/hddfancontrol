@@ -2,6 +2,8 @@ language: python
 python:
   - "3.3"
   - "3.4"
+before_install:
+  - "sudo apt-get -q update"
 install:
   - "pip install -r requirements.txt"
   - "pip install coveralls"
