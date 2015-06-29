@@ -12,3 +12,16 @@ script:
   - "coverage run --source=hddfancontrol setup.py test"
 after_success:
   - "coveralls"
+deploy:
+  provider: pypi
+  user: desbma
+  password:
+    secure: "LvuYMb0oHhZ74I7Kmd7AHSF4KXEGIS7NIz5bjIM7GeQJoq+2pqPbGvauk+xedXGnmLC7OFmhx9/TwciYKYnhtLepNFv09zi/h1G0YFUWRs87DdP3sbnr+1toeEGsYN7mYUg8EnAnQntjzYvWYQbbzb6Sm7o8GV32p4AkXle6Z1s="
+  on:
+    tags: true
+notifications:
+  email:
+    recipients:
+      - secure: "GcRFeCAsuHdhSO6/S7fJRfuvkLXyDoFaZ7hkEGLwclx/zkD0puXxtoh5uqp5VZy2qOe8hSvkA9lhNUrJu7MAIjBPvuiYg9q1TgDU10xHb7850iJWRCVFiAlhs/dpOjpoXtaYmj7erCHg+ComYZ7nj/ICMZt/qxBCYEyW4G5vWCA="
+    on_success: always
+    on_failure: always
