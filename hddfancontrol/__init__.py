@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 """ Dynamically control fan speed according to hard drive temperature. """
 
