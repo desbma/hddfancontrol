@@ -664,8 +664,8 @@ def cl_main():
                           action="store_true",
                           default=False,
                           dest="hddtemp_daemon",
-                          help="""Get drive temperature from hddtemp daemon if possible instead of spawning
-                                  a new process each time""")
+                          help="""Get drive temperature from hddtemp daemon instead of spawning
+                                  a new process each time temperature is probed""")
   arg_parser.add_argument("--hddtemp-daemon-port",
                           type=int,
                           default=7634,
