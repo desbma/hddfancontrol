@@ -26,8 +26,8 @@ import time
 import daemon
 import daemon.pidlockfile
 
-from . import bin_dep
-from . import colored_logging
+from hddfancontrol import bin_dep
+from hddfancontrol import colored_logging
 
 
 exit_evt = threading.Event()
