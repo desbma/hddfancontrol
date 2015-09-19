@@ -16,6 +16,11 @@ with open(os.path.join("hddfancontrol", "__init__.py"), "rt") as f:
 
 with open("requirements.txt", "rt") as f:
   requirements = f.read().splitlines()
+  # require enum34 if enum module is missing (Python 3.3)
+  try:
+    import enum
+  except ImportError:
+    requirements.append("enum34")
 
 try:
   import pypandoc
@@ -49,6 +54,7 @@ setup(name="hddfancontrol",
                    "Programming Language :: Python :: 3 :: Only",
                    "Programming Language :: Python :: 3.3",
                    "Programming Language :: Python :: 3.4",
+                   "Programming Language :: Python :: 3.5",
                    "Topic :: System :: Hardware",
                    "Topic :: System :: Monitoring",
                    "Topic :: Utilities"])
