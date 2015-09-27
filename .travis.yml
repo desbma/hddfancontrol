@@ -26,6 +26,7 @@ deploy:
     secure: "LvuYMb0oHhZ74I7Kmd7AHSF4KXEGIS7NIz5bjIM7GeQJoq+2pqPbGvauk+xedXGnmLC7OFmhx9/TwciYKYnhtLepNFv09zi/h1G0YFUWRs87DdP3sbnr+1toeEGsYN7mYUg8EnAnQntjzYvWYQbbzb6Sm7o8GV32p4AkXle6Z1s="
   on:
     tags: true
+    branch: master
 notifications:
   email:
     recipients:
