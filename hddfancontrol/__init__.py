@@ -726,16 +726,16 @@ def cl_main():
           pidfile = None
         daemon_context.enter_context(daemon.DaemonContext(pidfile=pidfile,
                                                           files_preserve=preserved_fds))
-    main(args.drive_filepaths,
-         args.fan_pwm_filepath,
-         args.fan_start_value,
-         args.fan_stop_value,
-         args.min_fan_speed_prct,
-         args.min_temp,
-         args.max_temp,
-         args.interval_s,
-         args.spin_down_time_s,
-         args.hddtemp_daemon_port if args.hddtemp_daemon else None)
+      main(args.drive_filepaths,
+           args.fan_pwm_filepath,
+           args.fan_start_value,
+           args.fan_stop_value,
+           args.min_fan_speed_prct,
+           args.min_temp,
+           args.max_temp,
+           args.interval_s,
+           args.spin_down_time_s,
+           args.hddtemp_daemon_port if args.hddtemp_daemon else None)
 
 
 # check deps
