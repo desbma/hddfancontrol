@@ -20,6 +20,7 @@ import signal
 import socket
 import stat
 import subprocess
+import syslog
 import threading
 import time
 
@@ -31,6 +32,27 @@ from hddfancontrol import colored_logging
 
 
 exit_evt = threading.Event()
+
+
+class LoggingSysLogHandler(logging.Handler):
+
+  """ Class similar in goal to logging.handlers.SysLogHandler, but uses the syslog call instead of socket. """
+
+  def __init__(self, facility, options=syslog.LOG_PID):
+    syslog.openlog(logoption=options, facility=facility)
+    super().__init__()
+
+  def emit(self, record):
+    """ See logging.Handler.emit. """
+    msg = self.format(record)
+    h = logging.handlers.SysLogHandler
+    level = h.priority_names[h.priority_map[record.levelname]]
+    syslog.syslog(level, msg)
+
+  def close(self):
+    """ See logging.Handler.close. """
+    syslog.closelog()
+    super().close()
 
 
 class Drive:
@@ -649,7 +671,7 @@ def cl_main():
                           "--log-file",
                           default=None,
                           dest="log_filepath",
-                          help="Filepath for log output when using daemon mode")
+                          help="Filepath for log output when using daemon mode, if omitted, logging goes to syslog.")
   arg_parser.add_argument("--pid-file",
                           default=None,
                           dest="pid_filepath",
@@ -684,13 +706,14 @@ def cl_main():
   logging.getLogger().setLevel(logging_level[args.verbosity])
   logging_fmt = "%(asctime)s %(levelname)s [%(name)s] %(message)s"
   if args.daemonize:
-    logging_formatter = logging.Formatter(fmt=logging_fmt)
     if args.log_filepath is not None:
       # log to file
       logging_handler = logging.handlers.WatchedFileHandler(args.log_filepath)
     else:
-      # no logging output
-      logging_handler = logging.handlers.NullHandler()
+      # log to syslog
+      logging_fmt = "%(levelname)s [%(name)s] %(message)s"
+      logging_handler = LoggingSysLogHandler(syslog.LOG_DAEMON)
+    logging_formatter = logging.Formatter(fmt=logging_fmt)
   else:
     # log to stderr
     logging_formatter = colored_logging.ColoredFormatter(fmt=logging_fmt)
