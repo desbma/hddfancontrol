@@ -491,24 +491,43 @@ def signal_handler(sig, frame):
   exit_evt.set()
 
 
-def main(drive_filepaths, fan_pwm_filepaths, fan_start_values, fan_stop_values, min_fan_speed_prct, min_temp, max_temp,
-         interval_s, spin_down_time_s, hddtemp_daemon_port):
-  logger = logging.getLogger("Main")
-
-  fans = []
+def set_high_priority(logger):
+  """ Change process priority to the highest possible. """
+  # use "real time" scheduler
+  done = False
+  sched = os.SCHED_RR
+  prio = os.sched_get_priority_max(sched)
+  param = os.sched_param(prio)
   try:
-    # renice to "real time" priority
+    os.sched_setscheduler(0, sched, param)
+  except OSError:
+    logger.warning("Failed to set real time process scheduler to %u, priority %u" % (sched, prio))
+  else:
+    done = True
+    logger.info("Process real time scheduler set to %u, priority %u" % (sched, prio))
+
+  if not done:
+    # renice to highest priority
     target_niceness = -19
     previous_niceness = os.nice(0)
     delta_niceness = target_niceness - previous_niceness
     try:
       new_niceness = os.nice(delta_niceness)
-    except PermissionError:
+    except OSError:
       new_niceness = previous_niceness
     if new_niceness != target_niceness:
       logger.warning("Unable to renice process to %d, current niceness is %d" % (target_niceness, new_niceness))
     else:
       logger.info("Process reniced from %d to %d" % (previous_niceness, new_niceness))
+
+
+def main(drive_filepaths, fan_pwm_filepaths, fan_start_values, fan_stop_values, min_fan_speed_prct, min_temp, max_temp,
+         interval_s, spin_down_time_s, hddtemp_daemon_port):
+  logger = logging.getLogger("Main")
+  fans = []
+  try:
+    # change process priority
+    set_high_priority(logger)
 
     # register signal handler
     signal.signal(signal.SIGINT, signal_handler)
