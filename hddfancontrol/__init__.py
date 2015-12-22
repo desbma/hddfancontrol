@@ -220,7 +220,7 @@ class DriveSpinDownThread(threading.Thread):
         if previous_stats is None:
           # get stats
           previous_stats = self.drive.getActivityStats()
-          previous_stats_time = time.time()
+          previous_stats_time = time.monotonic()
 
         # sleep
         self.sleep(min(self.spin_down_time_s, 60))
@@ -229,7 +229,7 @@ class DriveSpinDownThread(threading.Thread):
 
         # get stats again
         stats = self.drive.getActivityStats()
-        now = time.time()
+        now = time.monotonic()
         if stats != previous_stats:
           self.logger.debug("Drive is active")
           previous_stats = None
@@ -546,7 +546,7 @@ def main(drive_filepaths, fan_pwm_filepaths, fan_start_values, fan_stop_values, 
                                                                   1)]
     drives = [Drive(drive_filepath, hddtemp_daemon_port) for drive_filepath in drive_filepaths]
 
-    drives_startup_time = time.time()
+    drives_startup_time = time.monotonic()
 
     # start spin down threads if needed
     spin_down_threads = []
@@ -557,7 +557,7 @@ def main(drive_filepaths, fan_pwm_filepaths, fan_start_values, fan_stop_values, 
         thread.start()
 
     while not exit_evt.is_set():
-      now = time.time()
+      now = time.monotonic()
 
       # calc max drive temperature
       temps = []
