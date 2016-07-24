@@ -594,8 +594,8 @@ def main(drive_filepaths, fan_pwm_filepaths, fan_start_values, fan_stop_values, 
       if any(map(operator.attrgetter("startup"), fans)):
         # at least one fan is starting up, quickly cancel startup boost
         current_interval_s = min(10, interval_s)
-      elif (now - drives_startup_time) < (60 * 5):
-        # if all drives were started or waken up less than 5 min ago, dont' sleep too long because they
+      elif any(awakes) and ((now - drives_startup_time) < (60 * 5)):
+        # if at least a drive was started or waken up less than 5 min ago, dont' sleep too long because it
         # can heat up quickly
         current_interval_s = min(20, interval_s)
       else:
