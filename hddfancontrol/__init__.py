@@ -545,8 +545,8 @@ def main(drive_filepaths, fan_pwm_filepaths, fan_start_values, fan_stop_values, 
                                                                       fan_stop_values),
                                                                   1)]
     drives = [Drive(drive_filepath, hddtemp_daemon_port) for drive_filepath in drive_filepaths]
-
     drives_startup_time = time.monotonic()
+    current_fan_speeds = [None] * len(fans)
 
     # start spin down threads if needed
     spin_down_threads = []
@@ -579,16 +579,18 @@ def main(drive_filepaths, fan_pwm_filepaths, fan_start_values, fan_stop_values, 
       if not any(awakes):
         drives_startup_time = now
 
-      # calc target percentage speed
+      # calc target percentage fan speed
       if temps and (temp - min_temp > 0):
         speed_prct = 100 * (temp - min_temp) // (max_temp - min_temp)
         speed_prct = int(min(speed_prct, 100))
       else:
         speed_prct = 0
 
-      # set speed
-      for fan in fans:
-        fan.setSpeed(speed_prct, min_fan_speed_prct)
+      # set fan speed if needed
+      for i, fan in enumerate(fans):
+        if current_fan_speeds[i] != speed_prct:
+          fan.setSpeed(speed_prct, min_fan_speed_prct)
+          current_fan_speeds[i] = speed_prct
 
       # sleep
       if any(map(operator.attrgetter("startup"), fans)):
