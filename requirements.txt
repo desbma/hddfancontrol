@@ -1,1 +1,1 @@
-python-daemon-3K>=1.5.8
+python-daemon>=2.1.2

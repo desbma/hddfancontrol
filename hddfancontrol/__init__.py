@@ -25,7 +25,7 @@ import threading
 import time
 
 import daemon
-import daemon.pidlockfile
+import daemon.pidfile
 
 from hddfancontrol import bin_dep
 from hddfancontrol import colored_logging
@@ -762,7 +762,7 @@ def cl_main():
         if args.log_filepath is not None:
           preserved_fds = [logging_handler.stream.fileno()]
         if args.pid_filepath is not None:
-          pidfile = daemon.pidlockfile.PIDLockFile(args.pid_filepath)
+          pidfile = daemon.pidfile.PIDLockFile(args.pid_filepath)
           if pidfile.is_locked():
             logging.getLogger("Startup").error("Daemon already running")
             exit(1)
