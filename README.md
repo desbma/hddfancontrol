@@ -68,6 +68,10 @@ On Ubuntu and other Debian derivatives: `sudo apt-get install hdparm hddtemp`.
 4. Install [hdparm](http://sourceforge.net/projects/hdparm/) and [hddtemp](http://www.guzu.net/linux/hddtemp.php).
 On Ubuntu and other Debian derivatives: `sudo apt-get install hdparm hddtemp`.
 
+### From AUR (Arch Linux)
+
+Arch Linux users can install the [python-hddfancontrol AUR package](https://aur.archlinux.org/packages/python-hddfancontrol/).
+
 To query fan caracteristic, you may also need pwmconfig. On Ubuntu and other Debian derivatives, it is part of the fancontrol package, that you can install with `sudo apt-get install fancontrol`. HDD fancontrol and fancontrol are unrelated. The fancontrol daemon is **not** needed for HDD fan control to operate. If you use both fancontrol and HDD fancontrol, be careful not to make them control the same fans.
 
 
