@@ -35,9 +35,9 @@ class TestDrive(unittest.TestCase):
 
   def setUp(self):
     with unittest.mock.patch("hddfancontrol.os.stat") as os_stat_mock, \
-         unittest.mock.patch("hddfancontrol.stat") as stat_mock, \
-         unittest.mock.patch("hddfancontrol.subprocess") as subprocess_check_call_mock, \
-         unittest.mock.patch("hddfancontrol.Drive.getPrettyName") as drive_getPrettyName:
+            unittest.mock.patch("hddfancontrol.stat") as stat_mock, \
+            unittest.mock.patch("hddfancontrol.subprocess") as subprocess_check_call_mock, \
+            unittest.mock.patch("hddfancontrol.Drive.getPrettyName") as drive_getPrettyName:
       os_stat_mock.return_value = os.stat_result
       stat_mock.stat.S_IFBLK.return_value = True
       subprocess_check_call_mock.side_effect = subprocess.CalledProcessError(0, "")
@@ -240,7 +240,8 @@ class TestDrive(unittest.TestCase):
         self.drive.getActivityStats()
       stat_file.write("   21695     7718  2913268    95136    13986      754   932032    55820        0    19032   150940\n")
       stat_file.flush()
-      self.assertEqual(self.drive.getActivityStats(), (21695, 7718, 2913268, 95136, 13986, 754, 932032, 55820, 0, 19032, 150940))
+      self.assertEqual(self.drive.getActivityStats(),
+                       (21695, 7718, 2913268, 95136, 13986, 754, 932032, 55820, 0, 19032, 150940))
 
 
 if __name__ == "__main__":
