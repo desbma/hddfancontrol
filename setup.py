@@ -32,7 +32,7 @@ except ImportError:
 setup(name="hddfancontrol",
       version=version,
       author="desbma",
-      packages=find_packages(),
+      packages=find_packages(exclude=("tests",)),
       entry_points={"console_scripts": ["hddfancontrol = hddfancontrol:cl_main"]},
       test_suite="tests",
       install_requires=requirements,
