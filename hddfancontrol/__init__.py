@@ -694,7 +694,7 @@ def cl_main():
                           dest="log_filepath",
                           help="Filepath for log output when using daemon mode, if omitted, logging goes to syslog.")
   arg_parser.add_argument("--pid-file",
-                          default=None,
+                          default="/var/run/hddfancontrol.pid",
                           dest="pid_filepath",
                           help="Filepath for lock file when using daemon mode")
   arg_parser.add_argument("-t",
