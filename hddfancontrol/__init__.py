@@ -20,6 +20,7 @@ import signal
 import socket
 import stat
 import subprocess
+import sys
 import syslog
 import threading
 import time
@@ -725,19 +726,25 @@ def cl_main():
                    "normal": logging.INFO,
                    "debug": logging.DEBUG}
   logging.getLogger().setLevel(logging_level[args.verbosity])
-  logging_fmt = "%(asctime)s %(levelname)s [%(name)s] %(message)s"
+  logging_fmt_long = "%(asctime)s %(levelname)s [%(name)s] %(message)s"
+  logging_fmt_short = "%(levelname)s [%(name)s] %(message)s"
   if args.daemonize:
     if args.log_filepath is not None:
       # log to file
+      logging_fmt = logging_fmt_long
       logging_handler = logging.handlers.WatchedFileHandler(args.log_filepath)
     else:
       # log to syslog
-      logging_fmt = "%(levelname)s [%(name)s] %(message)s"
+      logging_fmt = logging_fmt_short
       logging_handler = LoggingSysLogHandler(syslog.LOG_DAEMON)
     logging_formatter = logging.Formatter(fmt=logging_fmt)
   else:
     # log to stderr
-    logging_formatter = colored_logging.ColoredFormatter(fmt=logging_fmt)
+    if sys.stderr.isatty():
+      logging_formatter = colored_logging.ColoredFormatter(fmt=logging_fmt_long)
+    else:
+      # assume systemd service in 'simple' mode
+      logging_formatter = logging.Formatter(fmt=logging_fmt_short)
     logging_handler = logging.StreamHandler()
   logging_handler.setFormatter(logging_formatter)
   logging.getLogger().addHandler(logging_handler)
