@@ -1,0 +1,9 @@
+[Unit]
+Description=HDD fan control
+
+[Service]
+EnvironmentFile=/etc/conf.d/hddfancontrol
+ExecStart=/usr/bin/hddfancontrol $HDDFANCONTROL_ARGS
+
+[Install]
+WantedBy=multi-user.target
