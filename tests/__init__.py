@@ -66,28 +66,24 @@ class TestDrive(unittest.TestCase):
       self.assertEqual(self.drive.supportsHitachiTempQuery(), True)
       subprocess_check_output_mock.assert_called_once_with(("hdparm", "-H", "/dev/sdz"),
                                                            stdin=subprocess.DEVNULL,
-                                                           stderr=subprocess.DEVNULL,
                                                            universal_newlines=True)
     with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
       subprocess_check_output_mock.return_value = "\n/dev/sdz:\nSG_IO: questionable sense data, results may be incorrect\n drive temperature (celsius) is: -18\n drive temperature in range: yes"
       self.assertEqual(self.drive.supportsHitachiTempQuery(), False)
       subprocess_check_output_mock.assert_called_once_with(("hdparm", "-H", "/dev/sdz"),
                                                            stdin=subprocess.DEVNULL,
-                                                           stderr=subprocess.DEVNULL,
                                                            universal_newlines=True)
     with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
       subprocess_check_output_mock.return_value = "\n/dev/sdz:\nSG_IO: missing sense data, results may be incorrect\n drive temperature (celsius) is: -18\n drive temperature in range: yes"
       self.assertEqual(self.drive.supportsHitachiTempQuery(), False)
       subprocess_check_output_mock.assert_called_once_with(("hdparm", "-H", "/dev/sdz"),
                                                            stdin=subprocess.DEVNULL,
-                                                           stderr=subprocess.DEVNULL,
                                                            universal_newlines=True)
     with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
       subprocess_check_output_mock.return_value = "\n/dev/sdz:\nSG_IO: bad/missing sense data, sb[]: 70 00 05 00 00 00 00 0a 04 51 40 00 21 04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n drive temperature (celsius) is: -18\n drive temperature in range: yes"
       self.assertEqual(self.drive.supportsHitachiTempQuery(), False)
       subprocess_check_output_mock.assert_called_once_with(("hdparm", "-H", "/dev/sdz"),
                                                            stdin=subprocess.DEVNULL,
-                                                           stderr=subprocess.DEVNULL,
                                                            universal_newlines=True)
 
   def test_getState(self):
