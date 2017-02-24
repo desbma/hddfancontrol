@@ -63,6 +63,7 @@ class Drive:
   DriveState = enum.Enum("DriveState", ("UNKNOWN", "ACTIVE_IDLE", "STANDBY", "SLEEPING"))
 
   HDPARM_GET_TEMP_HITACHI_REGEX = re.compile("drive temperature \(celsius\) is:\s*([0-9]*)")
+  HDPARM_GET_TEMP_HITACHI_ERROR_REGEX = re.compile("^SG_IO: .* sense data", re.MULTILINE)
   HDPARM_GET_MODEL_REGEX = re.compile("Model Number:\s*(.*)")
 
   def __init__(self, device_filepath, hddtemp_daemon_port):
@@ -91,16 +92,23 @@ class Drive:
 
   def supportsHitachiTempQuery(self):
     # test if drive supports hdparm -H
+    supported = True
     cmd = ("hdparm", "-H", self.device_filepath)
     try:
-      subprocess.check_call(cmd,
-                            stdin=subprocess.DEVNULL,
-                            stdout=subprocess.DEVNULL,
-                            stderr=subprocess.DEVNULL)
+      output = subprocess.check_output(cmd,
+                                       stdin=subprocess.DEVNULL,
+                                       stderr=subprocess.DEVNULL,
+                                       universal_newlines=True)
     except subprocess.CalledProcessError:
+      supported = False
+    else:
+      # catch non fatal errors
+      # see: https://github.com/Distrotech/hdparm/blob/4517550db29a91420fb2b020349523b1b4512df2/sgio.c#L308-L315
+      if __class__.HDPARM_GET_TEMP_HITACHI_ERROR_REGEX.search(output) is not None:
+        supported = False
+    if not supported:
       self.logger.warning("Drive does not allow querying temperature without going out of low power mode.")
-      return False
-    return True
+    return supported
 
   def getState(self):
     """ Get drive power state, as a DriveState enum. """
