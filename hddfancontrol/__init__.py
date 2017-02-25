@@ -97,6 +97,7 @@ class Drive:
     try:
       output = subprocess.check_output(cmd,
                                        stdin=subprocess.DEVNULL,
+                                       stderr=subprocess.STDOUT,
                                        universal_newlines=True)
     except subprocess.CalledProcessError:
       supported = False
