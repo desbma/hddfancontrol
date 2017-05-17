@@ -65,6 +65,7 @@ class Drive:
   HDPARM_GET_TEMP_HITACHI_REGEX = re.compile("drive temperature \(celsius\) is:\s*([0-9]*)")
   HDPARM_GET_TEMP_HITACHI_ERROR_REGEX = re.compile("^SG_IO: .* sense data", re.MULTILINE)
   HDPARM_GET_MODEL_REGEX = re.compile("Model Number:\s*(.*)")
+  NVME_GET_TEMPRATURES_REGEX = re.compile("^Temperature Sensor [0-9]* *: ([0-9]{2,})", re.MULTILINE)
 
   def __init__(self, device_filepath, hddtemp_daemon_port):
     assert(stat.S_ISBLK(os.stat(device_filepath).st_mode))
@@ -74,6 +75,7 @@ class Drive:
     self.pretty_name = self.getPrettyName()
     self.logger = logging.getLogger(str(self))
     self.supports_hitachi_temp_query = self.supportsHitachiTempQuery()
+    self.supports_nvme_temp_query = self.supportsNVMETempQuery()
 
   def __str__(self):
     """ Return a pretty drive name. """
@@ -87,9 +89,12 @@ class Drive:
                                      stdin=subprocess.DEVNULL,
                                      stderr=subprocess.DEVNULL,
                                      universal_newlines=True)
-    model = __class__.HDPARM_GET_MODEL_REGEX.search(output).group(1).strip()
-    return "%s %s" % (os.path.basename(self.device_filepath), model)
-
+    match = __class__.HDPARM_GET_MODEL_REGEX.search(output)
+    if match:
+      model = match.group(1).strip()
+      return "%s %s" % (os.path.basename(self.device_filepath), model)
+    else:
+      return "Error getting name"
   def supportsHitachiTempQuery(self):
     # test if drive supports hdparm -H
     supported = True
@@ -110,6 +115,21 @@ class Drive:
       self.logger.warning("Drive does not allow querying temperature without going out of low power mode.")
     return supported
 
+  def supportsNVMETempQuery(self):
+    supported = True
+    cmd = ("nvme", "smart-log",  self.device_filepath)
+    try:
+      output = subprocess.check_output(cmd,
+                                       stdin=subprocess.DEVNULL,
+                                       stderr=subprocess.STDOUT,
+                                       universal_newlines=True)
+    except subprocess.CalledProcessError:
+      supported = False
+
+    if not supported:
+      self.logger.warning("Drive does not support NVME queries or nvme-cli not installed (normal for SATA drives).")
+    return supported
+
   def getState(self):
     """ Get drive power state, as a DriveState enum. """
     states = {"unknown": __class__.DriveState.UNKNOWN,
@@ -127,12 +147,29 @@ class Drive:
     return state
 
   def isSleeping(self):
-    """ Return True if drive is in low power state, False otherwise. """
-    return (self.getState() in (Drive.DriveState.STANDBY, Drive.DriveState.SLEEPING))
+    if self.supports_nvme_temp_query:
+      return False
+    else:
+      """ Return True if drive is in low power state, False otherwise. """
+      return (self.getState() in (Drive.DriveState.STANDBY, Drive.DriveState.SLEEPING))
 
   def getTemperature(self):
     """ Get drive temperature in Celcius using either hddtemp or hdparm. """
-    if not self.supports_hitachi_temp_query:
+    if self.supports_nvme_temp_query:
+      cmd = ("nvme", "smart-log",  self.device_filepath)
+      output = subprocess.check_output(cmd,
+                                       stdin=subprocess.DEVNULL,
+                                       stderr=subprocess.DEVNULL,
+                                       universal_newlines=True)
+      temp = max(list(map(int, __class__.NVME_GET_TEMPRATURES_REGEX.findall(output))))
+    elif self.supports_hitachi_temp_query:
+      cmd = ("hdparm", "-H", self.device_filepath)
+      output = subprocess.check_output(cmd,
+                                       stdin=subprocess.DEVNULL,
+                                       stderr=subprocess.DEVNULL,
+                                       universal_newlines=True)
+      temp = int(__class__.HDPARM_GET_TEMP_HITACHI_REGEX.search(output).group(1))      
+    else:
       if self.hddtemp_daemon_port is not None:
         # get temp from daemon
         daemon_data = bytearray()
@@ -168,13 +205,7 @@ class Drive:
                                          stderr=subprocess.DEVNULL,
                                          universal_newlines=True)
         temp = int(output.strip())
-    else:
-      cmd = ("hdparm", "-H", self.device_filepath)
-      output = subprocess.check_output(cmd,
-                                       stdin=subprocess.DEVNULL,
-                                       stderr=subprocess.DEVNULL,
-                                       universal_newlines=True)
-      temp = int(__class__.HDPARM_GET_TEMP_HITACHI_REGEX.search(output).group(1))
+
     self.logger.debug("Drive temperature: %u C" % (temp))
     return temp
 
