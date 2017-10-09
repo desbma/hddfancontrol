@@ -7,7 +7,7 @@ HDD Fan control
 [![Coverage](https://img.shields.io/coveralls/desbma/hddfancontrol/master.svg?style=flat)](https://coveralls.io/github/desbma/hddfancontrol?branch=master)
 [![Lines of code](https://tokei.rs/b1/github/desbma/hddfancontrol)](https://github.com/desbma/hddfancontrol)
 [![Supported Python versions](https://img.shields.io/pypi/pyversions/hddfancontrol.svg?style=flat)](https://pypi.python.org/pypi/hddfancontrol/)
-[![License](https://img.shields.io/github/license/desbma/hddfancontrol.svg?style=flat)](https://pypi.python.org/pypi/hddfancontrol/)
+[![License](https://img.shields.io/github/license/desbma/hddfancontrol.svg?style=flat)](https://github.com/desbma/hddfancontrol/blob/master/LICENSE)
 
 HDD Fan control is a command line tool to dynamically control fan speed according to hard drive temperature on Linux.
 
