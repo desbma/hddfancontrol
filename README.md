@@ -64,7 +64,7 @@ Some Linux distributions have a hddfancontrol package available in their reposit
 
 ### From PyPI (with PIP)
 
-1. If you don't already have it, [install pip](http://www.pip-installer.org/en/latest/installing.html) for Python 3 (not needed if you are using Python >= 3.4)
+1. If you don't already have it, [install pip](https://pip.pypa.io/en/stable/installing/) for Python 3 (not needed if you are using Python >= 3.4)
 2. Install HDD Fan control: `pip3 install hddfancontrol`
 3. Install [hdparm](http://sourceforge.net/projects/hdparm/) and [hddtemp](http://www.guzu.net/linux/hddtemp.php).
 On Ubuntu and other Debian derivatives: `sudo apt-get install hdparm hddtemp`.
