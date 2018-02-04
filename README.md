@@ -137,7 +137,7 @@ As an example, the command line below will instruct HDD Fan control to:
 A systemd service file is provided to control the daemon easily.
 If you installed hddfancontrol from a distribution package, you likely already have it installed, otherwise you can install it from the sources of this repository with:
 ```
-sudo cp ./systemd/hddfancontrol.service /usr/lib/systemd/
+sudo cp ./systemd/hddfancontrol.service /usr/lib/systemd/system/
 sudo mkdir -p /etc/conf.d
 sudo cp ./systemd/hddfancontrol.conf /etc/conf.d/hddfancontrol
 ```
