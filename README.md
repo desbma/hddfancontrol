@@ -132,6 +132,21 @@ As an example, the command line below will instruct HDD Fan control to:
 `hddfancontrol -d /dev/sda /dev/sdb -p /sys/class/hwmon/hwmon1/device/pwm2 /sys/class/hwmon/hwmon1/device/pwm3 --pwm-start-value 200 200 --pwm-stop-value 75 75 --min-fan-speed-prct 10 -i 60 --spin-down-time 7200 -b -l /var/log/hddfancontrol.log`
 
 
+## Systemd service
+
+A systemd service file is provided to control the daemon easily.
+If you installed hddfancontrol from a distribution package, you likely already have it installed, otherwise you can install it from the sources of this repository with:
+```
+sudo cp ./systemd/hddfancontrol.service /usr/lib/systemd/
+sudo mkdir -p /etc/conf.d
+sudo cp hddfancontrol.conf /etc/conf.d/hddfancontrol
+```
+
+Then you need to edit the `HDDFANCONTROL_ARGS` variable in `/etc/conf.d/hddfancontrol` to set the parameters (drives, temperature range...).
+
+You can then start the daemon with `sudo systemctl start hddfancontrol`, see its status with `sudo systemctl status hddfancontrol` and enable automatic startup at boot time with `sudo systemctl enable hddfancontrol`.
+
+
 ## License
 
 [GPLv3](https://www.gnu.org/licenses/gpl-3.0-standalone.html)
