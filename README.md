@@ -139,7 +139,7 @@ If you installed hddfancontrol from a distribution package, you likely already h
 ```
 sudo cp ./systemd/hddfancontrol.service /usr/lib/systemd/
 sudo mkdir -p /etc/conf.d
-sudo cp hddfancontrol.conf /etc/conf.d/hddfancontrol
+sudo cp ./systemd/hddfancontrol.conf /etc/conf.d/hddfancontrol
 ```
 
 Then you need to edit the `HDDFANCONTROL_ARGS` variable in `/etc/conf.d/hddfancontrol` to set the parameters (drives, temperature range...).
