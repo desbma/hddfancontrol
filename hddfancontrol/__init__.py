@@ -559,7 +559,7 @@ def main(drive_filepaths, fan_pwm_filepaths, fan_start_values, fan_stop_values, 
 
     # start spin down threads if needed
     spin_down_threads = []
-    if (spin_down_time_s is not None) and (spin_down_time_s > interval_s):
+    if (spin_down_time_s is not None) and (spin_down_time_s >= interval_s):
       for drive in drives:
         spin_down_threads.append(DriveSpinDownThread(drive, spin_down_time_s))
       for thread in spin_down_threads:
@@ -727,7 +727,12 @@ def cl_main():
   if (((args.fan_start_value is not None) and (len(args.fan_pwm_filepath) != len(args.fan_start_value))) or
           ((args.fan_stop_value is not None) and (len(args.fan_pwm_filepath) != len(args.fan_stop_value)))):
     print("Invalid parameter count")
-    exit(1)
+    exit(os.EX_USAGE)
+  if (args.spin_down_time_s is not None) and (args.spin_down_time_s < args.interval_s):
+    print("Spin down time %us is lower than temperature check interval %us.\n"
+          "Please set a higher spin down time, or use hdparm's -S switch "
+          "to set SATA spin down time." % (args.spin_down_time_s, args.interval_s))
+    exit(os.EX_USAGE)
 
   # setup logger
   logging_level = {"warning": logging.WARNING,

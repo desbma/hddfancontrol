@@ -103,14 +103,14 @@ SATA drives can be configured to automatically spin down after a certain period 
 This is due to the fact that HDD Fan control will query temperature at fixed interval, which the drive will consider an activity and reset the spin down timeout.
 To fix that, you can either:
 
-* use a value for the `--interval` parameter higher than your SATA spin down time (not recommended unless your spin down time is very low, ie < 2 min)
-* use the `--spin-down-time` parameter that will monitor drive activity and spin it down if inactive, independantly of the SATA feature (recommended)
+* Use a value for the `-i`/`--interval` parameter higher than your SATA spin down time (not recommended unless your spin down time is very low, ie < 2 min). In that case you do not need to use hddfancontrol's `--spin-down-time` switch, because the builtin SATA drive timeout (that you can set for example with [`hdparm -S XXX` command](https://linux.die.net/man/8/hdparm)) should take effect.
+* Use the `--spin-down-time` parameter that will monitor drive activity and spin it down if inactive, independantly of the SATA feature (recommended)
 
 **Keep in mind that spinning down and up a drive repeatedly wears it prematurly, so unless you are in a power constrained environement (ie. laptop), do not set the spin down time too low.**
 
 Reading temperature while a drive is in low power state will make it spin up, so HDD Fan control will stop querying temperature in that case, and wait for the drive (which will be cooling down in low power state anyway) to spin up.
 
-Some Hitachi (now HGST) drives support a special way of querying temperature that does not spin up drives, which HDD Fan control will detect and use, however it still prevents them from spinning down, so the above instructions still apply.
+Some HGST (previously Hitachi) drives support a special way of querying temperature that does not spin up drives, which HDD Fan control will detect and use, however it still prevents them from spinning down, so the above instructions still apply.
 
 
 ## Command line usage
