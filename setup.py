@@ -26,7 +26,7 @@ try:
   import pypandoc
   readme = pypandoc.convert("README.md", "rst")
 except ImportError:
-  with open("README.md", "rt") as f:
+  with open("README.md", "rt", encoding="utf-8") as f:
     readme = f.read()
 
 setup(name="hddfancontrol",
