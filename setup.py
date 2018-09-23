@@ -24,7 +24,7 @@ except ImportError:
 
 try:
   import pypandoc
-  readme = pypandoc.convert("README.md", "rst")
+  readme = pypandoc.convert_file("README.md", "rst")
 except ImportError:
   with open("README.md", "rt", encoding="utf-8") as f:
     readme = f.read()
