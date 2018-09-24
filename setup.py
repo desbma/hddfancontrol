@@ -22,12 +22,8 @@ try:
 except ImportError:
   requirements.append("enum34")
 
-try:
-  import pypandoc
-  readme = pypandoc.convert_file("README.md", "rst")
-except ImportError:
-  with open("README.md", "rt", encoding="utf-8") as f:
-    readme = f.read()
+with open("README.md", "rt", encoding="utf-8") as f:
+  readme = f.read()
 
 setup(name="hddfancontrol",
       version=version,
@@ -38,6 +34,7 @@ setup(name="hddfancontrol",
       install_requires=requirements,
       description="Control system fan speed by monitoring hard drive temperature",
       long_description=readme,
+      long_description_content_type="text/markdown",
       url="https://github.com/desbma/hddfancontrol",
       download_url="https://github.com/desbma/hddfancontrol/archive/%s.tar.gz" % (version),
       keywords=["hdd", "drive", "temperature", "fan", "control", "speed"],
