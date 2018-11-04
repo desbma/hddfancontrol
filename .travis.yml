@@ -35,10 +35,6 @@ script:
   - "coverage run --source=hddfancontrol setup.py test"
 after_success:
   - "coveralls"
-before_deploy:
-  - "sudo apt-get -V install pandoc"
-  - "pip install pypandoc"
-  - "pip install restructuredtext_lint && t=$(mktemp --suffix=.rst) && pandoc README.md -o $t && rst-lint $t"
 deploy:
   provider: pypi
   user: desbma
