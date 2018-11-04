@@ -28,6 +28,8 @@ before_install:
   - "if [ $TRAVIS_PYTHON_VERSION = 'pypy3' ]; then echo $PYPY3_SHA256  ~/.cache/pypy/pypy$PYPY3_PYTHON_VERSION-$PYPY3_VERSION-linux_x86_64-portable.tar.bz2 | sha256sum --status -c && tar -xjf ~/.cache/pypy/pypy$PYPY3_PYTHON_VERSION-$PYPY3_VERSION-linux_x86_64-portable.tar.bz2 -C ~ && deactivate && ~/pypy$PYPY3_PYTHON_VERSION-$PYPY3_VERSION-linux_x86_64-portable/bin/virtualenv-pypy ~/pypy3-venv && . ~/pypy3-venv/bin/activate; fi"
 install:
   - "pip install -r requirements.txt"
+  # https://pagure.io/python-daemon/issue/18
+  - "pip install docutils"
   - "pip install coveralls"
   - "sudo apt-get -V install hddtemp hdparm"
 script:
