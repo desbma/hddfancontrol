@@ -7,8 +7,8 @@ import sys
 from setuptools import find_packages, setup
 
 
-if sys.hexversion < 0x3030000:
-  print("Python version %s is unsupported, >= 3.3.0 is needed" % (".".join(map(str, sys.version_info[:3]))))
+if sys.hexversion < 0x3040000:
+  print("Python version %s is unsupported, >= 3.4.0 is needed" % (".".join(map(str, sys.version_info[:3]))))
   exit(1)
 
 with open(os.path.join("hddfancontrol", "__init__.py"), "rt") as f:
@@ -16,11 +16,6 @@ with open(os.path.join("hddfancontrol", "__init__.py"), "rt") as f:
 
 with open("requirements.txt", "rt") as f:
   requirements = f.read().splitlines()
-# require enum34 if enum module is missing (Python 3.3)
-try:
-  import enum
-except ImportError:
-  requirements.append("enum34")
 
 with open("README.md", "rt", encoding="utf-8") as f:
   readme = f.read()
@@ -49,7 +44,6 @@ setup(name="hddfancontrol",
                    "Programming Language :: Python",
                    "Programming Language :: Python :: 3",
                    "Programming Language :: Python :: 3 :: Only",
-                   "Programming Language :: Python :: 3.3",
                    "Programming Language :: Python :: 3.4",
                    "Programming Language :: Python :: 3.5",
                    "Programming Language :: Python :: 3.6",
