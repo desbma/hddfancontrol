@@ -497,19 +497,23 @@ def signal_handler(sig, frame):
 
 
 def set_high_priority(logger):
-  """ Change process priority to the highest possible. """
+  """ Change process scheduler and priority. """
   # use "real time" scheduler
   done = False
   sched = os.SCHED_RR
-  prio = os.sched_get_priority_max(sched)
-  param = os.sched_param(prio)
-  try:
-    os.sched_setscheduler(0, sched, param)
-  except OSError:
-    logger.warning("Failed to set real time process scheduler to %u, priority %u" % (sched, prio))
-  else:
+  if os.sched_getscheduler(0) == sched:
+    # already running with RR scheduler, likely set from init system, don't touch priority
     done = True
-    logger.info("Process real time scheduler set to %u, priority %u" % (sched, prio))
+  else:
+    prio = (os.sched_get_priority_max(sched) - os.sched_get_priority_min(sched)) // 2
+    param = os.sched_param(prio)
+    try:
+      os.sched_setscheduler(0, sched, param)
+    except OSError:
+      logger.warning("Failed to set real time process scheduler to %u, priority %u" % (sched, prio))
+    else:
+      done = True
+      logger.info("Process real time scheduler set to %u, priority %u" % (sched, prio))
 
   if not done:
     # renice to highest priority
