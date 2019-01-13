@@ -313,13 +313,10 @@ class Fan:
       min_rpm = min(min_rpm, rpm)
       max_rpm = max(max_rpm, rpm)
 
-  def setSpeed(self, cmd_prct, min_prct):
+  def setSpeed(self, target_prct):
     """ Set fan speed to a percentage of its maximum speed. """
     # preconditions
-    assert(0 <= cmd_prct <= 100)
-    assert(0 <= min_prct <= 100)
-
-    target_prct = max(cmd_prct, min_prct)
+    assert(0 <= target_prct <= 100)
 
     self.logger.info("Setting fan speed to %u%%" % (target_prct))
 
@@ -588,17 +585,18 @@ def main(drive_filepaths, fan_pwm_filepaths, fan_start_values, fan_stop_values, 
         drives_startup_time = now
 
       # calc target percentage fan speed
-      if temps and (temp - min_temp > 0):
-        speed_prct = 100 * (temp - min_temp) // (max_temp - min_temp)
-        speed_prct = int(min(speed_prct, 100))
+      if temps and (temp > min_temp):
+        fan_speed_prct = 100 * (temp - min_temp) // (max_temp - min_temp)
+        fan_speed_prct = int(min(fan_speed_prct, 100))
       else:
-        speed_prct = 0
+        fan_speed_prct = 0
+      fan_speed_prct = max(fan_speed_prct, min_fan_speed_prct)
 
       # set fan speed if needed
       for i, fan in enumerate(fans):
-        if current_fan_speeds[i] != speed_prct:
-          fan.setSpeed(speed_prct, min_fan_speed_prct)
-          current_fan_speeds[i] = speed_prct
+        if current_fan_speeds[i] != fan_speed_prct:
+          fan.setSpeed(fan_speed_prct)
+          current_fan_speeds[i] = fan_speed_prct
 
       # sleep
       if any(map(operator.attrgetter("startup"), fans)):
@@ -623,7 +621,7 @@ def main(drive_filepaths, fan_pwm_filepaths, fan_start_values, fan_stop_values, 
 
   # run fans at full speed at exit
   for fan in fans:
-    fan.setSpeed(100, 100)
+    fan.setSpeed(100)
 
 
 def cl_main():
