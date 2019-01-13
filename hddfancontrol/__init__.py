@@ -313,22 +313,21 @@ class Fan:
       min_rpm = min(min_rpm, rpm)
       max_rpm = max(max_rpm, rpm)
 
-  def setSpeed(self, speed_prct, min_prct):
+  def setSpeed(self, cmd_prct, min_prct):
     """ Set fan speed to a percentage of its maximum speed. """
     # preconditions
-    assert(0 <= speed_prct <= 100)
+    assert(0 <= cmd_prct <= 100)
     assert(0 <= min_prct <= 100)
 
-    self.logger.info("Setting fan speed to %u%%" % (speed_prct))
+    target_prct = max(cmd_prct, min_prct)
+
+    self.logger.info("Setting fan speed to %u%%" % (target_prct))
 
     # calculate target PWM value
-    if speed_prct == 0:
+    if target_prct == 0:
       target_value = 0
     else:
-      target_value = self.stop_value + ((255 - self.stop_value) * speed_prct) // 100
-    if min_prct > 0:
-      min_value = self.stop_value + ((255 - self.stop_value) * min_prct) // 100
-      target_value = max(min_value, target_value)
+      target_value = self.stop_value + ((255 - self.stop_value) * target_prct) // 100
 
     if (0 < target_value < self.start_value) and (not self.isRunning()):
       self.startup = True
