@@ -9,5 +9,15 @@ ExecStart=/usr/bin/hddfancontrol $HDDFANCONTROL_ARGS
 CPUSchedulingPolicy=rr
 CPUSchedulingPriority=49
 
+# Hardening
+ProtectSystem=strict
+PrivateTmp=true
+ProtectHome=true
+SystemCallArchitectures=native
+MemoryDenyWriteExecute=true
+CapabilityBoundingSet=CAP_SYS_RAWIO
+AmbientCapabilities=CAP_SYS_RAWIO
+NoNewPrivileges=true
+
 [Install]
 WantedBy=multi-user.target
