@@ -173,9 +173,12 @@ class Drive:
           raise RuntimeError("Unable to get temperature from hddtemp daemon for drive %s" % (self))
       else:
         cmd = ("hddtemp", "-u", "C", "-n", self.device_filepath)
+        cmd_env = dict(os.environ)
+        cmd_env["LANG"] = "C"
         output = subprocess.check_output(cmd,
                                          stdin=subprocess.DEVNULL,
                                          stderr=subprocess.DEVNULL,
+                                         env=cmd_env,
                                          universal_newlines=True)
         if output.endswith(__class__.HDDTEMP_SLEEPING_SUFFIX):
           raise DriveAsleepError

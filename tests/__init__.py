@@ -176,6 +176,9 @@ class TestDrive(unittest.TestCase):
     # * otherwise use a hddtemp call
     #
 
+    hddtemp_env = dict(os.environ)
+    hddtemp_env["LANG"] = "C"
+
     # hddtemp call
     self.drive.supports_hitachi_temp_query = False
     self.drive.hddtemp_daemon_port = None
@@ -185,6 +188,7 @@ class TestDrive(unittest.TestCase):
       subprocess_check_output_mock.assert_called_once_with(("hddtemp", "-u", "C", "-n", "/dev/sdz"),
                                                            stdin=subprocess.DEVNULL,
                                                            stderr=subprocess.DEVNULL,
+                                                           env=hddtemp_env,
                                                            universal_newlines=True)
     with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
       subprocess_check_output_mock.side_effect = subprocess.CalledProcessError(0, "")
@@ -193,6 +197,7 @@ class TestDrive(unittest.TestCase):
       subprocess_check_output_mock.assert_called_once_with(("hddtemp", "-u", "C", "-n", "/dev/sdz"),
                                                            stdin=subprocess.DEVNULL,
                                                            stderr=subprocess.DEVNULL,
+                                                           env=hddtemp_env,
                                                            universal_newlines=True)
     with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
       subprocess_check_output_mock.return_value = "/dev/sdz: drive_name: drive is sleeping\n"
@@ -201,6 +206,7 @@ class TestDrive(unittest.TestCase):
       subprocess_check_output_mock.assert_called_once_with(("hddtemp", "-u", "C", "-n", "/dev/sdz"),
                                                            stdin=subprocess.DEVNULL,
                                                            stderr=subprocess.DEVNULL,
+                                                           env=hddtemp_env,
                                                            universal_newlines=True)
     with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
       subprocess_check_output_mock.return_value = "/dev/sdz: open: No such file or directory\n\n"
@@ -209,6 +215,7 @@ class TestDrive(unittest.TestCase):
       subprocess_check_output_mock.assert_called_once_with(("hddtemp", "-u", "C", "-n", "/dev/sdz"),
                                                            stdin=subprocess.DEVNULL,
                                                            stderr=subprocess.DEVNULL,
+                                                           env=hddtemp_env,
                                                            universal_newlines=True)
 
     # hdparm call
