@@ -243,6 +243,9 @@ class TestDrive(unittest.TestCase):
     self.assertEqual(self.drive.getTemperature(), 30)
     FakeHddtempDaemon.outgoing = b"|/dev/sdy|DriveSDY|31|C||/dev/sdz|DriveSDZ|30|C||/dev/sdx|DriveSDX|32|C|"
     self.assertEqual(self.drive.getTemperature(), 30)
+    FakeHddtempDaemon.outgoing = b"|/dev/sdz|DriveSDZ|SLP|*|"
+    with self.assertRaises(hddfancontrol.DriveAsleepError):
+      self.drive.getTemperature()
     FakeHddtempDaemon.outgoing = b"|/dev/sdx|DriveSDX|31|C||/dev/sdy|DriveSDY|32|C|"
     with self.assertRaises(RuntimeError):
       self.drive.getTemperature()
