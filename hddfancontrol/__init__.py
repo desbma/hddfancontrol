@@ -35,6 +35,13 @@ from hddfancontrol import colored_logging
 exit_evt = threading.Event()
 
 
+class DriveAsleepError(Exception):
+
+  """ Exception raised when getTemperature fails because drive is asleep. """
+
+  pass
+
+
 class LoggingSysLogHandler(logging.Handler):
 
   """ Class similar in goal to logging.handlers.SysLogHandler, but uses the syslog call instead of socket. """
@@ -153,6 +160,8 @@ class Drive:
             break
           drive_path = drive_data[1]
           if __class__.normalizeDrivePath(drive_path) == self.device_filepath:
+            if drive_data[3] == "SLP":
+              raise DriveAsleepError
             temp_unit = drive_data[4]
             if temp_unit != "C":
               raise RuntimeError("hddtemp daemon is not returning temp as Celsius")
@@ -573,11 +582,14 @@ def main(drive_filepaths, fan_pwm_filepaths, fan_start_values, fan_stop_values, 
       awakes = []
       for drive in drives:
         awake = not drive.isSleeping()
-        awakes.append(awake)
         if awake or drive.supports_hitachi_temp_query:
-          temps.append(drive.getTemperature())
-        else:
+          try:
+            temps.append(drive.getTemperature())
+          except DriveAsleepError:
+            awake = False
+        if (not awake) and (not drive.supports_hitachi_temp_query):
           logger.debug("Drive %s is in low power state, unable to query temperature" % (drive))
+        awakes.append(awake)
       if temps:
         temp = max(temps)
         logger.info("Maximum drive temperature: %u C" % (temp))
