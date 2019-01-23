@@ -147,7 +147,7 @@ class Drive:
     """ Get drive temperature in Celcius using either hddtemp or hdparm. """
     if not self.supports_hitachi_temp_query:
       if self.hddtemp_daemon_port is not None:
-        temp = self.getTemperatureWithHddtempDeamon()
+        temp = self.getTemperatureWithHddtempDaemon()
       else:
         temp = self.getTemperatureWithHddtempInvocation()
     else:
@@ -155,8 +155,8 @@ class Drive:
     self.logger.debug("Drive temperature: %u C" % (temp))
     return temp
 
-  def getTemperatureWithHddtempDeamon(self):
-    """ Get drive temperature in Celcius using hddtemp deamon. """
+  def getTemperatureWithHddtempDaemon(self):
+    """ Get drive temperature in Celcius using hddtemp daemon. """
     # get temp from daemon
     daemon_data = bytearray()
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sckt:
