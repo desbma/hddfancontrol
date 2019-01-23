@@ -72,6 +72,7 @@ class Drive:
   HDPARM_GET_TEMP_HITACHI_REGEX = re.compile("drive temperature \(celsius\) is:\s*([0-9]*)")
   HDPARM_GET_TEMP_HITACHI_ERROR_REGEX = re.compile("^SG_IO: .* sense data", re.MULTILINE)
   HDPARM_GET_MODEL_REGEX = re.compile("Model Number:\s*(.*)")
+  HDDTEMP_SLEEPING_SUFFIX = ": drive is sleeping\n"
 
   def __init__(self, device_filepath, hddtemp_daemon_port):
     assert(stat.S_ISBLK(os.stat(device_filepath).st_mode))
@@ -176,6 +177,8 @@ class Drive:
                                          stdin=subprocess.DEVNULL,
                                          stderr=subprocess.DEVNULL,
                                          universal_newlines=True)
+        if output.endswith(__class__.HDDTEMP_SLEEPING_SUFFIX):
+          raise DriveAsleepError
         temp = int(output.strip())
     else:
       cmd = ("hdparm", "-H", self.device_filepath)
@@ -586,6 +589,7 @@ def main(drive_filepaths, fan_pwm_filepaths, fan_start_values, fan_stop_values, 
           try:
             temps.append(drive.getTemperature())
           except DriveAsleepError:
+            assert(not drive.supports_hitachi_temp_query)
             awake = False
         if (not awake) and (not drive.supports_hitachi_temp_query):
           logger.debug("Drive %s is in low power state, unable to query temperature" % (drive))

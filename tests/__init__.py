@@ -195,6 +195,14 @@ class TestDrive(unittest.TestCase):
                                                            stderr=subprocess.DEVNULL,
                                                            universal_newlines=True)
     with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
+      subprocess_check_output_mock.return_value = "/dev/sdz: drive_name: drive is sleeping\n"
+      with self.assertRaises(hddfancontrol.DriveAsleepError):
+        self.drive.getTemperature()
+      subprocess_check_output_mock.assert_called_once_with(("hddtemp", "-u", "C", "-n", "/dev/sdz"),
+                                                           stdin=subprocess.DEVNULL,
+                                                           stderr=subprocess.DEVNULL,
+                                                           universal_newlines=True)
+    with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
       subprocess_check_output_mock.return_value = "/dev/sdz: open: No such file or directory\n\n"
       with self.assertRaises(Exception):
         self.drive.getTemperature()
