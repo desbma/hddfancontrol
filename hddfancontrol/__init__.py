@@ -142,56 +142,71 @@ class Drive:
     """ Get drive temperature in Celcius using either hddtemp or hdparm. """
     if not self.supports_hitachi_temp_query:
       if self.hddtemp_daemon_port is not None:
-        # get temp from daemon
-        daemon_data = bytearray()
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sckt:
-          sckt.connect(("127.0.0.1", self.hddtemp_daemon_port))
-          while True:
-            new_daemon_data = sckt.recv(4096)
-            if not new_daemon_data:
-              break
-            daemon_data.extend(new_daemon_data)
-        # parse it
-        daemon_data = daemon_data.decode("utf-8")
-        drives_data = iter(daemon_data.split("|")[:-1])
-        found = False
-        while True:
-          drive_data = tuple(itertools.islice(drives_data, 0, 5))
-          if not drive_data:
-            break
-          drive_path = drive_data[1]
-          if __class__.normalizeDrivePath(drive_path) == self.device_filepath:
-            if drive_data[3] == "SLP":
-              raise DriveAsleepError
-            temp_unit = drive_data[4]
-            if temp_unit != "C":
-              raise RuntimeError("hddtemp daemon is not returning temp as Celsius")
-            temp = int(drive_data[3])
-            found = True
-            break
-        if not found:
-          raise RuntimeError("Unable to get temperature from hddtemp daemon for drive %s" % (self))
+        temp = self.getTemperatureWithHddtempDeamon()
       else:
-        cmd = ("hddtemp", "-u", "C", "-n", self.device_filepath)
-        cmd_env = dict(os.environ)
-        cmd_env["LANG"] = "C"
-        output = subprocess.check_output(cmd,
-                                         stdin=subprocess.DEVNULL,
-                                         stderr=subprocess.DEVNULL,
-                                         env=cmd_env,
-                                         universal_newlines=True)
-        if output.endswith(__class__.HDDTEMP_SLEEPING_SUFFIX):
-          raise DriveAsleepError
-        temp = int(output.strip())
+        temp = self.getTemperatureWithHddtempInvocation()
     else:
-      cmd = ("hdparm", "-H", self.device_filepath)
-      output = subprocess.check_output(cmd,
-                                       stdin=subprocess.DEVNULL,
-                                       stderr=subprocess.DEVNULL,
-                                       universal_newlines=True)
-      temp = int(__class__.HDPARM_GET_TEMP_HITACHI_REGEX.search(output).group(1))
+      temp = self.getTemperatureWithHdparmInvocation()
     self.logger.debug("Drive temperature: %u C" % (temp))
     return temp
+
+  def getTemperatureWithHddtempDeamon(self):
+    """ Get drive temperature in Celcius using hddtemp deamon. """
+    # get temp from daemon
+    daemon_data = bytearray()
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sckt:
+      sckt.connect(("127.0.0.1", self.hddtemp_daemon_port))
+      while True:
+        new_daemon_data = sckt.recv(4096)
+        if not new_daemon_data:
+          break
+        daemon_data.extend(new_daemon_data)
+
+    # parse it
+    daemon_data = daemon_data.decode("utf-8")
+    drives_data = iter(daemon_data.split("|")[:-1])
+    found = False
+    while True:
+      drive_data = tuple(itertools.islice(drives_data, 0, 5))
+      if not drive_data:
+        break
+      drive_path = drive_data[1]
+      if __class__.normalizeDrivePath(drive_path) == self.device_filepath:
+        if drive_data[3] == "SLP":
+          raise DriveAsleepError
+        temp_unit = drive_data[4]
+        if temp_unit != "C":
+          raise RuntimeError("hddtemp daemon is not returning temp as Celsius")
+        temp = int(drive_data[3])
+        found = True
+        break
+
+    if not found:
+      raise RuntimeError("Unable to get temperature from hddtemp daemon for drive %s" % (self))
+    return temp
+
+  def getTemperatureWithHddtempInvocation(self):
+    """ Get drive temperature in Celcius using a one shot hddtemp invocation. """
+    cmd = ("hddtemp", "-u", "C", "-n", self.device_filepath)
+    cmd_env = dict(os.environ)
+    cmd_env["LANG"] = "C"
+    output = subprocess.check_output(cmd,
+                                     stdin=subprocess.DEVNULL,
+                                     stderr=subprocess.DEVNULL,
+                                     env=cmd_env,
+                                     universal_newlines=True)
+    if output.endswith(__class__.HDDTEMP_SLEEPING_SUFFIX):
+      raise DriveAsleepError
+    return int(output.strip())
+
+  def getTemperatureWithHdparmInvocation(self):
+    """ Get drive temperature in Celcius using hdparm. """
+    cmd = ("hdparm", "-H", self.device_filepath)
+    output = subprocess.check_output(cmd,
+                                     stdin=subprocess.DEVNULL,
+                                     stderr=subprocess.DEVNULL,
+                                     universal_newlines=True)
+    return int(__class__.HDPARM_GET_TEMP_HITACHI_REGEX.search(output).group(1))
 
   def spinDown(self):
     """ Spin down a drive, effectively setting it to DriveState.STANDBY state. """
