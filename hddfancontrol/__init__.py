@@ -32,6 +32,11 @@ from hddfancontrol import bin_dep
 from hddfancontrol import colored_logging
 
 
+MAX_DRIVE_STARTUP_SLEEP_INTERVAL_S = 20
+MAX_FAN_STARTUP_TIME_S = 10
+DRIVE_STARTUP_TIME_S = 60 * 5
+
+
 exit_evt = threading.Event()
 
 
@@ -240,6 +245,8 @@ class DriveSpinDownThread(threading.Thread):
 
   """ Thread responsible for spinning down a drive when it is not active for a certain amount of time. """
 
+  LOOP_SLEEP_DELAY_S = 60
+
   def __init__(self, drive, spin_down_time_s):
     super().__init__(name="%s-%s" % (__class__.__name__, drive))
     self.drive = drive
@@ -253,7 +260,7 @@ class DriveSpinDownThread(threading.Thread):
       while not exit_evt.is_set():
         if self.drive.isSleeping():
           self.logger.debug("Drive is already sleeping")
-          self.sleep(60)
+          self.sleep(__class__.LOOP_SLEEP_DELAY_S)
           continue
 
         if previous_stats is None:
@@ -262,7 +269,7 @@ class DriveSpinDownThread(threading.Thread):
           previous_stats_time = time.monotonic()
 
         # sleep
-        self.sleep(min(self.spin_down_time_s, 60))
+        self.sleep(min(self.spin_down_time_s, __class__.LOOP_SLEEP_DELAY_S))
         if exit_evt.is_set():
           break
 
@@ -357,17 +364,14 @@ class Fan:
       target_value = self.stop_value + ((255 - self.stop_value) * target_prct) // 100
 
     if (0 < target_value < self.start_value) and (not self.isRunning()):
+      self.logger.debug("Applying startup boost")
       self.startup = True
+      target_value = max(self.start_value, target_value)
     else:
       self.startup = False
 
     # set speed
-    if self.startup:
-      # fan startup boost
-      self.logger.debug("Applying startup boost")
-      self.setPwmValue(self.start_value)
-    else:
-      self.setPwmValue(target_value)
+    self.setPwmValue(target_value)
 
   def setPwmValue(self, value):
     """ Set fan PWM value. """
@@ -639,11 +643,11 @@ def main(drive_filepaths, fan_pwm_filepaths, fan_start_values, fan_stop_values, 
       # sleep
       if any(map(operator.attrgetter("startup"), fans)):
         # at least one fan is starting up, quickly cancel startup boost
-        current_interval_s = min(10, interval_s)
-      elif any(awakes) and ((now - drives_startup_time) < (60 * 5)):
+        current_interval_s = min(MAX_FAN_STARTUP_TIME_S, interval_s)
+      elif any(awakes) and ((now - drives_startup_time) < DRIVE_STARTUP_TIME_S):
         # if at least a drive was started or waken up less than 5 min ago, dont' sleep too long because it
         # can heat up quickly
-        current_interval_s = min(20, interval_s)
+        current_interval_s = min(MAX_DRIVE_STARTUP_SLEEP_INTERVAL_S, interval_s)
       else:
         current_interval_s = interval_s
       logger.debug("Sleeping for %u seconds" % (current_interval_s))
