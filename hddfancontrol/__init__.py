@@ -672,6 +672,7 @@ def main(drive_filepaths, fan_pwm_filepaths, fan_start_values, fan_stop_values, 
 
   except Exception as e:
     logger.error("%s: %s" % (e.__class__.__qualname__, e))
+    exit_evt.set()
 
   # run fans at full speed at exit
   for fan in fans:
