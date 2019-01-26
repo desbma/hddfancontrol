@@ -123,6 +123,14 @@ class Drive:
       self.logger.warning("Drive does not allow querying temperature without going out of low power mode.")
     return supported
 
+  def supportsProbingWhileAsleep(self):
+    """
+    Return True if drive can be probed while asleep, without waking up, False instead.
+
+    This returns a cached value unlike supportsHitachiTempQuery which probes hardware.
+    """
+    return self.supports_hitachi_temp_query
+
   def getState(self):
     """ Get drive power state, as a DriveState enum. """
     states = {"unknown": __class__.DriveState.UNKNOWN,
@@ -332,6 +340,10 @@ class Fan:
   def isRunning(self):
     """ Return True if fan is moving, False instead. """
     return (self.getRpm() > 0)
+
+  def isStartingUp(self):
+    """ Return True if fan is starting up, False instead. """
+    return self.startup
 
   def waitStabilize(self):
     """
@@ -607,13 +619,13 @@ def main(drive_filepaths, fan_pwm_filepaths, fan_start_values, fan_stop_values, 
       awakes = []
       for drive in drives:
         awake = not drive.isSleeping()
-        if awake or drive.supports_hitachi_temp_query:
+        if awake or drive.supportsProbingWhileAsleep():
           try:
             temps.append(drive.getTemperature())
           except DriveAsleepError:
-            assert(not drive.supports_hitachi_temp_query)
+            assert(not drive.supportsProbingWhileAsleep())
             awake = False
-        if (not awake) and (not drive.supports_hitachi_temp_query):
+        if (not awake) and (not drive.supportsProbingWhileAsleep()):
           logger.debug("Drive %s is in low power state, unable to query temperature" % (drive))
         awakes.append(awake)
       if temps:
@@ -641,7 +653,7 @@ def main(drive_filepaths, fan_pwm_filepaths, fan_start_values, fan_stop_values, 
           current_fan_speeds[i] = fan_speed_prct
 
       # sleep
-      if any(map(operator.attrgetter("startup"), fans)):
+      if any(map(operator.methodcaller("isStartingUp"), fans)):
         # at least one fan is starting up, quickly cancel startup boost
         current_interval_s = min(MAX_FAN_STARTUP_TIME_S, interval_s)
       elif any(awakes) and ((now - drives_startup_time) < DRIVE_STARTUP_TIME_S):
