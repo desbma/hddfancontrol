@@ -6,6 +6,7 @@ __version__ = "1.2.10"
 __author__ = "desbma"
 __license__ = "GPLv3"
 
+import abc
 import argparse
 import contextlib
 import enum
@@ -68,7 +69,24 @@ class LoggingSysLogHandler(logging.Handler):
     super().close()
 
 
-class Drive:
+class HotDevice:
+
+  """ Base class for devices generating heat. """
+
+  @abc.abstractmethod
+  def getTemperature(self):
+    """ Get device temperature as int or float. """
+    pass
+
+  @abc.abstractmethod
+  def getTemperatureRange(self):
+    """ Get min/max target temperatures.
+
+    Fans should be at minimum speed below min, and blow at full speed above max. """
+    pass
+
+
+class Drive(HotDevice):
 
   """ Drive represented by a device file like /dev/sdX. """
 
@@ -79,11 +97,13 @@ class Drive:
   HDPARM_GET_MODEL_REGEX = re.compile("Model Number:\s*(.*)")
   HDDTEMP_SLEEPING_SUFFIX = ": drive is sleeping\n"
 
-  def __init__(self, device_filepath, hddtemp_daemon_port):
+  def __init__(self, device_filepath, hddtemp_daemon_port, min_temp, max_temp):
     assert(stat.S_ISBLK(os.stat(device_filepath).st_mode))
     self.device_filepath = __class__.normalizeDrivePath(device_filepath)
     self.stat_filepath = "/sys/block/%s/stat" % (os.path.basename(self.device_filepath))
     self.hddtemp_daemon_port = hddtemp_daemon_port
+    self.min_temp = min_temp
+    self.max_temp = max_temp
     self.pretty_name = self.getPrettyName()
     self.logger = logging.getLogger(str(self))
     self.supports_hitachi_temp_query = self.supportsHitachiTempQuery()
@@ -151,6 +171,10 @@ class Drive:
     """ Return True if drive is in low power state, False otherwise. """
     return (self.getState() in (Drive.DriveState.STANDBY, Drive.DriveState.SLEEPING))
 
+  def getTemperatureRange(self):
+    """ See HotDevice.getTemperatureRange. """
+    return self.min_temp, self.max_temp
+
   def getTemperature(self):
     """ Get drive temperature in Celcius using either hddtemp or hdparm. """
     if not self.supports_hitachi_temp_query:
@@ -160,7 +184,7 @@ class Drive:
         temp = self.getTemperatureWithHddtempInvocation()
     else:
       temp = self.getTemperatureWithHdparmInvocation()
-    self.logger.debug("Drive temperature: %u C" % (temp))
+    self.logger.debug("Drive temperature: %u °C" % (temp))
     return temp
 
   def getTemperatureWithHddtempDaemon(self):
@@ -249,6 +273,58 @@ class Drive:
     return os.path.abspath(r)
 
 
+class CPU(HotDevice):
+
+  """ CPU device with a sysfs temp sensor. """
+
+  SENSOR_DIGITS_REGEX = re.compile("temp([0-9])*_input$")
+  HARDCODED_MIN_TEMP = 30
+
+  def __init__(self, cpu_sensor):
+    self.cpu_sensor_input_filepath = cpu_sensor
+    self.logger = logging.getLogger(__class__.__name__)
+    self.max_temp = self.getMaxTemp()
+
+  def getSysfsTempValue(self, filepath):
+    """ Get temperature value from a sysfs file as a float. """
+    with open(filepath, "rt") as f:
+      return int(f.read()) / 1000
+
+  def getTemperature(self):
+    """ See HotDevice.getTemperature. """
+    r = self.getSysfsTempValue(self.cpu_sensor_input_filepath)
+    self.logger.debug("CPU temperature: %u °C" % (r))
+    return r
+
+  def getMaxTemp(self):
+    """ Compute maximum temperature. """
+    # first compute filepath for max and crit sysfs files
+    sensor_num = int(__class__.SENSOR_DIGITS_REGEX.search(self.cpu_sensor_input_filepath).group(1))
+    max_filepath = os.path.join(os.path.dirname(self.cpu_sensor_input_filepath), "temp%u_max" % (sensor_num))
+    crit_filepath = os.path.join(os.path.dirname(self.cpu_sensor_input_filepath), "temp%u_crit" % (sensor_num))
+
+    # get values
+    crit_temp = self.getSysfsTempValue(crit_filepath)
+    self.logger.debug("Critical CPU temperature: %u °C" % (crit_temp))
+    try:
+      max_temp = self.getSysfsTempValue(max_filepath)
+      self.logger.debug("Maximum CPU temperature: %u °C" % (max_temp))
+    except FileNotFoundError:
+      max_temp = crit_temp - 20
+
+    # some sensors have it reversed...
+    max_temp, crit_temp = min(max_temp, crit_temp), max(max_temp, crit_temp)
+
+    # keep a safety margin
+    r = max_temp - (crit_temp - max_temp)
+    assert(r > __class__.HARDCODED_MIN_TEMP)
+    return r
+
+  def getTemperatureRange(self):
+    """ See HotDevice.getTemperatureRange. """
+    return __class__.HARDCODED_MIN_TEMP, self.max_temp
+
+
 class DriveSpinDownThread(threading.Thread):
 
   """ Thread responsible for spinning down a drive when it is not active for a certain amount of time. """
@@ -334,7 +410,7 @@ class Fan:
     """ Read fan speed in revolutions per minute. """
     with open(self.fan_input_filepath, "rt") as fan_input_file:
       rpm = int(fan_input_file.read().strip())
-    self.logger.debug("Rotation speed is currently %u rpm" % (rpm))
+    self.logger.debug("Rotation speed is currently %u RPM" % (rpm))
     return rpm
 
   def isRunning(self):
@@ -576,8 +652,8 @@ def set_high_priority(logger):
       logger.info("Process reniced from %d to %d" % (previous_niceness, new_niceness))
 
 
-def main(drive_filepaths, fan_pwm_filepaths, fan_start_values, fan_stop_values, min_fan_speed_prct, min_temp, max_temp,
-         interval_s, spin_down_time_s, hddtemp_daemon_port):
+def main(drive_filepaths, cpu_probe_filepath, fan_pwm_filepaths, fan_start_values, fan_stop_values, min_fan_speed_prct,
+         min_drive_temp, max_drive_temp, interval_s, spin_down_time_s, hddtemp_daemon_port):
   logger = logging.getLogger("Main")
   fans = []
   try:
@@ -588,7 +664,7 @@ def main(drive_filepaths, fan_pwm_filepaths, fan_start_values, fan_stop_values, 
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
-    # init
+    # init fans
     fans = [Fan(i,
                 fan_pwm_filepath,
                 fan_start_value,
@@ -599,9 +675,15 @@ def main(drive_filepaths, fan_pwm_filepaths, fan_start_values, fan_stop_values, 
                                                                       fan_start_values,
                                                                       fan_stop_values),
                                                                   1)]
-    drives = [Drive(drive_filepath, hddtemp_daemon_port) for drive_filepath in drive_filepaths]
-    drives_startup_time = time.monotonic()
     current_fan_speeds = [None] * len(fans)
+
+    # init devices
+    drives = [Drive(drive_filepath, hddtemp_daemon_port, min_drive_temp, max_drive_temp) for drive_filepath in drive_filepaths]
+    cpus = []
+    if cpu_probe_filepath is not None:
+      cpus.append(CPU(cpu_probe_filepath))
+    devices = drives + cpus
+    drives_startup_time = time.monotonic()
 
     # start spin down threads if needed
     spin_down_threads = []
@@ -613,37 +695,45 @@ def main(drive_filepaths, fan_pwm_filepaths, fan_start_values, fan_stop_values, 
 
     while not exit_evt.is_set():
       now = time.monotonic()
+      device_temps = dict()
 
-      # calc max drive temperature
-      temps = []
-      awakes = []
+      # get drive temperatures
+      drive_awakes = []
       for drive in drives:
-        awake = not drive.isSleeping()
-        if awake or drive.supportsProbingWhileAsleep():
+        drive_awake = not drive.isSleeping()
+        if drive_awake or drive.supportsProbingWhileAsleep():
           try:
-            temps.append(drive.getTemperature())
+            device_temps[drive] = drive.getTemperature()
           except DriveAsleepError:
             assert(not drive.supportsProbingWhileAsleep())
-            awake = False
-        if (not awake) and (not drive.supportsProbingWhileAsleep()):
+            drive_awake = False
+        if (not drive_awake) and (not drive.supportsProbingWhileAsleep()):
           logger.debug("Drive %s is in low power state, unable to query temperature" % (drive))
-        awakes.append(awake)
-      if temps:
-        temp = max(temps)
-        logger.info("Maximum drive temperature: %u C" % (temp))
-      else:
-        assert(not any(awakes))
+        drive_awakes.append(drive_awake)
+      if not device_temps:
+        assert(not any(drive_awakes))
         logger.info("All drives are in low power state")
 
-      if not any(awakes):
+      if not any(drive_awakes):
         drives_startup_time = now
 
+      if cpus:
+        # get cpu temp
+        assert(len(cpus) == 1)
+        device_temps[cpus[0]] = cpus[0].getTemperature()
+
+      logger.info("Maximum device temperature: %u °C" % (max(device_temps.values())))
+
       # calc target percentage fan speed
-      if temps and (temp > min_temp):
-        fan_speed_prct = 100 * (temp - min_temp) // (max_temp - min_temp)
-        fan_speed_prct = int(min(fan_speed_prct, 100))
-      else:
-        fan_speed_prct = 0
+      fan_speed_prct = 0
+      for device, device_temp in device_temps.items():
+        device_temp_range = device.getTemperatureRange()
+        if device_temp > device_temp_range[0]:
+          fan_speed_prct = max(fan_speed_prct,
+                               100 * (device_temp - device_temp_range[0]) // (device_temp_range[1] - device_temp_range[0]))
+      # cap at 100%
+      fan_speed_prct = int(min(fan_speed_prct, 100))
+      # enforce min fan speed
       fan_speed_prct = max(fan_speed_prct, min_fan_speed_prct)
 
       # set fan speed if needed
@@ -656,7 +746,7 @@ def main(drive_filepaths, fan_pwm_filepaths, fan_start_values, fan_stop_values, 
       if any(map(operator.methodcaller("isStartingUp"), fans)):
         # at least one fan is starting up, quickly cancel startup boost
         current_interval_s = min(MAX_FAN_STARTUP_TIME_S, interval_s)
-      elif any(awakes) and ((now - drives_startup_time) < DRIVE_STARTUP_TIME_S):
+      elif any(drive_awakes) and ((now - drives_startup_time) < DRIVE_STARTUP_TIME_S):
         # if at least a drive was started or waken up less than 5 min ago, dont' sleep too long because it
         # can heat up quickly
         current_interval_s = min(MAX_DRIVE_STARTUP_SLEEP_INTERVAL_S, interval_s)
@@ -694,7 +784,7 @@ def cl_main():
                           required=True,
                           nargs="+",
                           dest="fan_pwm_filepath",
-                          help="PWM filepath(s) to control fan speed (under /sys)")
+                          help="PWM filepath(s) to control fan speed (ie. /sys/class/hwmon/hwmonX/device/pwmY)")
   arg_parser.add_argument("--pwm-start-value",
                           type=int,
                           default=None,
@@ -730,9 +820,16 @@ def cl_main():
   arg_parser.add_argument("-i",
                           "--interval",
                           type=int,
-                          default=60,
+                          default=None,
                           dest="interval_s",
                           help="Interval in seconds to check temperature and adjust fan speed.")
+  arg_parser.add_argument("-c",
+                          "--cpu-sensor",
+                          default=None,
+                          dest="cpu_probe_filepath",
+                          help="""Also control fan speed according to this CPU temperature probe.
+                                  (ie. /sys/devices/platform/coretemp.0/hwmon/hwmonX/tempY_input).
+                                  WARNING: This is experimental, only use for low TDP CPUs.""")
   arg_parser.add_argument("--spin-down-time",
                           type=int,
                           default=None,
@@ -785,6 +882,8 @@ def cl_main():
           "Please set a higher spin down time, or use hdparm's -S switch "
           "to set SATA spin down time." % (args.spin_down_time_s, args.interval_s))
     exit(os.EX_USAGE)
+  if args.interval_s is None:
+    args.interval_s = 60 if (args.cpu_probe_filepath is None) else 10
 
   # setup logger
   logging_level = {"warning": logging.WARNING,
@@ -843,6 +942,7 @@ def cl_main():
         daemon_context.enter_context(daemon.DaemonContext(pidfile=pidfile,
                                                           files_preserve=preserved_fds))
       main(args.drive_filepaths,
+           args.cpu_probe_filepath,
            args.fan_pwm_filepath,
            args.fan_start_value,
            args.fan_stop_value,
