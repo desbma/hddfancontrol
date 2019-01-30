@@ -722,7 +722,8 @@ def main(drive_filepaths, cpu_probe_filepath, fan_pwm_filepaths, fan_start_value
         assert(len(cpus) == 1)
         device_temps[cpus[0]] = cpus[0].getTemperature()
 
-      logger.info("Maximum device temperature: %u °C" % (max(device_temps.values())))
+      if device_temps:
+        logger.info("Maximum device temperature: %u °C" % (max(device_temps.values())))
 
       # calc target percentage fan speed
       fan_speed_prct = 0
