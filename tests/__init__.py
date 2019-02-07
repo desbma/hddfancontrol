@@ -261,6 +261,17 @@ class TestDrive(unittest.TestCase):
     FakeHddtempDaemon.outgoing = b"|/dev/sdz|DriveSDZ|SLP|*|"
     with self.assertRaises(hddfancontrol.DriveAsleepError):
       self.drive.getTemperature()
+    FakeHddtempDaemon.outgoing = b"|/dev/sdz|DriveSDZ|ERR|*|"
+    with self.assertRaises(hddfancontrol.HddtempDaemonQueryFailed):
+      self.drive.getTemperatureWithHddtempDaemon()
+    with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
+      subprocess_check_output_mock.return_value = "30\n"
+      self.assertEqual(self.drive.getTemperature(), 30)
+      subprocess_check_output_mock.assert_called_once_with(("hddtemp", "-u", "C", "-n", "/dev/sdz"),
+                                                           stdin=subprocess.DEVNULL,
+                                                           stderr=subprocess.DEVNULL,
+                                                           env=hddtemp_env,
+                                                           universal_newlines=True)
     FakeHddtempDaemon.outgoing = b"|/dev/sdx|DriveSDX|31|C||/dev/sdy|DriveSDY|32|C|"
     with self.assertRaises(RuntimeError):
       self.drive.getTemperature()
