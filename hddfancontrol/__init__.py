@@ -47,6 +47,13 @@ class DriveAsleepError(Exception):
   pass
 
 
+class HddtempDaemonQueryFailed(Exception):
+
+  """ Exception raised when hddtemp daemon fails to return temperature for a drive. """
+
+  pass
+
+
 class LoggingSysLogHandler(logging.Handler):
 
   """ Class similar in goal to logging.handlers.SysLogHandler, but uses the syslog call instead of socket. """
@@ -155,7 +162,14 @@ class Drive:
     """ Get drive temperature in Celcius using either hddtemp or hdparm. """
     if not self.supports_hitachi_temp_query:
       if self.hddtemp_daemon_port is not None:
-        temp = self.getTemperatureWithHddtempDaemon()
+        try:
+          temp = self.getTemperatureWithHddtempDaemon()
+        except HddtempDaemonQueryFailed:
+          self.logger.warning("Hddtemp daemon returned an error when querying temperature for this drive, "
+                              "falling back to hddtemp process invocation. "
+                              "If that happens often, you may need to raise the hddtemp daemon priority "
+                              "(see: https://github.com/desbma/hddfancontrol/issues/15#issuecomment-461405402).")
+          temp = self.getTemperatureWithHddtempInvocation()
       else:
         temp = self.getTemperatureWithHddtempInvocation()
     else:
@@ -185,6 +199,8 @@ class Drive:
         break
       drive_path = drive_data[1]
       if __class__.normalizeDrivePath(drive_path) == self.device_filepath:
+        if drive_data[3] == "ERR":
+          raise HddtempDaemonQueryFailed
         if drive_data[3] == "SLP":
           raise DriveAsleepError
         temp_unit = drive_data[4]
