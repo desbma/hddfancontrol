@@ -133,7 +133,7 @@ class Drive:
 
   def supportsProbingWhileAsleep(self):
     """ Return True if drive can be probed while asleep, without waking up, False instead. """
-    return self.supports_hitachi_temp_query
+    return (not self.use_smartctl) and (self.supports_hitachi_temp_query)
 
   def getState(self):
     """ Get drive power state, as a DriveState enum. """
