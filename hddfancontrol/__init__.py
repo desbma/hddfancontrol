@@ -86,7 +86,7 @@ class Drive:
   HDPARM_GET_MODEL_REGEX = re.compile("Model Number:\s*(.*)")
   HDDTEMP_SLEEPING_SUFFIX = ": drive is sleeping\n"
 
-  def __init__(self, device_filepath, hddtemp_daemon_port):
+  def __init__(self, device_filepath, hddtemp_daemon_port, use_smartctl):
     assert(stat.S_ISBLK(os.stat(device_filepath).st_mode))
     self.device_filepath = __class__.normalizeDrivePath(device_filepath)
     self.stat_filepath = "/sys/block/%s/stat" % (os.path.basename(self.device_filepath))
@@ -94,6 +94,7 @@ class Drive:
     self.pretty_name = self.getPrettyName()
     self.logger = logging.getLogger(str(self))
     self.supports_hitachi_temp_query = self.supportsHitachiTempQuery()
+    self.use_smartctl = use_smartctl
 
   def __str__(self):
     """ Return a pretty drive name. """
@@ -131,11 +132,7 @@ class Drive:
     return supported
 
   def supportsProbingWhileAsleep(self):
-    """
-    Return True if drive can be probed while asleep, without waking up, False instead.
-
-    This returns a cached value unlike supportsHitachiTempQuery which probes hardware.
-    """
+    """ Return True if drive can be probed while asleep, without waking up, False instead. """
     return self.supports_hitachi_temp_query
 
   def getState(self):
@@ -160,7 +157,9 @@ class Drive:
 
   def getTemperature(self):
     """ Get drive temperature in Celcius using either hddtemp or hdparm. """
-    if not self.supports_hitachi_temp_query:
+    if self.use_smartctl:
+      temp = self.getTemperatureWithSmartctlInvocation()
+    elif not self.supports_hitachi_temp_query:
       if self.hddtemp_daemon_port is not None:
         try:
           temp = self.getTemperatureWithHddtempDaemon()
@@ -236,6 +235,17 @@ class Drive:
                                      stderr=subprocess.DEVNULL,
                                      universal_newlines=True)
     return int(__class__.HDPARM_GET_TEMP_HITACHI_REGEX.search(output).group(1))
+
+  def getTemperatureWithSmartctlInvocation(self):
+    """ Get drive temperature in Celcius using smartctl. """
+    cmd = ("smartctl", "-A", self.device_filepath)
+    output = subprocess.check_output(cmd,
+                                     stdin=subprocess.DEVNULL,
+                                     stderr=subprocess.DEVNULL,
+                                     universal_newlines=True)
+    temp_line = next(filter(lambda x: x.lstrip().startswith("194 Temperature_Celsius"),
+                            output.splitlines()))
+    return int(temp_line.split()[9])
 
   def spinDown(self):
     """ Spin down a drive, effectively setting it to DriveState.STANDBY state. """
@@ -593,7 +603,7 @@ def set_high_priority(logger):
 
 
 def main(drive_filepaths, fan_pwm_filepaths, fan_start_values, fan_stop_values, min_fan_speed_prct, min_temp, max_temp,
-         interval_s, spin_down_time_s, hddtemp_daemon_port):
+         interval_s, spin_down_time_s, hddtemp_daemon_port, use_smartctl):
   logger = logging.getLogger("Main")
   fans = []
   try:
@@ -615,7 +625,7 @@ def main(drive_filepaths, fan_pwm_filepaths, fan_start_values, fan_stop_values, 
                                                                       fan_start_values,
                                                                       fan_stop_values),
                                                                   1)]
-    drives = [Drive(drive_filepath, hddtemp_daemon_port) for drive_filepath in drive_filepaths]
+    drives = [Drive(drive_filepath, hddtemp_daemon_port, use_smartctl) for drive_filepath in drive_filepaths]
     drives_startup_time = time.monotonic()
     current_fan_speeds = [None] * len(fans)
 
@@ -791,6 +801,10 @@ def cl_main():
                           default=7634,
                           dest="hddtemp_daemon_port",
                           help="hddtemp daemon port if option --hddtemp-daemon is used")
+  arg_parser.add_argument("--smartctl",
+                          action="store_true",
+                          default=False,
+                          help="""Probe temperature using smartctl instead of hddtemp/hdparm (EXPERIMENTAL)""")
   args = arg_parser.parse_args()
   if (((args.fan_start_value is not None) and (len(args.fan_pwm_filepath) != len(args.fan_start_value))) or
           ((args.fan_stop_value is not None) and (len(args.fan_pwm_filepath) != len(args.fan_stop_value)))):
@@ -867,7 +881,8 @@ def cl_main():
            args.max_temp,
            args.interval_s,
            args.spin_down_time_s,
-           args.hddtemp_daemon_port if args.hddtemp_daemon else None)
+           args.hddtemp_daemon_port if args.hddtemp_daemon else None,
+           args.smartctl)
 
 
 # check deps

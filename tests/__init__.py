@@ -42,7 +42,7 @@ class TestDrive(unittest.TestCase):
       stat_mock.stat.S_IFBLK.return_value = True
       subprocess_check_output_mock.side_effect = subprocess.CalledProcessError(0, "")
       drive_getPrettyName.return_value = "drive_name"
-      self.drive = hddfancontrol.Drive("/dev/sdz", None)
+      self.drive = hddfancontrol.Drive("/dev/sdz", None, False)
     self.hddtemp_daemon = None
 
   def tearDown(self):
@@ -170,11 +170,49 @@ class TestDrive(unittest.TestCase):
 
   def test_getTemperature(self):
     #
-    # Temperature querying can be done in 3 different way:
+    # Temperature querying can be done in 4 different ways:
+    # * if smartctl use was enabled => use smartctl call
     # * if drive supports Hitachi-style sensor => use hdparm call
     # * if hddtemp daemon is available => use hddtemp daemon
     # * otherwise use a hddtemp call
     #
+
+    # smartctl call
+    self.drive.supports_hitachi_temp_query = False
+    self.drive.hddtemp_daemon_port = None
+    self.drive.use_smartctl = True
+    with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
+      subprocess_check_output_mock.return_value = """smartctl 7.0 2018-12-30 r4883 [x86_64-linux-4.19.36-1-lts] (local build)
+Copyright (C) 2002-18, Bruce Allen, Christian Franke, www.smartmontools.org
+
+=== START OF READ SMART DATA SECTION ===
+SMART Attributes Data Structure revision number: 16
+Vendor Specific SMART Attributes with Thresholds:
+ID# ATTRIBUTE_NAME          FLAG     VALUE WORST THRESH TYPE      UPDATED  WHEN_FAILED RAW_VALUE
+  1 Raw_Read_Error_Rate     0x000b   100   100   016    Pre-fail  Always       -       0
+  2 Throughput_Performance  0x0005   136   136   054    Pre-fail  Offline      -       80
+  3 Spin_Up_Time            0x0007   123   123   024    Pre-fail  Always       -       615 (Average 644)
+  4 Start_Stop_Count        0x0012   100   100   000    Old_age   Always       -       540
+  5 Reallocated_Sector_Ct   0x0033   100   100   005    Pre-fail  Always       -       0
+  7 Seek_Error_Rate         0x000b   100   100   067    Pre-fail  Always       -       0
+  8 Seek_Time_Performance   0x0005   124   124   020    Pre-fail  Offline      -       33
+  9 Power_On_Hours          0x0012   100   100   000    Old_age   Always       -       1723
+ 10 Spin_Retry_Count        0x0013   100   100   060    Pre-fail  Always       -       0
+ 12 Power_Cycle_Count       0x0032   100   100   000    Old_age   Always       -       424
+192 Power-Off_Retract_Count 0x0032   100   100   000    Old_age   Always       -       571
+193 Load_Cycle_Count        0x0012   100   100   000    Old_age   Always       -       571
+194 Temperature_Celsius     0x0002   171   171   000    Old_age   Always       -       35 (Min/Max 13/45)
+196 Reallocated_Event_Count 0x0032   100   100   000    Old_age   Always       -       0
+197 Current_Pending_Sector  0x0022   100   100   000    Old_age   Always       -       0
+198 Offline_Uncorrectable   0x0008   100   100   000    Old_age   Offline      -       0
+199 UDMA_CRC_Error_Count    0x000a   200   200   000    Old_age   Always       -       0
+
+"""
+      self.assertEqual(self.drive.getTemperature(), 35)
+      subprocess_check_output_mock.assert_called_once_with(("smartctl", "-A", "/dev/sdz"),
+                                                           stdin=subprocess.DEVNULL,
+                                                           stderr=subprocess.DEVNULL,
+                                                           universal_newlines=True)
 
     hddtemp_env = dict(os.environ)
     hddtemp_env["LANG"] = "C"
@@ -182,6 +220,7 @@ class TestDrive(unittest.TestCase):
     # hddtemp call
     self.drive.supports_hitachi_temp_query = False
     self.drive.hddtemp_daemon_port = None
+    self.drive.use_smartctl = False
     with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
       subprocess_check_output_mock.return_value = "30\n"
       self.assertEqual(self.drive.getTemperature(), 30)
@@ -220,6 +259,7 @@ class TestDrive(unittest.TestCase):
 
     # hdparm call
     self.drive.supports_hitachi_temp_query = True
+    self.drive.use_smartctl = False
     for self.drive.hddtemp_daemon_port in (None, 12345):
       with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
         subprocess_check_output_mock.return_value = "/dev/sdz:\n  drive temperature (celsius) is:  30\n  drive temperature in range:  yes\n"
@@ -248,6 +288,7 @@ class TestDrive(unittest.TestCase):
     # hddtemp daemon
     self.drive.supports_hitachi_temp_query = False
     self.drive.hddtemp_daemon_port = 12345
+    self.drive.use_smartctl = False
     with self.assertRaises(Exception):
       self.drive.getTemperature()
     self.hddtemp_daemon = FakeHddtempDaemon(12345)
