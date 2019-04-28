@@ -114,6 +114,7 @@ class Drive(HotDevice):
     self.pretty_name = self.getPrettyName()
     self.logger = logging.getLogger(str(self))
     self.supports_hitachi_temp_query = self.supportsHitachiTempQuery()
+    self.supports_sct_temp_query = self.supportsSctTempQuery()
     self.use_smartctl = use_smartctl
 
   def __str__(self):
@@ -132,7 +133,7 @@ class Drive(HotDevice):
     return "%s %s" % (os.path.basename(self.device_filepath), model)
 
   def supportsHitachiTempQuery(self):
-    # test if drive supports hdparm -H
+    """ Test if drive supports hdparm -H. """
     supported = True
     cmd = ("hdparm", "-H", self.device_filepath)
     try:
@@ -148,7 +149,27 @@ class Drive(HotDevice):
       if __class__.HDPARM_GET_TEMP_HITACHI_ERROR_REGEX.search(output) is not None:
         supported = False
     if not supported:
-      self.logger.warning("Drive does not allow querying temperature without going out of low power mode.")
+      self.logger.warning("Drive does not support HGST temp query")
+    return supported
+
+  def supportsSctTempQuery(self):
+    """ Test if drive supports smartctl -l scttempsts. """
+    supported = True
+    cmd = ("smartctl", "-l", "scttempsts", self.device_filepath)
+    output = subprocess.check_output(cmd,
+                                     stdin=subprocess.DEVNULL,
+                                     stderr=subprocess.DEVNULL,
+                                     universal_newlines=True)
+    try:
+      temp_line = next(filter(lambda x: x.lstrip().startswith("Current Temperature: "),
+                              output.splitlines()))
+      temp = int(temp_line.split()[2])
+    except Exception:
+      supported = False
+    else:
+      supported = True
+    if not supported:
+      self.logger.warning("Drive does not support SCT temp query")
     return supported
 
   def supportsProbingWhileAsleep(self):
@@ -180,23 +201,25 @@ class Drive(HotDevice):
     return self.min_temp, self.max_temp
 
   def getTemperature(self):
-    """ Get drive temperature in Celcius using either hddtemp or hdparm. """
+    """ Get drive temperature in Celcius. """
     if self.use_smartctl:
-      temp = self.getTemperatureWithSmartctlInvocation()
-    elif not self.supports_hitachi_temp_query:
-      if self.hddtemp_daemon_port is not None:
-        try:
-          temp = self.getTemperatureWithHddtempDaemon()
-        except HddtempDaemonQueryFailed:
-          self.logger.warning("Hddtemp daemon returned an error when querying temperature for this drive, "
-                              "falling back to hddtemp process invocation. "
-                              "If that happens often, you may need to raise the hddtemp daemon priority "
-                              "(see: https://github.com/desbma/hddfancontrol/issues/15#issuecomment-461405402).")
-          temp = self.getTemperatureWithHddtempInvocation()
+      if self.supports_sct_temp_query:
+        temp = self.getTemperatureWithSmartctlSctInvocation()
       else:
+        temp = self.getTemperatureWithSmartctlAttribInvocation()
+    elif self.supports_hitachi_temp_query:
+      temp = self.getTemperatureWithHdparmInvocation()
+    elif self.hddtemp_daemon_port is not None:
+      try:
+        temp = self.getTemperatureWithHddtempDaemon()
+      except HddtempDaemonQueryFailed:
+        self.logger.warning("Hddtemp daemon returned an error when querying temperature for this drive, "
+                            "falling back to hddtemp process invocation. "
+                            "If that happens often, you may need to raise the hddtemp daemon priority "
+                            "(see: https://github.com/desbma/hddfancontrol/issues/15#issuecomment-461405402).")
         temp = self.getTemperatureWithHddtempInvocation()
     else:
-      temp = self.getTemperatureWithHdparmInvocation()
+      temp = self.getTemperatureWithHddtempInvocation()
     self.logger.debug("Drive temperature: %u °C" % (temp))
     return temp
 
@@ -260,8 +283,8 @@ class Drive(HotDevice):
                                      universal_newlines=True)
     return int(__class__.HDPARM_GET_TEMP_HITACHI_REGEX.search(output).group(1))
 
-  def getTemperatureWithSmartctlInvocation(self):
-    """ Get drive temperature in Celcius using smartctl. """
+  def getTemperatureWithSmartctlAttribInvocation(self):
+    """ Get drive temperature in Celcius using smartctl SMART attribute. """
     cmd = ("smartctl", "-A", self.device_filepath)
     output = subprocess.check_output(cmd,
                                      stdin=subprocess.DEVNULL,
@@ -270,6 +293,17 @@ class Drive(HotDevice):
     temp_line = next(filter(lambda x: x.lstrip().startswith("194 Temperature_Celsius"),
                             output.splitlines()))
     return int(temp_line.split()[9])
+
+  def getTemperatureWithSmartctlSctInvocation(self):
+    """ Get drive temperature in Celcius using smartctl SCT reading. """
+    cmd = ("smartctl", "-l", "scttempsts", self.device_filepath)
+    output = subprocess.check_output(cmd,
+                                     stdin=subprocess.DEVNULL,
+                                     stderr=subprocess.DEVNULL,
+                                     universal_newlines=True)
+    temp_line = next(filter(lambda x: x.lstrip().startswith("Current Temperature: "),
+                            output.splitlines()))
+    return int(temp_line.split()[2])
 
   def spinDown(self):
     """ Spin down a drive, effectively setting it to DriveState.STANDBY state. """

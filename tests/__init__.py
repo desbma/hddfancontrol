@@ -40,7 +40,7 @@ class TestDrive(unittest.TestCase):
             unittest.mock.patch("hddfancontrol.Drive.getPrettyName") as drive_getPrettyName:
       os_stat_mock.return_value = os.stat_result
       stat_mock.stat.S_IFBLK.return_value = True
-      subprocess_check_output_mock.side_effect = subprocess.CalledProcessError(0, "")
+      subprocess_check_output_mock.return_value = ""
       drive_getPrettyName.return_value = "drive_name"
       self.drive = hddfancontrol.Drive("/dev/sdz", None, 30, 50, False)
     self.hddtemp_daemon = None
@@ -63,31 +63,68 @@ class TestDrive(unittest.TestCase):
   def test_supportsHitachiTempQuery(self):
     with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
       subprocess_check_output_mock.return_value = "\n/dev/sdz:\n drive temperature (celsius) is:  30\n drive temperature in range:  yes"
-      self.assertEqual(self.drive.supportsHitachiTempQuery(), True)
+      self.assertTrue(self.drive.supportsHitachiTempQuery())
       subprocess_check_output_mock.assert_called_once_with(("hdparm", "-H", "/dev/sdz"),
                                                            stdin=subprocess.DEVNULL,
                                                            stderr=subprocess.STDOUT,
                                                            universal_newlines=True)
     with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
       subprocess_check_output_mock.return_value = "\n/dev/sdz:\nSG_IO: questionable sense data, results may be incorrect\n drive temperature (celsius) is: -18\n drive temperature in range: yes"
-      self.assertEqual(self.drive.supportsHitachiTempQuery(), False)
+      self.assertFalse(self.drive.supportsHitachiTempQuery())
       subprocess_check_output_mock.assert_called_once_with(("hdparm", "-H", "/dev/sdz"),
                                                            stdin=subprocess.DEVNULL,
                                                            stderr=subprocess.STDOUT,
                                                            universal_newlines=True)
     with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
       subprocess_check_output_mock.return_value = "\n/dev/sdz:\nSG_IO: missing sense data, results may be incorrect\n drive temperature (celsius) is: -18\n drive temperature in range: yes"
-      self.assertEqual(self.drive.supportsHitachiTempQuery(), False)
+      self.assertFalse(self.drive.supportsHitachiTempQuery())
       subprocess_check_output_mock.assert_called_once_with(("hdparm", "-H", "/dev/sdz"),
                                                            stdin=subprocess.DEVNULL,
                                                            stderr=subprocess.STDOUT,
                                                            universal_newlines=True)
     with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
       subprocess_check_output_mock.return_value = "\n/dev/sdz:\nSG_IO: bad/missing sense data, sb[]: 70 00 05 00 00 00 00 0a 04 51 40 00 21 04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n drive temperature (celsius) is: -18\n drive temperature in range: yes"
-      self.assertEqual(self.drive.supportsHitachiTempQuery(), False)
+      self.assertFalse(self.drive.supportsHitachiTempQuery())
       subprocess_check_output_mock.assert_called_once_with(("hdparm", "-H", "/dev/sdz"),
                                                            stdin=subprocess.DEVNULL,
                                                            stderr=subprocess.STDOUT,
+                                                           universal_newlines=True)
+
+  def test_supportsSctTempQuery(self):
+    with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
+      subprocess_check_output_mock.return_value = """smartctl 7.0 2018-12-30 r4883 [x86_64-linux-4.19.36-1-lts] (local build)
+Copyright (C) 2002-18, Bruce Allen, Christian Franke, www.smartmontools.org
+
+=== START OF READ SMART DATA SECTION ===
+SCT Status Version:                  3
+SCT Version (vendor specific):       258 (0x0102)
+Device State:                        Stand-by (1)
+Current Temperature:                    39 Celsius
+Power Cycle Min/Max Temperature:     18/39 Celsius
+Lifetime    Min/Max Temperature:      0/56 Celsius
+Under/Over Temperature Limit Count:   0/0
+Vendor specific:
+01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+"""
+      self.assertTrue(self.drive.supportsSctTempQuery())
+      subprocess_check_output_mock.assert_called_once_with(("smartctl", "-l", "scttempsts", "/dev/sdz"),
+                                                           stdin=subprocess.DEVNULL,
+                                                           stderr=subprocess.DEVNULL,
+                                                           universal_newlines=True)
+    with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
+      subprocess_check_output_mock.return_value = """smartctl 7.0 2018-12-30 r4883 [x86_64-linux-4.19.36-1-lts] (local build)
+Copyright (C) 2002-18, Bruce Allen, Christian Franke, www.smartmontools.org
+
+=== START OF READ SMART DATA SECTION ===
+SCT Commands not supported
+
+"""
+      self.assertFalse(self.drive.supportsSctTempQuery())
+      subprocess_check_output_mock.assert_called_once_with(("smartctl", "-l", "scttempsts", "/dev/sdz"),
+                                                           stdin=subprocess.DEVNULL,
+                                                           stderr=subprocess.DEVNULL,
                                                            universal_newlines=True)
 
   def test_getState(self):
@@ -170,17 +207,47 @@ class TestDrive(unittest.TestCase):
 
   def test_getTemperature(self):
     #
-    # Temperature querying can be done in 4 different ways:
-    # * if smartctl use was enabled => use smartctl call
+    # Temperature querying can be done in 5 different ways:
+    # * if smartctl use was enabled and SCT is supported => use smartctl -l scttempsts call
+    # * if smartctl use was enabled => use smartctl -A call
     # * if drive supports Hitachi-style sensor => use hdparm call
     # * if hddtemp daemon is available => use hddtemp daemon
     # * otherwise use a hddtemp call
     #
 
-    # smartctl call
+    # smartctl -l scttempsts call
     self.drive.supports_hitachi_temp_query = False
     self.drive.hddtemp_daemon_port = None
     self.drive.use_smartctl = True
+    self.drive.supports_sct_temp_query = True
+    with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
+      subprocess_check_output_mock.return_value = """smartctl 7.0 2018-12-30 r4883 [x86_64-linux-4.19.36-1-lts] (local build)
+Copyright (C) 2002-18, Bruce Allen, Christian Franke, www.smartmontools.org
+
+=== START OF READ SMART DATA SECTION ===
+SCT Status Version:                  3
+SCT Version (vendor specific):       258 (0x0102)
+Device State:                        Active (0)
+Current Temperature:                    30 Celsius
+Power Cycle Min/Max Temperature:     18/40 Celsius
+Lifetime    Min/Max Temperature:      0/56 Celsius
+Under/Over Temperature Limit Count:   0/0
+Vendor specific:
+01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+"""
+      self.assertEqual(self.drive.getTemperature(), 30)
+      subprocess_check_output_mock.assert_called_once_with(("smartctl", "-l", "scttempsts", "/dev/sdz"),
+                                                           stdin=subprocess.DEVNULL,
+                                                           stderr=subprocess.DEVNULL,
+                                                           universal_newlines=True)
+
+    # smartctl -A call
+    self.drive.supports_hitachi_temp_query = False
+    self.drive.hddtemp_daemon_port = None
+    self.drive.use_smartctl = True
+    self.drive.supports_sct_temp_query = False
     with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
       subprocess_check_output_mock.return_value = """smartctl 7.0 2018-12-30 r4883 [x86_64-linux-4.19.36-1-lts] (local build)
 Copyright (C) 2002-18, Bruce Allen, Christian Franke, www.smartmontools.org
@@ -221,6 +288,7 @@ ID# ATTRIBUTE_NAME          FLAG     VALUE WORST THRESH TYPE      UPDATED  WHEN_
     self.drive.supports_hitachi_temp_query = False
     self.drive.hddtemp_daemon_port = None
     self.drive.use_smartctl = False
+    self.drive.supports_sct_temp_query = False
     with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
       subprocess_check_output_mock.return_value = "30\n"
       self.assertEqual(self.drive.getTemperature(), 30)
@@ -260,6 +328,7 @@ ID# ATTRIBUTE_NAME          FLAG     VALUE WORST THRESH TYPE      UPDATED  WHEN_
     # hdparm call
     self.drive.supports_hitachi_temp_query = True
     self.drive.use_smartctl = False
+    self.drive.supports_sct_temp_query = False
     for self.drive.hddtemp_daemon_port in (None, 12345):
       with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
         subprocess_check_output_mock.return_value = "/dev/sdz:\n  drive temperature (celsius) is:  30\n  drive temperature in range:  yes\n"
@@ -289,6 +358,7 @@ ID# ATTRIBUTE_NAME          FLAG     VALUE WORST THRESH TYPE      UPDATED  WHEN_
     self.drive.supports_hitachi_temp_query = False
     self.drive.hddtemp_daemon_port = 12345
     self.drive.use_smartctl = False
+    self.drive.supports_sct_temp_query = False
     with self.assertRaises(Exception):
       self.drive.getTemperature()
     self.hddtemp_daemon = FakeHddtempDaemon(12345)
