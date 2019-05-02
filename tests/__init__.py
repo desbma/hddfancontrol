@@ -280,6 +280,36 @@ ID# ATTRIBUTE_NAME          FLAG     VALUE WORST THRESH TYPE      UPDATED  WHEN_
                                                            stdin=subprocess.DEVNULL,
                                                            stderr=subprocess.DEVNULL,
                                                            universal_newlines=True)
+    with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
+      subprocess_check_output_mock.return_value = """smartctl 6.6 2017-11-05 r4594 [x86_64-linux-4.20.17-gentoo] (local build)
+Copyright (C) 2002-17, Bruce Allen, Christian Franke, www.smartmontools.org
+
+=== START OF SMART DATA SECTION ===
+SMART/Health Information (NVMe Log 0x02, NSID 0xffffffff)
+Critical Warning: 0x00
+Temperature: 37 Celsius
+Available Spare: 100%
+Available Spare Threshold: 10%
+Percentage Used: 0%
+Data Units Read: 419.309 [214 GB]
+Data Units Written: 379.116 [194 GB]
+Host Read Commands: 1.712.794
+Host Write Commands: 1.563.538
+Controller Busy Time: 10
+Power Cycles: 4
+Power On Hours: 2
+Unsafe Shutdowns: 4
+Media and Data Integrity Errors: 0
+Error Information Log Entries: 0
+Warning Comp. Temperature Time: 0
+Critical Comp. Temperature Time: 0
+
+"""
+      self.assertEqual(self.drive.getTemperature(), 37)
+      subprocess_check_output_mock.assert_called_once_with(("smartctl", "-A", "/dev/sdz"),
+                                                           stdin=subprocess.DEVNULL,
+                                                           stderr=subprocess.DEVNULL,
+                                                           universal_newlines=True)
 
     hddtemp_env = dict(os.environ)
     hddtemp_env["LANG"] = "C"

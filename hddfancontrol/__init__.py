@@ -266,9 +266,19 @@ class Drive:
                                      stdin=subprocess.DEVNULL,
                                      stderr=subprocess.DEVNULL,
                                      universal_newlines=True)
-    temp_line = next(filter(lambda x: x.lstrip().startswith("194 Temperature_Celsius"),
+
+    try:
+      temp_line = next(filter(lambda x: x.lstrip().startswith("194 Temperature_Celsius"),
+                              output.splitlines()))
+      return int(temp_line.split()[9])
+    except StopIteration:
+      pass
+
+    # try NVM attribute
+    # https://github.com/smartmontools/smartmontools/blob/1f3ff52f06c2c281f7531a6c4bd7dc32eac00201/smartmontools/nvmeprint.cpp#L343
+    temp_line = next(filter(lambda x: x.lstrip().startswith("Temperature: "),
                             output.splitlines()))
-    return int(temp_line.split()[9])
+    return int(temp_line.split()[1])
 
   def getTemperatureWithSmartctlSctInvocation(self):
     """ Get drive temperature in Celcius using smartctl SCT reading. """
