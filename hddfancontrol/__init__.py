@@ -65,7 +65,7 @@ class Drive:
   HDPARM_GET_TEMP_HITACHI_REGEX = re.compile("drive temperature \(celsius\) is:\s*([0-9]*)")
   HDPARM_GET_TEMP_HITACHI_ERROR_REGEX = re.compile("^SG_IO: .* sense data", re.MULTILINE)
   HDPARM_GET_MODEL_REGEX = re.compile("Model Number:\s*(.*)")
-  NVME_GET_TEMPRATURES_REGEX = re.compile("^Temperature Sensor [0-9]* *: ([0-9]{2,})", re.MULTILINE)
+  NVME_GET_TEMPRATURES_REGEX = re.compile("^Temperature Sensor 1* *: ([0-9]{2,})", re.MULTILINE)
 
   def __init__(self, device_filepath, hddtemp_daemon_port):
     assert(stat.S_ISBLK(os.stat(device_filepath).st_mode))
