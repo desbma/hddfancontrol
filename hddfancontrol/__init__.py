@@ -143,7 +143,7 @@ class Drive:
     try:
       temp_line = next(filter(lambda x: x.lstrip().startswith("Current Temperature: "),
                               output.splitlines()))
-      temp = int(temp_line.split()[2])
+      int(temp_line.split()[2])
     except Exception:
       supported = False
     else:
