@@ -280,11 +280,77 @@ ID# ATTRIBUTE_NAME          FLAG     VALUE WORST THRESH TYPE      UPDATED  WHEN_
                                                            stdin=subprocess.DEVNULL,
                                                            stderr=subprocess.DEVNULL,
                                                            universal_newlines=True)
+    with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
+      subprocess_check_output_mock.return_value = """smartctl 6.6 2017-11-05 r4594 [x86_64-linux-4.20.17-gentoo] (local build)
+Copyright (C) 2002-17, Bruce Allen, Christian Franke, www.smartmontools.org
 
-    hddtemp_env = dict(os.environ)
-    hddtemp_env["LANG"] = "C"
+=== START OF SMART DATA SECTION ===
+SMART/Health Information (NVMe Log 0x02, NSID 0xffffffff)
+Critical Warning: 0x00
+Temperature: 37 Celsius
+Available Spare: 100%
+Available Spare Threshold: 10%
+Percentage Used: 0%
+Data Units Read: 419.309 [214 GB]
+Data Units Written: 379.116 [194 GB]
+Host Read Commands: 1.712.794
+Host Write Commands: 1.563.538
+Controller Busy Time: 10
+Power Cycles: 4
+Power On Hours: 2
+Unsafe Shutdowns: 4
+Media and Data Integrity Errors: 0
+Error Information Log Entries: 0
+Warning Comp. Temperature Time: 0
+Critical Comp. Temperature Time: 0
+
+"""
+      self.assertEqual(self.drive.getTemperature(), 37)
+      subprocess_check_output_mock.assert_called_once_with(("smartctl", "-A", "/dev/sdz"),
+                                                           stdin=subprocess.DEVNULL,
+                                                           stderr=subprocess.DEVNULL,
+                                                           universal_newlines=True)
+
+    # smartctl -A call, alternate output
+    with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
+      # https://github.com/smartmontools/smartmontools/blob/28bd62a76e0e81f336bf44809467c7406866d1ea/www/examples/ST910021AS.txt#L64
+      subprocess_check_output_mock.return_value = """smartctl version 5.39 [i386-apple-darwin8.11.1] Copyright (C) 2002-8 Bruce Allen
+Home page is http://smartmontools.sourceforge.net/
+
+=== START OF READ SMART DATA SECTION ===
+SMART Attributes Data Structure revision number: 10
+Vendor Specific SMART Attributes with Thresholds:
+ID# ATTRIBUTE_NAME          FLAG     VALUE WORST THRESH TYPE      UPDATED  WHEN_FAILED RAW_VALUE
+  1 Raw_Read_Error_Rate     0x000e   100   253   006    Old_age   Always       -       0
+  3 Spin_Up_Time            0x0003   092   092   000    Pre-fail  Always       -       0
+  4 Start_Stop_Count        0x0032   099   099   020    Old_age   Always       -       1987
+  5 Reallocated_Sector_Ct   0x0033   001   001   036    Pre-fail  Always   FAILING_NOW 16642
+  7 Seek_Error_Rate         0x000f   070   060   030    Pre-fail  Always       -       21531636184
+  9 Power_On_Hours          0x0032   095   095   000    Old_age   Always       -       4957
+ 10 Spin_Retry_Count        0x0013   100   096   034    Pre-fail  Always       -       0
+ 12 Power_Cycle_Count       0x0032   099   099   020    Old_age   Always       -       1577
+187 Reported_Uncorrect      0x0032   001   001   000    Old_age   Always       -       65535
+189 High_Fly_Writes         0x003a   001   001   000    Old_age   Always       -       1050
+190 Airflow_Temperature_Cel 0x0022   056   044   045    Old_age   Always   In_the_past 44 (0 56 56 12)
+192 Power-Off_Retract_Count 0x0032   100   100   000    Old_age   Always       -       1155
+193 Load_Cycle_Count        0x0032   001   001   000    Old_age   Always       -       943182
+195 Hardware_ECC_Recovered  0x001a   048   048   000    Old_age   Always       -       80662606
+197 Current_Pending_Sector  0x0012   070   069   000    Old_age   Always       -       614
+198 Offline_Uncorrectable   0x0010   070   069   000    Old_age   Offline      -       614
+199 UDMA_CRC_Error_Count    0x003e   200   200   000    Old_age   Always       -       0
+200 Multi_Zone_Error_Rate   0x0000   100   253   000    Old_age   Offline      -       0
+202 TA_Increase_Count       0x0032   100   253   000    Old_age   Always       -       0
+
+"""
+      self.assertEqual(self.drive.getTemperature(), 44)
+      subprocess_check_output_mock.assert_called_once_with(("smartctl", "-A", "/dev/sdz"),
+                                                           stdin=subprocess.DEVNULL,
+                                                           stderr=subprocess.DEVNULL,
+                                                           universal_newlines=True)
 
     # hddtemp call
+    hddtemp_env = dict(os.environ)
+    hddtemp_env["LANG"] = "C"
     self.drive.supports_hitachi_temp_query = False
     self.drive.hddtemp_daemon_port = None
     self.drive.use_smartctl = False

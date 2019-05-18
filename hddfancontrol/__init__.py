@@ -163,7 +163,7 @@ class Drive(HotDevice):
     try:
       temp_line = next(filter(lambda x: x.lstrip().startswith("Current Temperature: "),
                               output.splitlines()))
-      temp = int(temp_line.split()[2])
+      int(temp_line.split()[2])
     except Exception:
       supported = False
     else:
@@ -290,9 +290,21 @@ class Drive(HotDevice):
                                      stdin=subprocess.DEVNULL,
                                      stderr=subprocess.DEVNULL,
                                      universal_newlines=True)
-    temp_line = next(filter(lambda x: x.lstrip().startswith("194 Temperature_Celsius"),
-                            output.splitlines()))
-    return int(temp_line.split()[9])
+    output = output.splitlines()
+
+    for attrib_line_prefix in ("194 Temperature_Celsius", "190 Airflow_Temperature_Cel"):
+      try:
+        temp_line = next(filter(lambda x: x.lstrip().startswith(attrib_line_prefix),
+                                output))
+      except StopIteration:
+        continue
+      return int(temp_line.split()[9])
+
+    # try NVM attribute
+    # https://github.com/smartmontools/smartmontools/blob/1f3ff52f06c2c281f7531a6c4bd7dc32eac00201/smartmontools/nvmeprint.cpp#L343
+    temp_line = next(filter(lambda x: x.lstrip().startswith("Temperature: "),
+                            output))
+    return int(temp_line.split()[1])
 
   def getTemperatureWithSmartctlSctInvocation(self):
     """ Get drive temperature in Celcius using smartctl SCT reading. """
