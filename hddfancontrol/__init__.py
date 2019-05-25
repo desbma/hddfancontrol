@@ -8,6 +8,7 @@ __license__ = "GPLv3"
 
 import abc
 import argparse
+import collections
 import contextlib
 import enum
 import itertools
@@ -292,19 +293,20 @@ class Drive(HotDevice):
                                      universal_newlines=True)
     output = output.splitlines()
 
-    for attrib_line_prefix in ("194 Temperature_Celsius", "190 Airflow_Temperature_Cel"):
+    prefixes = collections.OrderedDict((("194 Temperature_Celsius", 9),
+                                        ("190 Airflow_Temperature_Cel", 9),
+                                        ("Temperature: ", 1),  # https://github.com/smartmontools/smartmontools/blob/1f3ff52f06c2c281f7531a6c4bd7dc32eac00201/smartmontools/nvmeprint.cpp#L343
+                                        ("Current Drive Temperature: ", 3)))  # https://github.com/smartmontools/smartmontools/blob/1f3ff52f06c2c281f7531a6c4bd7dc32eac00201/smartmontools/scsiprint.cpp#L330
+
+    for line_prefix, token_index in prefixes.items():
       try:
-        temp_line = next(filter(lambda x: x.lstrip().startswith(attrib_line_prefix),
+        temp_line = next(filter(lambda x: x.lstrip().startswith(line_prefix),
                                 output))
       except StopIteration:
         continue
-      return int(temp_line.split()[9])
+      break
 
-    # try NVM attribute
-    # https://github.com/smartmontools/smartmontools/blob/1f3ff52f06c2c281f7531a6c4bd7dc32eac00201/smartmontools/nvmeprint.cpp#L343
-    temp_line = next(filter(lambda x: x.lstrip().startswith("Temperature: "),
-                            output))
-    return int(temp_line.split()[1])
+    return int(temp_line.split()[token_index])
 
   def getTemperatureWithSmartctlSctInvocation(self):
     """ Get drive temperature in Celcius using smartctl SCT reading. """
