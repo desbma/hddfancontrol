@@ -13,7 +13,7 @@ HDD Fan control is a command line tool to dynamically control fan speed accordin
 
 This has 3 benefits:
 
-* it allows maintaining you hard drives in the ideal temperature range to have maximum longevity and avoid overheating
+* it allows maintaining your hard drives in the ideal temperature range to have maximum longevity and avoid overheating
 
 Because fans will slow down or stop when not needed:
 
@@ -30,7 +30,7 @@ The ideal use case is for a NAS with several hard drives, a low power CPU (ie. A
 
 ## Features
 
-* Can be started in daemon mode
+* Can run in daemon mode
 * Can control several fans and/or several drives with a single invocation
 * Can automatically spin down drives after a customizable period of inactivity
 * Can adapt to different fan characteristics
@@ -77,7 +77,7 @@ On Ubuntu and other Debian derivatives: `sudo apt-get install hdparm hddtemp`.
 4. Install [hdparm](http://sourceforge.net/projects/hdparm/) and [hddtemp](http://www.guzu.net/linux/hddtemp.php).
 On Ubuntu and other Debian derivatives: `sudo apt-get install hdparm hddtemp`.
 
-To query fan caracteristic, you may also need pwmconfig. On Ubuntu and other Debian derivatives, it is part of the fancontrol package, that you can install with `sudo apt-get install fancontrol`. HDD fancontrol and fancontrol are unrelated. The fancontrol daemon is **not** needed for HDD fan control to operate. If you use both fancontrol and HDD fancontrol, be careful not to make them control the same fans.
+To query fan characteristics, you may also need pwmconfig. On Ubuntu and other Debian derivatives, it is part of the fancontrol package, that you can install with `sudo apt-get install fancontrol`. HDD fancontrol and fancontrol are unrelated. The fancontrol daemon is **not** needed for HDD fan control to operate. If you use both fancontrol and HDD fancontrol, be careful not to make them control the same fans.
 
 
 ## Configuration
