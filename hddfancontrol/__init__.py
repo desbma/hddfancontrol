@@ -352,12 +352,17 @@ class CPU(HotDevice):
   """ CPU device with a sysfs temp sensor. """
 
   SENSOR_DIGITS_REGEX = re.compile("temp([0-9])*_input$")
-  HARDCODED_MIN_TEMP = 30
+  DEFAULT_MIN_TEMP = 30
 
-  def __init__(self, cpu_sensor):
+  def __init__(self, cpu_sensor, temp_range):
     self.cpu_sensor_input_filepath = cpu_sensor
     self.logger = logging.getLogger(__class__.__name__)
-    self.max_temp = self.getMaxTemp()
+    self.min_temp, self.max_temp = temp_range
+    if self.min_temp is None:
+      self.min_temp = __class__.DEFAULT_MIN_TEMP
+    if self.max_temp is None:
+      self.max_temp = self.getDefaultMaxTemp()
+    assert(0 < self.min_temp < self.max_temp)
 
   def getSysfsTempValue(self, filepath):
     """ Get temperature value from a sysfs file as a float. """
@@ -370,7 +375,7 @@ class CPU(HotDevice):
     self.logger.debug("CPU temperature: %u °C" % (r))
     return r
 
-  def getMaxTemp(self):
+  def getDefaultMaxTemp(self):
     """ Compute maximum temperature. """
     # first compute filepath for max and crit sysfs files
     sensor_num = int(__class__.SENSOR_DIGITS_REGEX.search(self.cpu_sensor_input_filepath).group(1))
@@ -391,12 +396,11 @@ class CPU(HotDevice):
 
     # keep a safety margin
     r = max_temp - (crit_temp - max_temp)
-    assert(r > __class__.HARDCODED_MIN_TEMP)
     return r
 
   def getTemperatureRange(self):
     """ See HotDevice.getTemperatureRange. """
-    return __class__.HARDCODED_MIN_TEMP, self.max_temp
+    return self.min_temp, self.max_temp
 
 
 class DriveSpinDownThread(threading.Thread):
@@ -727,7 +731,8 @@ def set_high_priority(logger):
 
 
 def main(drive_filepaths, cpu_probe_filepath, fan_pwm_filepaths, fan_start_values, fan_stop_values, min_fan_speed_prct,
-         min_drive_temp, max_drive_temp, interval_s, spin_down_time_s, hddtemp_daemon_port, use_smartctl):
+         min_drive_temp, max_drive_temp, cpu_temp_range, interval_s, spin_down_time_s, hddtemp_daemon_port,
+         use_smartctl):
   logger = logging.getLogger("Main")
   fans = []
   try:
@@ -759,7 +764,7 @@ def main(drive_filepaths, cpu_probe_filepath, fan_pwm_filepaths, fan_start_value
                     use_smartctl) for drive_filepath in drive_filepaths]
     cpus = []
     if cpu_probe_filepath is not None:
-      cpus.append(CPU(cpu_probe_filepath))
+      cpus.append(CPU(cpu_probe_filepath, cpu_temp_range))
     devices = drives + cpus
     drives_startup_time = time.monotonic()
 
@@ -909,6 +914,12 @@ def cl_main():
                           help="""Also control fan speed according to this CPU temperature probe.
                                   (ie. /sys/devices/platform/coretemp.0/hwmon/hwmonX/tempY_input).
                                   WARNING: This is experimental, only use for low TDP CPUs.""")
+  arg_parser.add_argument("--cpu-temp-range",
+                          type=int,
+                          nargs=2,
+                          default=(None, None),
+                          help="""CPU temperature range, if CPU temp monitoring is enabled.
+                                  If missing, will be autodetected or use a default value.""")
   arg_parser.add_argument("--spin-down-time",
                           type=int,
                           default=None,
@@ -1032,6 +1043,7 @@ def cl_main():
            args.min_fan_speed_prct,
            args.min_temp,
            args.max_temp,
+           args.cpu_temp_range,
            args.interval_s,
            args.spin_down_time_s,
            args.hddtemp_daemon_port if args.hddtemp_daemon else None,
