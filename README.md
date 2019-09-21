@@ -36,6 +36,7 @@ The ideal use case is for a NAS with several hard drives, a low power CPU (ie. A
 * Can adapt to different fan characteristics
 * Can be set to stop fans or run them at full speed at customizable temperatures
 * Can be configured to never set the fans below a certain speed (useful if the fans controlled by HDD Fan control are the only ones available in the chassis)
+* Can also optionally monitor CPU temperature, and control fan speed accordingly
 
 
 ## Prerequisites
