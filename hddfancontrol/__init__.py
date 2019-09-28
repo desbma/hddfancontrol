@@ -914,7 +914,7 @@ def cl_main():
                           help="""Also control fan speed according to this CPU temperature probe.
                                   (ie. /sys/devices/platform/coretemp.0/hwmon/hwmonX/tempY_input).
                                   WARNING: This is experimental, only use for low TDP CPUs. You
-                                  may need to set a low value for --internal parameter to react quickly to
+                                  may need to set a low value for -i/--interval parameter to react quickly to
                                   sudden CPU temperature increase.""")
   arg_parser.add_argument("--cpu-temp-range",
                           type=int,
