@@ -973,13 +973,13 @@ def cl_main():
           ((args.fan_stop_value is not None) and (len(args.fan_pwm_filepath) != len(args.fan_stop_value)))):
     print("Invalid parameter count")
     exit(os.EX_USAGE)
+  if args.interval_s is None:
+    args.interval_s = 60 if (args.cpu_probe_filepath is None) else 10
   if (args.spin_down_time_s is not None) and (args.spin_down_time_s < args.interval_s):
     print("Spin down time %us is lower than temperature check interval %us.\n"
           "Please set a higher spin down time, or use hdparm's -S switch "
           "to set SATA spin down time." % (args.spin_down_time_s, args.interval_s))
     exit(os.EX_USAGE)
-  if args.interval_s is None:
-    args.interval_s = 60 if (args.cpu_probe_filepath is None) else 10
 
   # setup logger
   logging_level = {"warning": logging.WARNING,
