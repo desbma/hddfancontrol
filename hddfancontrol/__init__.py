@@ -21,6 +21,7 @@ import shutil
 import signal
 import socket
 import stat
+import statistics
 import subprocess
 import sys
 import syslog
@@ -735,6 +736,8 @@ def main(drive_filepaths, cpu_probe_filepath, fan_pwm_filepaths, fan_start_value
          use_smartctl):
   logger = logging.getLogger("Main")
   fans = []
+  speed_history = []
+
   try:
     # change process priority
     set_high_priority(logger)
@@ -819,6 +822,17 @@ def main(drive_filepaths, cpu_probe_filepath, fan_pwm_filepaths, fan_start_value
       fan_speed_prct = int(min(fan_speed_prct, 100))
       # enforce min fan speed
       fan_speed_prct = max(fan_speed_prct, min_fan_speed_prct)
+
+      # Fill the history list with initial values
+      for i in range(len(speed_history), avg_count):
+        speed_history.append(fan_speed_prct)
+
+      # Remove the oldest speed and append the current one
+      speed_history.pop(0)
+      speed_history.append(fan_speed_prct)
+
+      # Calculate mean (average) speed
+      fan_speed_prct = statistics.mean(speed_history)
 
       # set fan speed if needed
       for i, fan in enumerate(fans):
