@@ -98,6 +98,11 @@ To get the value  for the `--pwm`,  `--pwm-start-value` and `--pwm-stop-value` p
 * Use the `-t` or `--test` parameter, which will run some tests and detect the values at which the fans start and stop. However you need to have previously identified the PWM file (the `--pwm` parameter)
 * use the [pwmconfig tool](http://www.lm-sensors.org/wiki/man/pwmconfig).
 
+### Smooth fan speed adjustment
+
+Setting `--average` to a value > 1 prevents rapidly changing fan speeds. Target fan speed is then averaged over the last few intervals. 
+Combining this option with a very narrow temperature window (e.g. 3 degrees), a minimum fan speed of zero and sufficiently powerful fans will essentially keep the drives at a near constant temperature. 
+
 ### Drive auto spin down
 
 SATA drives can be configured to automatically spin down after a certain period of inactivity, which saves power. If your drives are configured to do so, you may notice that they do not spin down when HDD Fan control is running.
