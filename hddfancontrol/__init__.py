@@ -731,7 +731,7 @@ def set_high_priority(logger):
 
 
 def main(drive_filepaths, cpu_probe_filepath, fan_pwm_filepaths, fan_start_values, fan_stop_values, min_fan_speed_prct,
-         min_drive_temp, max_drive_temp, cpu_temp_range, interval_s, spin_down_time_s, hddtemp_daemon_port,
+         min_drive_temp, max_drive_temp, cpu_temp_range, avg_count, interval_s, spin_down_time_s, hddtemp_daemon_port,
          use_smartctl):
   logger = logging.getLogger("Main")
   fans = []
@@ -901,6 +901,11 @@ def cl_main():
                           help="""Minimum percentage of full fan speed to set the fan to.
                                   Never set to 0 unless you have other fans to cool down your system,
                                   or a case specially designed for passive cooling.""")
+  arg_parser.add_argument("--average",
+                          type=int,
+                          default=1,
+                          dest="avg_count",
+                          help="Number of intervals to average the fan speed over.")
   arg_parser.add_argument("-i",
                           "--interval",
                           type=int,
@@ -980,7 +985,11 @@ def cl_main():
           "Please set a higher spin down time, or use hdparm's -S switch "
           "to set SATA spin down time." % (args.spin_down_time_s, args.interval_s))
     exit(os.EX_USAGE)
-
+      
+  if args.avg_count < 1:
+    print("Average must be at least 1!")
+    exit(os.EX_USAGE)
+    
   # setup logger
   logging_level = {"warning": logging.WARNING,
                    "normal": logging.INFO,
@@ -1046,6 +1055,7 @@ def cl_main():
            args.min_temp,
            args.max_temp,
            args.cpu_temp_range,
+           args.avg_count,
            args.interval_s,
            args.spin_down_time_s,
            args.hddtemp_daemon_port if args.hddtemp_daemon else None,
