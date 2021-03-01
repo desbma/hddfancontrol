@@ -25,6 +25,6 @@ jobs:
           pip install coveralls
           pip install -r requirements.txt
       - run: coverage run --source=hddfancontrol setup.py test
-      - run: coveralls
+      - run: coveralls --service=github
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
