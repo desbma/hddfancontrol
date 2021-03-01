@@ -2,6 +2,5 @@
 
 import hddfancontrol
 
-
 if __name__ == "__main__":
-  hddfancontrol.cl_main()
+    hddfancontrol.cl_main()
