@@ -116,7 +116,7 @@ class Drive(HotDevice):
     ):
         assert stat.S_ISBLK(os.stat(device_filepath).st_mode)
         self.device_filepath = self.__class__.normalizeDrivePath(device_filepath)
-        self.stat_filepath = "/sys/block/%s/stat" % (os.path.basename(self.device_filepath))
+        self.stat_filepath = f"/sys/block/{os.path.basename(self.device_filepath)}/stat"
         self.hddtemp_daemon_port = hddtemp_daemon_port
         self.min_temp = min_temp
         self.max_temp = max_temp
@@ -197,7 +197,7 @@ class Drive(HotDevice):
         )
         str_state = output.rsplit(" ", 1)[-1].strip()
         state = states[str_state]
-        self.logger.debug("Drive state: %s" % (state.name))
+        self.logger.debug(f"Drive state: {state.name}")
         return state
 
     def isSleeping(self) -> bool:
@@ -230,7 +230,7 @@ class Drive(HotDevice):
                 temp = self.getTemperatureWithHddtempInvocation()
         else:
             temp = self.getTemperatureWithHddtempInvocation()
-        self.logger.debug("Drive temperature: %u °C" % (temp))
+        self.logger.debug(f"Drive temperature: {temp} °C")
         return temp
 
     def getTemperatureWithHddtempDaemon(self) -> int:
@@ -267,7 +267,7 @@ class Drive(HotDevice):
                 break
 
         if not found:
-            raise RuntimeError("Unable to get temperature from hddtemp daemon for drive %s" % (self))
+            raise RuntimeError(f"Unable to get temperature from hddtemp daemon for drive {self}")
         return temp
 
     def getTemperatureWithHddtempInvocation(self) -> int:
@@ -334,7 +334,7 @@ class Drive(HotDevice):
 
     def spinDown(self) -> None:
         """ Spin down a drive, effectively setting it to DriveState.STANDBY state. """
-        self.logger.info("Spinning down drive %s" % (self))
+        self.logger.info(f"Spinning down drive {self}")
         cmd = ("hdparm", "-y", self.device_filepath)
         subprocess.check_call(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
@@ -344,7 +344,7 @@ class Drive(HotDevice):
             stat_data = stat_file.read()
         stats = tuple(map(int, filter(None, map(str.strip, stat_data.strip().split(" ")))))
         if not stats:
-            raise RuntimeError("Unable to get stats for drive %s" % (self))
+            raise RuntimeError(f"Unable to get stats for drive {self}")
         return stats
 
     @staticmethod
@@ -384,7 +384,7 @@ class CPU(HotDevice):
     def getTemperature(self) -> float:
         """ See HotDevice.getTemperature. """
         r = self.getSysfsTempValue(self.cpu_sensor_input_filepath)
-        self.logger.debug("CPU temperature: %u °C" % (r))
+        self.logger.debug(f"CPU temperature: {r} °C")
         return r
 
     def getDefaultMaxTemp(self) -> float:
@@ -393,15 +393,15 @@ class CPU(HotDevice):
         sensor_match = self.__class__.SENSOR_DIGITS_REGEX.search(self.cpu_sensor_input_filepath)
         assert sensor_match is not None
         sensor_num = int(sensor_match.group(1))
-        max_filepath = os.path.join(os.path.dirname(self.cpu_sensor_input_filepath), "temp%u_max" % (sensor_num))
-        crit_filepath = os.path.join(os.path.dirname(self.cpu_sensor_input_filepath), "temp%u_crit" % (sensor_num))
+        max_filepath = os.path.join(os.path.dirname(self.cpu_sensor_input_filepath), f"temp{sensor_num}_max")
+        crit_filepath = os.path.join(os.path.dirname(self.cpu_sensor_input_filepath), f"temp{sensor_num}_crit")
 
         # get values
         crit_temp = self.getSysfsTempValue(crit_filepath)
-        self.logger.debug("Critical CPU temperature: %u °C" % (crit_temp))
+        self.logger.debug(f"Critical CPU temperature: {crit_temp} °C")
         try:
             max_temp = self.getSysfsTempValue(max_filepath)
-            self.logger.debug("Maximum CPU temperature: %u °C" % (max_temp))
+            self.logger.debug(f"Maximum CPU temperature: {max_temp} °C")
         except FileNotFoundError:
             max_temp = crit_temp - 20
 
@@ -424,7 +424,7 @@ class DriveSpinDownThread(threading.Thread):
     LOOP_SLEEP_DELAY_S = 60
 
     def __init__(self, drive: Drive, spin_down_time_s: int):
-        super().__init__(name="%s-%s" % (self.__class__.__name__, drive))
+        super().__init__(name=f"{self.__class__.__name__}-{drive}")
         self.drive = drive
         self.spin_down_time_s = spin_down_time_s
         self.logger = logging.getLogger(self.name)
@@ -457,18 +457,18 @@ class DriveSpinDownThread(threading.Thread):
                     previous_stats = None
                 else:
                     delta = now - previous_stats_time
-                    self.logger.debug("Drive is inactive for %u min" % (int(delta / 60)))
+                    self.logger.debug(f"Drive is inactive for {int(delta / 60)} min")
                     if delta > self.spin_down_time_s:
                         self.drive.spinDown()
 
             self.logger.info("Exiting")
 
         except Exception as e:
-            self.logger.error("%s: %s" % (e.__class__.__qualname__, e))
+            self.logger.error(f"{e.__class__.__qualname__}: {e}")
 
     def sleep(self, s: int) -> None:
         """ Sleep for s seconds, or less if exit event occurs. """
-        self.logger.debug("Sleeping for %u seconds" % (s))
+        self.logger.debug(f"Sleeping for {s} seconds")
         interrupted = exit_evt.wait(timeout=s)
         if interrupted:
             self.logger.debug("Sleep interrupted")
@@ -488,22 +488,22 @@ class Fan:
         if stat.S_ISBLK(os.stat(self.pwm_filepath).st_mode):
             # we don't want to write to a block device in setPwmValue
             # command line parameters have probably been mixed up
-            raise RuntimeError("%s is a block device, PWM /sys file expected" % (self.pwm_filepath))
+            raise RuntimeError(f"{self.pwm_filepath!r} is a block device, PWM /sys file expected")
         pwm_num_match = self.__class__.LAST_DIGITS_REGEX.search(self.pwm_filepath)
         assert pwm_num_match is not None
         pwm_num = int(pwm_num_match.group(1))
-        self.fan_input_filepath = os.path.join(os.path.dirname(self.pwm_filepath), "fan%u_input" % (pwm_num))
-        self.enable_filepath = "%s_enable" % (self.pwm_filepath)
+        self.fan_input_filepath = os.path.join(os.path.dirname(self.pwm_filepath), f"fan{pwm_num}_input")
+        self.enable_filepath = f"{self.pwm_filepath}_enable"
         self.start_value = start_value
         self.stop_value = stop_value
         self.startup = False
-        self.logger = logging.getLogger("Fan #%u" % (self.id))
+        self.logger = logging.getLogger(f"Fan #{self.id}")
 
     def getRpm(self) -> int:
         """ Read fan speed in revolutions per minute. """
         with open(self.fan_input_filepath, "rt") as fan_input_file:
             rpm = int(fan_input_file.read().strip())
-        self.logger.debug("Rotation speed is currently %u RPM" % (rpm))
+        self.logger.debug(f"Rotation speed is currently {rpm} RPM")
         return rpm
 
     def isRunning(self) -> bool:
@@ -536,7 +536,7 @@ class Fan:
         # preconditions
         assert 0 <= target_prct <= 100
 
-        self.logger.info("Setting fan speed to %u%%" % (target_prct))
+        self.logger.info(f"Setting fan speed to {target_prct}%%")
 
         # calculate target PWM value
         if target_prct == 0:
@@ -560,12 +560,12 @@ class Fan:
         with open(self.enable_filepath, "r+t") as enable_file:
             enabled_val = int(enable_file.read().strip())
             if enabled_val != 1:
-                self.logger.warning("%s was %u, setting it to 1", self.enable_filepath, enabled_val)
+                self.logger.warning(f"{self.enable_filepath} was {enabled_val}, setting it to 1")
                 enable_file.seek(0)
                 enable_file.write("1")
-        self.logger.debug("Setting PWM value to %u" % (value))
+        self.logger.debug(f"Setting PWM value to {value}")
         with open(self.pwm_filepath, "wt") as pwm_file:
-            pwm_file.write("%u" % (value))
+            pwm_file.write(str(value))
 
 
 class TestHardware:
@@ -585,9 +585,9 @@ class TestHardware:
         self.testDrives()
         start_stop_values = self.testPwms()
         if self.ko_count > 0:
-            print("%u/%u tests failed!" % (self.ko_count, self.ko_count + self.ok_count))
+            print(f"{self.ko_count}/{self.ko_count + self.ok_count} tests failed!")
         else:
-            print("%u/%u tests OK, all good :)" % (self.ok_count, self.ok_count))
+            print(f"{self.ok_count}/{self.ok_count} tests OK, all good :)")
         self.logger.info(
             "Recommended parameters: --pwm-start-value %s --pwm-stop-value %s"
             % (
@@ -599,7 +599,7 @@ class TestHardware:
     def testDrives(self) -> None:
         """ Run tests on hard disc drives. """
         for drive in self.drives:
-            self.reportTestGroupStart("Test of drive %s" % (drive))
+            self.reportTestGroupStart(f"Test of drive {drive}")
 
             test_desc = "Getting drive power state"
             self.reportTestStart(test_desc)
@@ -633,7 +633,7 @@ class TestHardware:
         start_stop_values = []
         pwm_vals = (255,) + tuple(range(240, -1, -16))
         for fan in self.fans:
-            self.reportTestGroupStart("Test of fan #%u" % (fan.id))
+            self.reportTestGroupStart(f"Test of fan #{fan.id}")
             start_value, stop_value = 255, 0
 
             test_desc = "Stopping fan"
@@ -718,7 +718,7 @@ def test(drive_filepaths: Sequence[str], fan_pwm_filepaths: Sequence[str], hddte
 
 def signal_handler(sig, frame):
     """ Signal handler for clean exit. """
-    logging.getLogger("Signal handler").info("Catched signal %u" % (sig))
+    logging.getLogger("Signal handler").info(f"Catched signal {sig}")
     global exit_evt
     exit_evt.set()
 
@@ -737,10 +737,10 @@ def set_high_priority(logger: logging.Logger) -> None:
         try:
             os.sched_setscheduler(0, sched, param)
         except OSError:
-            logger.warning("Failed to set real time process scheduler to %u, priority %u" % (sched, prio))
+            logger.warning(f"Failed to set real time process scheduler to {sched}, priority {prio}")
         else:
             done = True
-            logger.info("Process real time scheduler set to %u, priority %u" % (sched, prio))
+            logger.info(f"Process real time scheduler set to {sched}, priority {prio}")
 
     if not done:
         # renice to highest priority
@@ -752,9 +752,9 @@ def set_high_priority(logger: logging.Logger) -> None:
         except OSError:
             new_niceness = previous_niceness
         if new_niceness != target_niceness:
-            logger.warning("Unable to renice process to %d, current niceness is %d" % (target_niceness, new_niceness))
+            logger.warning(f"Unable to renice process to {target_niceness}, current niceness is {new_niceness}")
         else:
-            logger.info("Process reniced from %d to %d" % (previous_niceness, new_niceness))
+            logger.info(f"Process reniced from {previous_niceness} to {new_niceness}")
 
 
 def main(  # noqa: C901
@@ -825,7 +825,7 @@ def main(  # noqa: C901
                         assert not drive.supportsProbingWhileAsleep()
                         drive_awake = False
                 if (not drive_awake) and (not drive.supportsProbingWhileAsleep()):
-                    logger.debug("Drive %s is in low power state, unable to query temperature" % (drive))
+                    logger.debug(f"Drive {drive} is in low power state, unable to query temperature")
                 drive_awakes.append(drive_awake)
             if not device_temps:
                 assert not any(drive_awakes)
@@ -840,7 +840,7 @@ def main(  # noqa: C901
                 device_temps[cpus[0]] = cpus[0].getTemperature()
 
             if device_temps:
-                logger.info("Maximum device temperature: %u °C" % (max(device_temps.values())))
+                logger.info(f"Maximum device temperature: {max(device_temps.values())} °C")
 
             # calc target percentage fan speed
             fan_speed_prct: float = 0
@@ -872,7 +872,7 @@ def main(  # noqa: C901
                 current_interval_s = min(MAX_DRIVE_STARTUP_SLEEP_INTERVAL_S, interval_s)
             else:
                 current_interval_s = interval_s
-            logger.debug("Sleeping for %u seconds" % (current_interval_s))
+            logger.debug(f"Sleeping for {current_interval_s} seconds")
             exit_evt.wait(current_interval_s)
 
         logger.info("Exiting")
@@ -881,7 +881,7 @@ def main(  # noqa: C901
             thread.join()
 
     except Exception as e:
-        logger.error("%s: %s" % (e.__class__.__qualname__, e))
+        logger.error(f"{e.__class__.__qualname__}: {e}")
         exit_evt.set()
 
     # run fans at full speed at exit
@@ -893,7 +893,7 @@ def cl_main():  # noqa: C901
     """ Command line entry point. """
     # parse args
     arg_parser = argparse.ArgumentParser(
-        description="HDD Fan Control v%s.%s" % (__version__, __doc__),
+        description=f"HDD Fan Control v{__version__}.{__doc__}",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     arg_parser.add_argument(
@@ -1044,9 +1044,9 @@ def cl_main():  # noqa: C901
         args.interval_s = 60 if (args.cpu_probe_filepath is None) else 10
     if (args.spin_down_time_s is not None) and (args.spin_down_time_s < args.interval_s):
         print(
-            "Spin down time %us is lower than temperature check interval %us.\n"
+            f"Spin down time {args.spin_down_time_s}s is lower than temperature check interval {args.interval_s}s.\n"
             "Please set a higher spin down time, or use hdparm's -S switch "
-            "to set SATA spin down time." % (args.spin_down_time_s, args.interval_s)
+            "to set SATA spin down time."
         )
         exit(os.EX_USAGE)
 
