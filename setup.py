@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+""" Module setup. """
+
 import os
 import re
 import sys
@@ -11,7 +13,9 @@ if sys.hexversion < 0x3040000:
     exit(1)
 
 with open(os.path.join("hddfancontrol", "__init__.py"), "rt") as f:
-    version = re.search('__version__ = "([^"]+)"', f.read()).group(1)
+    version_match = re.search('__version__ = "([^"]+)"', f.read())
+    assert version_match is not None
+    version = version_match.group(1)
 
 with open("requirements.txt", "rt") as f:
     requirements = f.read().splitlines()

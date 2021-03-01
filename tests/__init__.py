@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+""" Hddfancontrol unit tests. """
+
 import logging
 import os
 import socketserver
@@ -14,6 +16,8 @@ import hddfancontrol
 
 class FakeHddtempDaemon(threading.Thread):
 
+    """ Mock hddtemp daemon. """
+
     outgoing = b""
 
     def __init__(self, port):
@@ -22,16 +26,25 @@ class FakeHddtempDaemon(threading.Thread):
         super().__init__()
 
     def run(self):
+        """ Thread entry point. """
         self.server.serve_forever()
 
 
 class FakeHddtempDaemonHandler(socketserver.StreamRequestHandler):
+
+    """ Mock hddtemp daemon connection handler. """
+
     def handle(self):
+        """ See socketserver.StreamRequestHandler.handle. """
         self.wfile.write(FakeHddtempDaemon.outgoing)
 
 
 class TestDrive(unittest.TestCase):
+
+    """ Main tests class. """
+
     def setUp(self):
+        """ Setups test specific stuff. """
         with unittest.mock.patch("hddfancontrol.os.stat") as os_stat_mock, unittest.mock.patch(
             "hddfancontrol.stat"
         ) as stat_mock, unittest.mock.patch(
@@ -47,14 +60,16 @@ class TestDrive(unittest.TestCase):
         self.hddtemp_daemon = None
 
     def tearDown(self):
+        """ Cleanup test specific stuff. """
         if self.hddtemp_daemon is not None:
             self.hddtemp_daemon.server.shutdown()
             self.hddtemp_daemon.server.server_close()
             self.hddtemp_daemon.join()
 
     def test_getPrettyName(self):
+        """ Test generation of pretty drive name. """
         with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
-            subprocess_check_output_mock.return_value = "\n/dev/sdz:\n\nATA device, with non-removable media\n\tModel Number:       WDC WD4003FZEX-00Z4SA0                  \n\tSerial Number:      WD-WMC5D0D4YY1K\n\tFirmware Revision:  01.01A01\n\tTransport:          Serial, SATA 1.0a, SATA II Extensions, SATA Rev 2.5, SATA Rev 2.6, SATA Rev 3.0\nStandards:\n\tSupported: 9 8 7 6 5 \n\tLikely used: 9\nConfiguration:\n\tLogical\t\tmax\tcurrent\n\tcylinders\t16383\t16383\n\theads\t\t16\t16\n\tsectors/track\t63\t63\n\t--\n\tCHS current addressable sectors:   16514064\n\tLBA    user addressable sectors:  268435455\n\tLBA48  user addressable sectors: 7814037168\n\tLogical  Sector size:                   512 bytes\n\tPhysical Sector size:                  4096 bytes\n\tLogical Sector-0 offset:                  0 bytes\n\tdevice size with M = 1024*1024:     3815447 MBytes\n\tdevice size with M = 1000*1000:     4000787 MBytes (4000 GB)\n\tcache/buffer size  = unknown\n\tNominal Media Rotation Rate: 7200\nCapabilities:\n\tLBA, IORDY(can be disabled)\n\tQueue depth: 32\n\tStandby timer values: spec'd by Standard, with device specific minimum\n\tR/W multiple sector transfer: Max = 16\tCurrent = 0\n\tDMA: mdma0 mdma1 mdma2 udma0 udma1 udma2 udma3 udma4 udma5 *udma6 \n\t     Cycle time: min=120ns recommended=120ns\n\tPIO: pio0 pio1 pio2 pio3 pio4 \n\t     Cycle time: no flow control=120ns  IORDY flow control=120ns\nCommands/features:\n\tEnabled\tSupported:\n\t   *\tSMART feature set\n\t    \tSecurity Mode feature set\n\t   *\tPower Management feature set\n\t   *\tWrite cache\n\t   *\tLook-ahead\n\t   *\tHost Protected Area feature set\n\t   *\tWRITE_BUFFER command\n\t   *\tREAD_BUFFER command\n\t   *\tNOP cmd\n\t   *\tDOWNLOAD_MICROCODE\n\t    \tPower-Up In Standby feature set\n\t   *\tSET_FEATURES required to spinup after power up\n\t    \tSET_MAX security extension\n\t   *\t48-bit Address feature set\n\t   *\tMandatory FLUSH_CACHE\n\t   *\tFLUSH_CACHE_EXT\n\t   *\tSMART error logging\n\t   *\tSMART self-test\n\t   *\tGeneral Purpose Logging feature set\n\t   *\t64-bit World wide name\n\t   *\t{READ,WRITE}_DMA_EXT_GPL commands\n\t   *\tSegmented DOWNLOAD_MICROCODE\n\t   *\tGen1 signaling speed (1.5Gb/s)\n\t   *\tGen2 signaling speed (3.0Gb/s)\n\t   *\tGen3 signaling speed (6.0Gb/s)\n\t   *\tNative Command Queueing (NCQ)\n\t   *\tHost-initiated interface power management\n\t   *\tPhy event counters\n\t   *\tNCQ priority information\n\t   *\tREAD_LOG_DMA_EXT equivalent to READ_LOG_EXT\n\t   *\tDMA Setup Auto-Activate optimization\n\t   *\tSoftware settings preservation\n\t   *\tSMART Command Transport (SCT) feature set\n\t   *\tSCT Write Same (AC2)\n\t   *\tSCT Features Control (AC4)\n\t   *\tSCT Data Tables (AC5)\n\t    \tunknown 206[12] (vendor specific)\n\t    \tunknown 206[13] (vendor specific)\n\t    \tunknown 206[14] (vendor specific)\nSecurity: \n\tMaster password revision code = 65534\n\t\tsupported\n\tnot\tenabled\n\tnot\tlocked\n\tnot\tfrozen\n\tnot\texpired: security count\n\t\tsupported: enhanced erase\n\t424min for SECURITY ERASE UNIT. 424min for ENHANCED SECURITY ERASE UNIT. \nLogical Unit WWN Device Identifier: 50014ee0593d4632\n\tNAA\t\t: 5\n\tIEEE OUI\t: 0014ee\n\tUnique ID\t: 0593d4632\nChecksum: correct\n"
+            subprocess_check_output_mock.return_value = "\n/dev/sdz:\n\nATA device, with non-removable media\n\tModel Number:       WDC WD4003FZEX-00Z4SA0                  \n\tSerial Number:      WD-WMC5D0D4YY1K\n\tFirmware Revision:  01.01A01\n\tTransport:          Serial, SATA 1.0a, SATA II Extensions, SATA Rev 2.5, SATA Rev 2.6, SATA Rev 3.0\nStandards:\n\tSupported: 9 8 7 6 5 \n\tLikely used: 9\nConfiguration:\n\tLogical\t\tmax\tcurrent\n\tcylinders\t16383\t16383\n\theads\t\t16\t16\n\tsectors/track\t63\t63\n\t--\n\tCHS current addressable sectors:   16514064\n\tLBA    user addressable sectors:  268435455\n\tLBA48  user addressable sectors: 7814037168\n\tLogical  Sector size:                   512 bytes\n\tPhysical Sector size:                  4096 bytes\n\tLogical Sector-0 offset:                  0 bytes\n\tdevice size with M = 1024*1024:     3815447 MBytes\n\tdevice size with M = 1000*1000:     4000787 MBytes (4000 GB)\n\tcache/buffer size  = unknown\n\tNominal Media Rotation Rate: 7200\nCapabilities:\n\tLBA, IORDY(can be disabled)\n\tQueue depth: 32\n\tStandby timer values: spec'd by Standard, with device specific minimum\n\tR/W multiple sector transfer: Max = 16\tCurrent = 0\n\tDMA: mdma0 mdma1 mdma2 udma0 udma1 udma2 udma3 udma4 udma5 *udma6 \n\t     Cycle time: min=120ns recommended=120ns\n\tPIO: pio0 pio1 pio2 pio3 pio4 \n\t     Cycle time: no flow control=120ns  IORDY flow control=120ns\nCommands/features:\n\tEnabled\tSupported:\n\t   *\tSMART feature set\n\t    \tSecurity Mode feature set\n\t   *\tPower Management feature set\n\t   *\tWrite cache\n\t   *\tLook-ahead\n\t   *\tHost Protected Area feature set\n\t   *\tWRITE_BUFFER command\n\t   *\tREAD_BUFFER command\n\t   *\tNOP cmd\n\t   *\tDOWNLOAD_MICROCODE\n\t    \tPower-Up In Standby feature set\n\t   *\tSET_FEATURES required to spinup after power up\n\t    \tSET_MAX security extension\n\t   *\t48-bit Address feature set\n\t   *\tMandatory FLUSH_CACHE\n\t   *\tFLUSH_CACHE_EXT\n\t   *\tSMART error logging\n\t   *\tSMART self-test\n\t   *\tGeneral Purpose Logging feature set\n\t   *\t64-bit World wide name\n\t   *\t{READ,WRITE}_DMA_EXT_GPL commands\n\t   *\tSegmented DOWNLOAD_MICROCODE\n\t   *\tGen1 signaling speed (1.5Gb/s)\n\t   *\tGen2 signaling speed (3.0Gb/s)\n\t   *\tGen3 signaling speed (6.0Gb/s)\n\t   *\tNative Command Queueing (NCQ)\n\t   *\tHost-initiated interface power management\n\t   *\tPhy event counters\n\t   *\tNCQ priority information\n\t   *\tREAD_LOG_DMA_EXT equivalent to READ_LOG_EXT\n\t   *\tDMA Setup Auto-Activate optimization\n\t   *\tSoftware settings preservation\n\t   *\tSMART Command Transport (SCT) feature set\n\t   *\tSCT Write Same (AC2)\n\t   *\tSCT Features Control (AC4)\n\t   *\tSCT Data Tables (AC5)\n\t    \tunknown 206[12] (vendor specific)\n\t    \tunknown 206[13] (vendor specific)\n\t    \tunknown 206[14] (vendor specific)\nSecurity: \n\tMaster password revision code = 65534\n\t\tsupported\n\tnot\tenabled\n\tnot\tlocked\n\tnot\tfrozen\n\tnot\texpired: security count\n\t\tsupported: enhanced erase\n\t424min for SECURITY ERASE UNIT. 424min for ENHANCED SECURITY ERASE UNIT. \nLogical Unit WWN Device Identifier: 50014ee0593d4632\n\tNAA\t\t: 5\n\tIEEE OUI\t: 0014ee\n\tUnique ID\t: 0593d4632\nChecksum: correct\n"  # noqa: E501
             self.assertEqual(self.drive.getPrettyName(), "sdz WDC WD4003FZEX-00Z4SA0")
             subprocess_check_output_mock.assert_called_once_with(
                 ("hdparm", "-I", "/dev/sdz"),
@@ -64,6 +79,7 @@ class TestDrive(unittest.TestCase):
             )
 
     def test_supportsHitachiTempQuery(self):
+        """ Test detection for "Hitachi" temp query. """
         with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
             subprocess_check_output_mock.return_value = (
                 "\n/dev/sdz:\n drive temperature (celsius) is:  30\n drive temperature in range:  yes"
@@ -76,7 +92,7 @@ class TestDrive(unittest.TestCase):
                 universal_newlines=True,
             )
         with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
-            subprocess_check_output_mock.return_value = "\n/dev/sdz:\nSG_IO: questionable sense data, results may be incorrect\n drive temperature (celsius) is: -18\n drive temperature in range: yes"
+            subprocess_check_output_mock.return_value = "\n/dev/sdz:\nSG_IO: questionable sense data, results may be incorrect\n drive temperature (celsius) is: -18\n drive temperature in range: yes"  # noqa: E501
             self.assertFalse(self.drive.supportsHitachiTempQuery())
             subprocess_check_output_mock.assert_called_once_with(
                 ("hdparm", "-H", "/dev/sdz"),
@@ -85,7 +101,7 @@ class TestDrive(unittest.TestCase):
                 universal_newlines=True,
             )
         with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
-            subprocess_check_output_mock.return_value = "\n/dev/sdz:\nSG_IO: missing sense data, results may be incorrect\n drive temperature (celsius) is: -18\n drive temperature in range: yes"
+            subprocess_check_output_mock.return_value = "\n/dev/sdz:\nSG_IO: missing sense data, results may be incorrect\n drive temperature (celsius) is: -18\n drive temperature in range: yes"  # noqa: E501
             self.assertFalse(self.drive.supportsHitachiTempQuery())
             subprocess_check_output_mock.assert_called_once_with(
                 ("hdparm", "-H", "/dev/sdz"),
@@ -94,7 +110,7 @@ class TestDrive(unittest.TestCase):
                 universal_newlines=True,
             )
         with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
-            subprocess_check_output_mock.return_value = "\n/dev/sdz:\nSG_IO: bad/missing sense data, sb[]: 70 00 05 00 00 00 00 0a 04 51 40 00 21 04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n drive temperature (celsius) is: -18\n drive temperature in range: yes"
+            subprocess_check_output_mock.return_value = "\n/dev/sdz:\nSG_IO: bad/missing sense data, sb[]: 70 00 05 00 00 00 00 0a 04 51 40 00 21 04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n drive temperature (celsius) is: -18\n drive temperature in range: yes"  # noqa: E501
             self.assertFalse(self.drive.supportsHitachiTempQuery())
             subprocess_check_output_mock.assert_called_once_with(
                 ("hdparm", "-H", "/dev/sdz"),
@@ -104,6 +120,7 @@ class TestDrive(unittest.TestCase):
             )
 
     def test_supportsSctTempQuery(self):
+        """ Test detection for "SCT" temp query. """
         with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
             subprocess_check_output_mock.return_value = """smartctl 7.0 2018-12-30 r4883 [x86_64-linux-4.19.36-1-lts] (local build)
 Copyright (C) 2002-18, Bruce Allen, Christian Franke, www.smartmontools.org
@@ -145,6 +162,7 @@ SCT Commands not supported
             )
 
     def test_getState(self):
+        """ Test drive state identification. """
         with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
             subprocess_check_output_mock.return_value = "\n/dev/sdz:\n drive state is:  active/idle\n"
             self.assertEqual(self.drive.getState(), hddfancontrol.Drive.DriveState.ACTIVE_IDLE)
@@ -194,6 +212,7 @@ SCT Commands not supported
             )
 
     def test_isSleeping(self):
+        """ Test sleeping device identification. """
         with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
             subprocess_check_output_mock.return_value = "\n/dev/sdz:\n drive state is:  active/idle\n"
             self.assertFalse(self.drive.isSleeping())
@@ -243,6 +262,8 @@ SCT Commands not supported
             )
 
     def test_getTemperature(self):
+        """ Test device temperature probing. """
+
         #
         # Temperature querying can be done in 5 different ways:
         # * if smartctl use was enabled and SCT is supported => use smartctl -l scttempsts call
@@ -552,6 +573,7 @@ Vendor (Seagate/Hitachi) factory information
             self.drive.getTemperature()
 
     def test_spinDown(self):
+        """ Test HDD spin down. """
         with unittest.mock.patch("hddfancontrol.subprocess.check_call") as subprocess_check_call_mock:
             self.drive.spinDown()
             subprocess_check_call_mock.assert_called_once_with(
@@ -562,6 +584,7 @@ Vendor (Seagate/Hitachi) factory information
             )
 
     def test_getActivityStats(self):
+        """ Test drive stats fetching. """
         with self.assertRaises(Exception):
             self.drive.getActivityStats()
         with tempfile.NamedTemporaryFile("wt") as stat_file:

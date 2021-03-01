@@ -86,9 +86,11 @@ class HotDevice:
 
     @abc.abstractmethod
     def getTemperatureRange(self):
-        """Get min/max target temperatures.
+        """
+        Get min/max target temperatures.
 
-        Fans should be at minimum speed below min, and blow at full speed above max."""
+        Fans should be at minimum speed below min, and blow at full speed above max.
+        """
         pass
 
 
@@ -98,9 +100,9 @@ class Drive(HotDevice):
 
     DriveState = enum.Enum("DriveState", ("UNKNOWN", "ACTIVE_IDLE", "STANDBY", "SLEEPING"))
 
-    HDPARM_GET_TEMP_HITACHI_REGEX = re.compile("drive temperature \(celsius\) is:\s*([0-9]*)")
+    HDPARM_GET_TEMP_HITACHI_REGEX = re.compile(r"drive temperature \(celsius\) is:\s*([0-9]*)")
     HDPARM_GET_TEMP_HITACHI_ERROR_REGEX = re.compile("^SG_IO: .* sense data", re.MULTILINE)
-    HDPARM_GET_MODEL_REGEX = re.compile("Model Number:\s*(.*)")
+    HDPARM_GET_MODEL_REGEX = re.compile(r"Model Number:\s*(.*)")
     HDDTEMP_SLEEPING_SUFFIX = ": drive is sleeping\n"
 
     def __init__(self, device_filepath, hddtemp_daemon_port, min_temp, max_temp, use_smartctl):
@@ -290,13 +292,15 @@ class Drive(HotDevice):
             (
                 ("194 Temperature_Celsius", 9),
                 ("190 Airflow_Temperature_Cel", 9),
+                # https://github.com/smartmontools/smartmontools/blob/1f3ff52f06c2c281f7531a6c4bd7dc32eac00201/smartmontools/nvmeprint.cpp#L343
                 (
                     "Temperature: ",
                     1,
-                ),  # https://github.com/smartmontools/smartmontools/blob/1f3ff52f06c2c281f7531a6c4bd7dc32eac00201/smartmontools/nvmeprint.cpp#L343
+                ),
+                # https://github.com/smartmontools/smartmontools/blob/1f3ff52f06c2c281f7531a6c4bd7dc32eac00201/smartmontools/scsiprint.cpp#L330
                 ("Current Drive Temperature: ", 3),
             )
-        )  # https://github.com/smartmontools/smartmontools/blob/1f3ff52f06c2c281f7531a6c4bd7dc32eac00201/smartmontools/scsiprint.cpp#L330
+        )
 
         for line_prefix, token_index in prefixes.items():
             try:
@@ -499,8 +503,8 @@ class Fan:
         """
         Wait for the fan to have a stable rotational speed.
 
-        The algorithm only works if the fan is either slowing down, accelerating, or steady during the test, not if its speed
-        changes quickly ie. going up and down.
+        The algorithm only works if the fan is either slowing down, accelerating, or steady during the test, not if its
+        speed changes quickly ie. going up and down.
         """
         rpm = self.getRpm()
         min_rpm, max_rpm = rpm, rpm
@@ -561,6 +565,7 @@ class TestHardware:
         self.logger = logging.getLogger(__class__.__name__)
 
     def run(self):
+        """ Run tests on drives and PWMs to recommend parameter values. """
         self.logger.info("Running hardware tests, this may take a few minutes")
         self.testDrives()
         start_stop_values = self.testPwms()
@@ -577,6 +582,7 @@ class TestHardware:
         )
 
     def testDrives(self):
+        """ Run tests on hard disc drives. """
         for drive in self.drives:
             self.reportTestGroupStart("Test of drive %s" % (drive))
 
@@ -585,7 +591,7 @@ class TestHardware:
             try:
                 state = drive.getState()
                 test_ok = state in Drive.DriveState
-            except:
+            except Exception:
                 test_ok = False
             self.reportTestResult(test_desc, test_ok)
 
@@ -594,7 +600,7 @@ class TestHardware:
             try:
                 temp = drive.getTemperature()
                 test_ok = isinstance(temp, int)
-            except:
+            except Exception:
                 test_ok = False
             self.reportTestResult(test_desc, test_ok)
 
@@ -603,11 +609,12 @@ class TestHardware:
             try:
                 stats = drive.getActivityStats()
                 test_ok = isinstance(stats, tuple)
-            except:
+            except Exception:
                 test_ok = False
             self.reportTestResult(test_desc, test_ok)
 
     def testPwms(self):
+        """ Run tests on PWMs. """
         start_stop_values = []
         pwm_vals = (255,) + tuple(range(240, -1, -16))
         for fan in self.fans:
@@ -620,7 +627,7 @@ class TestHardware:
                 fan.setPwmValue(0)
                 fan.waitStabilize()
                 test_ok = not fan.isRunning()
-            except:
+            except Exception:
                 test_ok = False
             self.reportTestResult(test_desc, test_ok)
 
@@ -630,7 +637,7 @@ class TestHardware:
                 fan.setPwmValue(255)
                 fan.waitStabilize()
                 test_ok = fan.isRunning()
-            except:
+            except Exception:
                 test_ok = False
             self.reportTestResult(test_desc, test_ok)
 
@@ -645,7 +652,7 @@ class TestHardware:
                     if test_ok:
                         start_value = v
                         break
-            except:
+            except Exception:
                 pass
             self.reportTestResult(test_desc, test_ok)
 
@@ -660,7 +667,7 @@ class TestHardware:
                     if test_ok:
                         stop_value = v
                         break
-            except:
+            except Exception:
                 pass
             self.reportTestResult(test_desc, test_ok)
 
@@ -669,12 +676,15 @@ class TestHardware:
         return start_stop_values
 
     def reportTestGroupStart(self, desc):
+        """ Output text when starting a group of tests. """
         print("%s %s" % (desc, "-" * (shutil.get_terminal_size()[0] - len(desc) - 1)))
 
     def reportTestStart(self, desc):
+        """ Output text when starting a test. """
         print(desc, end=" ", flush=True)
 
     def reportTestResult(self, desc, ok):
+        """ Output text when ending a test. """
         if ok:
             self.ok_count += 1
         else:
@@ -683,6 +693,7 @@ class TestHardware:
 
 
 def test(drive_filepaths, fan_pwm_filepaths, hddtemp_daemon_port):
+    """ Entry point to run hardware tests. """
     fans = [Fan(i, fan_pwm_filepath, 0, 0) for i, fan_pwm_filepath in enumerate(fan_pwm_filepaths, 1)]
     drives = [Drive(drive_filepath, hddtemp_daemon_port) for drive_filepath in drive_filepaths]
 
@@ -691,6 +702,7 @@ def test(drive_filepaths, fan_pwm_filepaths, hddtemp_daemon_port):
 
 
 def signal_handler(sig, frame):
+    """ Signal handler for clean exit. """
     logging.getLogger("Signal handler").info("Catched signal %u" % (sig))
     global exit_evt
     exit_evt.set()
@@ -730,7 +742,7 @@ def set_high_priority(logger):
             logger.info("Process reniced from %d to %d" % (previous_niceness, new_niceness))
 
 
-def main(
+def main(  # noqa: C901
     drive_filepaths,
     cpu_probe_filepath,
     fan_pwm_filepaths,
@@ -745,6 +757,7 @@ def main(
     hddtemp_daemon_port,
     use_smartctl,
 ):
+    """ Run main program logic, after handling command line specific stuff. """
     logger = logging.getLogger("Main")
     fans = []
     try:
@@ -772,7 +785,6 @@ def main(
         cpus = []
         if cpu_probe_filepath is not None:
             cpus.append(CPU(cpu_probe_filepath, cpu_temp_range))
-        devices = drives + cpus
         drives_startup_time = time.monotonic()
 
         # start spin down threads if needed
@@ -862,7 +874,8 @@ def main(
         fan.setSpeed(100)
 
 
-def cl_main():
+def cl_main():  # noqa: C901
+    """ Command line entry point. """
     # parse args
     arg_parser = argparse.ArgumentParser(
         description="HDD Fan Control v%s.%s" % (__version__, __doc__),
