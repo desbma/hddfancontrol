@@ -375,38 +375,49 @@ class Drive(HotDevice):
         """
         if prev == current:
             # no activity whatsoever
+            # self.logger.debug("No activity")
             return False
 
-        if prev[4:9] == current[4:9]:
-            # only reads have been registered, it can be data reads or just our own temp probes showing up in
-            # the counters
-            if self.use_smartctl:
-                if self.supports_sct_temp_query:
-                    expected_read_io_delta = temp_probe_count * 4
-                    expected_read_sectors_delta = temp_probe_count * 3
-                else:
-                    # attrib
-                    expected_read_io_delta = temp_probe_count * 4
-                    expected_read_sectors_delta = temp_probe_count * 3
+        if prev[4:9] != current[4:9]:
+            # write occured
+            # self.logger.debug("Write activity")
+            return True
 
-            elif self.supports_hitachi_temp_query:
-                expected_read_io_delta = temp_probe_count
-                expected_read_sectors_delta = 0
+        if prev[1] != current[1]:
+            # actual read occured
+            # self.logger.debug("Read activity")
+            return True
 
+        # only reads have been registered, it can be data reads or just our own temp/state probes showing up in
+        # the counters
+        if self.use_smartctl:
+            if self.supports_sct_temp_query:
+                expected_read_io_delta = temp_probe_count * 4
+                expected_read_sectors_delta = temp_probe_count * 3
             else:
-                # hddtemp
-                expected_read_io_delta = temp_probe_count * 5
+                # attrib
+                expected_read_io_delta = temp_probe_count * 4
                 expected_read_sectors_delta = temp_probe_count * 3
 
-            expected_read_io_delta += state_probe_count
+        elif self.supports_hitachi_temp_query:
+            expected_read_io_delta = temp_probe_count
+            expected_read_sectors_delta = 0
 
-            return not (
-                (current[0] - prev[0] == expected_read_io_delta)
-                and (current[2] - prev[2] == expected_read_sectors_delta)
-            )
+        else:
+            # hddtemp
+            expected_read_io_delta = temp_probe_count * 5
+            expected_read_sectors_delta = temp_probe_count * 3
 
-        # write occured
-        return True
+        expected_read_io_delta += state_probe_count
+
+        # self.logger.debug(
+        #     f"prev={prev!r} current={current!r} "
+        #     f"expected_delta=({expected_read_io_delta}, {expected_read_sectors_delta})"
+        # )
+
+        return not (
+            (current[0] - prev[0] == expected_read_io_delta) and (current[2] - prev[2] == expected_read_sectors_delta)
+        )
 
     def getTempProbeLock(self) -> threading.Lock:
         """ Return the mutex to protect the temp probe count. """
