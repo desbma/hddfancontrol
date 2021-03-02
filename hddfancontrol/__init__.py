@@ -394,10 +394,13 @@ class Drive(HotDevice):
             if self.supports_sct_temp_query:
                 expected_read_io_delta = temp_probe_count * 4
                 expected_read_sectors_delta = temp_probe_count * 3
-            else:
-                # attrib
-                expected_read_io_delta = temp_probe_count * 4
-                expected_read_sectors_delta = temp_probe_count * 3
+            else:  # attrib
+                self.logger.warning(
+                    "Your kernel version and the current method of temperature probing "
+                    "does not allow reliably keeping track of drive activity. "
+                    "Auto spin down will not work."
+                )
+                return True
 
         elif self.supports_hitachi_temp_query:
             expected_read_io_delta = temp_probe_count
