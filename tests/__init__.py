@@ -600,6 +600,79 @@ Vendor (Seagate/Hitachi) factory information
                 (21695, 7718, 2913268, 95136, 13986, 754, 932032, 55820, 0, 19032, 150940),
             )
 
+    def test_compareActivityStats(self):
+        """ Test drive stat analysis to detect activity. """
+        only_probe_stats = (
+            (
+                (
+                    3368700,
+                    14189,
+                    1667115340,
+                    13385382,
+                    115556,
+                    13373,
+                    138957136,
+                    4019257,
+                    0,
+                    8704136,
+                    17488349,
+                    0,
+                    0,
+                    0,
+                    0,
+                    3009,
+                    83709,
+                ),
+                (
+                    3368705,
+                    14189,
+                    1667115343,
+                    13385427,
+                    115556,
+                    13373,
+                    138957136,
+                    4019257,
+                    0,
+                    8704188,
+                    17488394,
+                    0,
+                    0,
+                    0,
+                    0,
+                    3009,
+                    83709,
+                ),
+            ),
+            (
+                (49113, 60, 904613, 39145, 17736, 2687, 1083896, 46424, 0, 234520, 86522, 0, 0, 0, 0, 36, 952),
+                (49118, 60, 904616, 39553, 17736, 2687, 1083896, 46424, 0, 234940, 86930, 0, 0, 0, 0, 36, 952),
+            ),
+        )
+        for prev_stat, current_stat in only_probe_stats:
+            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 0), True)
+            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 1), False)
+            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 2), True)
+        idle_stats = (
+            (
+                (49113, 60, 904613, 39145, 17736, 2687, 1083896, 46424, 0, 234520, 86522, 0, 0, 0, 0, 36, 952),
+                (49113, 60, 904613, 39145, 17736, 2687, 1083896, 46424, 0, 234520, 86522, 0, 0, 0, 0, 36, 952),
+            ),
+        )
+        for prev_stat, current_stat in idle_stats:
+            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 0), False)
+            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 1), False)
+            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 2), False)
+        busy_stats = (
+            (
+                (49203, 60, 904662, 40016, 17736, 2687, 1083896, 46424, 0, 235960, 87393, 0, 0, 0, 0, 36, 952),
+                (49214, 60, 904668, 40023, 17736, 2687, 1083896, 46424, 0, 236050, 87400, 0, 0, 0, 0, 36, 952),
+            ),
+        )
+        for prev_stat, current_stat in busy_stats:
+            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 0), True)
+            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 1), True)
+            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 2), True)
+
 
 if __name__ == "__main__":
     # disable logging

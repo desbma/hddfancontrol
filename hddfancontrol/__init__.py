@@ -125,6 +125,8 @@ class Drive(HotDevice):
         self.supports_hitachi_temp_query = self.supportsHitachiTempQuery()
         self.supports_sct_temp_query = self.supportsSctTempQuery()
         self.use_smartctl = use_smartctl
+        self.probe_lock = threading.Lock()
+        self.probe_count = 0
 
     def __str__(self):
         """ Return a pretty drive name. """
@@ -210,26 +212,33 @@ class Drive(HotDevice):
 
     def getTemperature(self) -> float:
         """ Get drive temperature in Celcius. """
-        if self.use_smartctl:
-            if self.supports_sct_temp_query:
-                temp = self.getTemperatureWithSmartctlSctInvocation()
+        with self.probe_lock:
+            if self.use_smartctl:
+                if self.supports_sct_temp_query:
+                    temp = self.getTemperatureWithSmartctlSctInvocation()
+                else:
+                    temp = self.getTemperatureWithSmartctlAttribInvocation()
+
+            elif self.supports_hitachi_temp_query:
+                temp = self.getTemperatureWithHdparmInvocation()
+
+            elif self.hddtemp_daemon_port is not None:
+                try:
+                    temp = self.getTemperatureWithHddtempDaemon()
+                except HddtempDaemonQueryFailed:
+                    self.logger.warning(
+                        "Hddtemp daemon returned an error when querying temperature for this drive, "
+                        "falling back to hddtemp process invocation. "
+                        "If that happens often, you may need to raise the hddtemp daemon priority "
+                        "(see: https://github.com/desbma/hddfancontrol/issues/15#issuecomment-461405402)."
+                    )
+                    temp = self.getTemperatureWithHddtempInvocation()
+
             else:
-                temp = self.getTemperatureWithSmartctlAttribInvocation()
-        elif self.supports_hitachi_temp_query:
-            temp = self.getTemperatureWithHdparmInvocation()
-        elif self.hddtemp_daemon_port is not None:
-            try:
-                temp = self.getTemperatureWithHddtempDaemon()
-            except HddtempDaemonQueryFailed:
-                self.logger.warning(
-                    "Hddtemp daemon returned an error when querying temperature for this drive, "
-                    "falling back to hddtemp process invocation. "
-                    "If that happens often, you may need to raise the hddtemp daemon priority "
-                    "(see: https://github.com/desbma/hddfancontrol/issues/15#issuecomment-461405402)."
-                )
                 temp = self.getTemperatureWithHddtempInvocation()
-        else:
-            temp = self.getTemperatureWithHddtempInvocation()
+
+            self.probe_count += 1
+
         self.logger.debug(f"Drive temperature: {temp} °C")
         return temp
 
@@ -347,6 +356,40 @@ class Drive(HotDevice):
             raise RuntimeError(f"Unable to get stats for drive {self}")
         return stats
 
+    def compareActivityStats(self, prev: Tuple[int, ...], current: Tuple[int, ...], probe_count: int) -> bool:
+        """
+        Compare two samples of activity stats and return True if real activity occured.
+
+        Unfortunaly some Linux kernel change between 5.4 and 5.10 makes temperature probing increase the read activity
+        counters, so we can not just compare the counters.
+        Empirical evidence seems to indicate that a temp probe shows in the counters as 5 completed reads operations,
+        and 3 "sector" reads. So try to detect that and see if it matches our probe count.
+        See https://www.kernel.org/doc/Documentation/iostats.txt
+        """
+        if prev == current:
+            # no activity whatsoever
+            return False
+
+        if prev[4:9] == current[4:9]:
+            # only reads have been registered, it can be data reads or just our own temp probes showing up in
+            # the counters
+            return (current[0] - prev[0] != probe_count * 5) or (current[2] - prev[2] != probe_count * 3)
+
+        # write occured
+        return True
+
+    def getProbeLock(self) -> threading.Lock:
+        """ Return the mutex to protect the probe count, and get coherent stats. """
+        return self.probe_lock
+
+    def getProbeCount(self) -> int:
+        """
+        Return current probe count.
+
+        The caller must hold the lock returned by getProbeLock.
+        """
+        return self.probe_count
+
     @staticmethod
     def normalizeDrivePath(path: str) -> str:
         """ Normalize filepath by following symbolic links, and making it absolute. """
@@ -441,7 +484,9 @@ class DriveSpinDownThread(threading.Thread):
 
                 if previous_stats is None:
                     # get stats
-                    previous_stats = self.drive.getActivityStats()
+                    with self.drive.getProbeLock():
+                        previous_stats = self.drive.getActivityStats()
+                        previous_probe_count = self.drive.getProbeCount()
                     previous_stats_time = time.monotonic()
 
                 # sleep
@@ -450,9 +495,14 @@ class DriveSpinDownThread(threading.Thread):
                     break
 
                 # get stats again
-                stats = self.drive.getActivityStats()
+                with self.drive.getProbeLock():
+                    stats = self.drive.getActivityStats()
+                    probe_count = self.drive.getProbeCount()
                 now = time.monotonic()
-                if stats != previous_stats:
+                probe_count_delta = probe_count - previous_probe_count
+
+                # spin down if needed
+                if self.drive.compareActivityStats(stats, previous_stats, probe_count_delta):
                     self.logger.debug("Drive is active")
                     previous_stats = None
                 else:
