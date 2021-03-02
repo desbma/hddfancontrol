@@ -376,18 +376,18 @@ class Drive(HotDevice):
             # the counters
             if self.use_smartctl:
                 if self.supports_sct_temp_query:
-                    return (current[0] - prev[0] != probe_count * 4) or (current[2] - prev[2] != probe_count * 3)
+                    return not ((current[0] - prev[0] == probe_count * 4) and (current[2] - prev[2] == probe_count * 3))
                 else:
                     # attrib
                     # TODO confirm this, I have no drive to test
-                    return (current[0] - prev[0] != probe_count * 4) or (current[2] - prev[2] != probe_count * 3)
+                    return not ((current[0] - prev[0] == probe_count * 4) and (current[2] - prev[2] == probe_count * 3))
 
             elif self.supports_hitachi_temp_query:
-                return current[0] - prev[0] != probe_count
+                return not ((current[0] - prev[0] == probe_count) and (current[2] == prev[2]))
 
             else:
                 # hddtemp
-                return (current[0] - prev[0] != probe_count * 5) or (current[2] - prev[2] != probe_count * 3)
+                return not ((current[0] - prev[0] == probe_count * 5) and (current[2] - prev[2] == probe_count * 3))
 
         # write occured
         return True
