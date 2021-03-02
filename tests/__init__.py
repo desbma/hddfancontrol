@@ -652,9 +652,9 @@ Vendor (Seagate/Hitachi) factory information
             ),
         )
         for prev_stat, current_stat in only_hddtemp_probe_stats:
-            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 0), True)
-            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 1), False)
-            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 2), True)
+            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 0, 0), True)
+            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 1, 0), False)
+            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 2, 0), True)
 
         self.drive.supports_hitachi_temp_query = False
         self.drive.supports_sct_temp_query = True
@@ -666,9 +666,9 @@ Vendor (Seagate/Hitachi) factory information
             ),
         )
         for prev_stat, current_stat in only_smartctl_sct_probe_stats:
-            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 0), True)
-            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 1), False)
-            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 2), True)
+            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 0, 0), True)
+            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 1, 0), False)
+            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 2, 0), True)
 
         self.drive.supports_hitachi_temp_query = True
         self.drive.supports_sct_temp_query = False
@@ -680,9 +680,9 @@ Vendor (Seagate/Hitachi) factory information
             ),
         )
         for prev_stat, current_stat in only_hdparm_probe_stats:
-            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 0), True)
-            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 1), False)
-            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 2), True)
+            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 0, 0), True)
+            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 1, 0), False)
+            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 2, 0), True)
 
         idle_stats = (
             (
@@ -691,9 +691,9 @@ Vendor (Seagate/Hitachi) factory information
             ),
         )
         for prev_stat, current_stat in idle_stats:
-            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 0), False)
-            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 1), False)
-            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 2), False)
+            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 0, 0), False)
+            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 1, 0), False)
+            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 2, 0), False)
 
         busy_stats = (
             (
@@ -702,9 +702,9 @@ Vendor (Seagate/Hitachi) factory information
             ),
         )
         for prev_stat, current_stat in busy_stats:
-            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 0), True)
-            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 1), True)
-            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 2), True)
+            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 0, 0), True)
+            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 1, 0), True)
+            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 2, 0), True)
 
 
 if __name__ == "__main__":

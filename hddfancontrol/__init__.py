@@ -127,6 +127,8 @@ class Drive(HotDevice):
         self.use_smartctl = use_smartctl
         self.probe_lock = threading.Lock()
         self.probe_count = 0
+        self.get_state_lock = threading.Lock()
+        self.get_state_count = 0
 
     def __str__(self):
         """ Return a pretty drive name. """
@@ -194,9 +196,11 @@ class Drive(HotDevice):
             "sleeping": self.__class__.DriveState.SLEEPING,
         }
         cmd = ("hdparm", "-C", self.device_filepath)
-        output = subprocess.check_output(
-            cmd, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, universal_newlines=True
-        )
+        with self.get_state_lock:
+            output = subprocess.check_output(
+                cmd, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, universal_newlines=True
+            )
+            self.get_state_count += 1
         str_state = output.rsplit(" ", 1)[-1].strip()
         state = states[str_state]
         self.logger.debug(f"Drive state: {state.name}")
@@ -356,14 +360,16 @@ class Drive(HotDevice):
             raise RuntimeError(f"Unable to get stats for drive {self}")
         return stats
 
-    def compareActivityStats(self, prev: Tuple[int, ...], current: Tuple[int, ...], probe_count: int) -> bool:
+    def compareActivityStats(
+        self, prev: Tuple[int, ...], current: Tuple[int, ...], temp_probe_count: int, state_probe_count: int
+    ) -> bool:
         """
         Compare two samples of activity stats and return True if real activity occured.
 
-        Unfortunaly some Linux kernel change between 5.4 and 5.10 makes temperature probing increase the read activity
-        counters, so we can not just compare the counters.
-        Empirical evidence seems to indicate that a temp probe shows in the counters as a fixed number of completed
-        reads operations, and "sector" reads. The actual numbers vary depending on the probing method.
+        Unfortunaly some Linux kernel change between 5.4 and 5.10 makes temperature or state probing increase the read
+        activity counters, so we can not just compare the counters.
+        Empirical evidence seems to indicate that a temp or state probe shows in the counters as a fixed number
+        of completed reads operations, and "sector" reads. The actual numbers vary depending on the probing method.
         So try to detect that and see if it matches our probe count.
         See https://www.kernel.org/doc/Documentation/iostats.txt
         """
@@ -376,33 +382,55 @@ class Drive(HotDevice):
             # the counters
             if self.use_smartctl:
                 if self.supports_sct_temp_query:
-                    return not ((current[0] - prev[0] == probe_count * 4) and (current[2] - prev[2] == probe_count * 3))
+                    expected_read_io_delta = temp_probe_count * 4
+                    expected_read_sectors_delta = temp_probe_count * 3
                 else:
                     # attrib
-                    # TODO confirm this, I have no drive to test
-                    return not ((current[0] - prev[0] == probe_count * 4) and (current[2] - prev[2] == probe_count * 3))
+                    expected_read_io_delta = temp_probe_count * 4
+                    expected_read_sectors_delta = temp_probe_count * 3
 
             elif self.supports_hitachi_temp_query:
-                return not ((current[0] - prev[0] == probe_count) and (current[2] == prev[2]))
+                expected_read_io_delta = temp_probe_count
+                expected_read_sectors_delta = 0
 
             else:
                 # hddtemp
-                return not ((current[0] - prev[0] == probe_count * 5) and (current[2] - prev[2] == probe_count * 3))
+                expected_read_io_delta = temp_probe_count * 5
+                expected_read_sectors_delta = temp_probe_count * 3
+
+            expected_read_io_delta += state_probe_count
+
+            return not (
+                (current[0] - prev[0] == expected_read_io_delta)
+                and (current[2] - prev[2] == expected_read_sectors_delta)
+            )
 
         # write occured
         return True
 
-    def getProbeLock(self) -> threading.Lock:
-        """ Return the mutex to protect the probe count, and get coherent stats. """
+    def getTempProbeLock(self) -> threading.Lock:
+        """ Return the mutex to protect the temp probe count. """
         return self.probe_lock
 
-    def getProbeCount(self) -> int:
+    def getTempProbeCount(self) -> int:
         """
-        Return current probe count.
+        Return current temp probe count.
 
-        The caller must hold the lock returned by getProbeLock.
+        The caller must hold the lock returned by getTempProbeLock.
         """
         return self.probe_count
+
+    def getStateProbeLock(self) -> threading.Lock:
+        """ Return the mutex to protect the state probe count. """
+        return self.get_state_lock
+
+    def getStateProbeCount(self) -> int:
+        """
+        Return current state probe count.
+
+        The caller must hold the lock returned by getStateProbeLock.
+        """
+        return self.get_state_count
 
     @staticmethod
     def normalizeDrivePath(path: str) -> str:
@@ -498,9 +526,10 @@ class DriveSpinDownThread(threading.Thread):
 
                 if previous_stats is None:
                     # get stats
-                    with self.drive.getProbeLock():
+                    with self.drive.getTempProbeLock(), self.drive.getStateProbeLock():
                         previous_stats = self.drive.getActivityStats()
-                        previous_probe_count = self.drive.getProbeCount()
+                        previous_temp_probe_count = self.drive.getTempProbeCount()
+                        previous_state_probe_count = self.drive.getStateProbeCount()
                     previous_stats_time = time.monotonic()
 
                 # sleep
@@ -509,14 +538,18 @@ class DriveSpinDownThread(threading.Thread):
                     break
 
                 # get stats again
-                with self.drive.getProbeLock():
+                with self.drive.getTempProbeLock(), self.drive.getStateProbeLock():
                     stats = self.drive.getActivityStats()
-                    probe_count = self.drive.getProbeCount()
+                    temp_probe_count = self.drive.getTempProbeCount()
+                    state_probe_count = self.drive.getStateProbeCount()
                 now = time.monotonic()
-                probe_count_delta = probe_count - previous_probe_count
+                temp_probe_count_delta = temp_probe_count - previous_temp_probe_count
+                state_probe_count_delta = state_probe_count - previous_state_probe_count
 
                 # spin down if needed
-                if self.drive.compareActivityStats(stats, previous_stats, probe_count_delta):
+                if self.drive.compareActivityStats(
+                    stats, previous_stats, temp_probe_count_delta, state_probe_count_delta
+                ):
                     self.logger.debug("Drive is active")
                     previous_stats = None
                 else:
