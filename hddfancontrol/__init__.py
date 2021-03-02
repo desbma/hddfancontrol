@@ -548,7 +548,7 @@ class DriveSpinDownThread(threading.Thread):
 
                 # spin down if needed
                 if self.drive.compareActivityStats(
-                    stats, previous_stats, temp_probe_count_delta, state_probe_count_delta
+                    previous_stats, stats, temp_probe_count_delta, state_probe_count_delta
                 ):
                     self.logger.debug("Drive is active")
                     previous_stats = None
