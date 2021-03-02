@@ -602,6 +602,11 @@ Vendor (Seagate/Hitachi) factory information
 
     def test_compareActivityStats(self):
         """ Test drive stat analysis to detect activity. """
+        # TODO tests other probing methods
+        self.drive.supports_hitachi_temp_query = False
+        self.drive.supports_sct_temp_query = False
+        self.drive.use_smartctl = False
+
         only_probe_stats = (
             (
                 (

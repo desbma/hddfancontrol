@@ -362,8 +362,9 @@ class Drive(HotDevice):
 
         Unfortunaly some Linux kernel change between 5.4 and 5.10 makes temperature probing increase the read activity
         counters, so we can not just compare the counters.
-        Empirical evidence seems to indicate that a temp probe shows in the counters as 5 completed reads operations,
-        and 3 "sector" reads. So try to detect that and see if it matches our probe count.
+        Empirical evidence seems to indicate that a temp probe shows in the counters as a fixed number of completed
+        reads operations, and "sector" reads. The actual numbers vary depending on the probing method.
+        So try to detect that and see if it matches our probe count.
         See https://www.kernel.org/doc/Documentation/iostats.txt
         """
         if prev == current:
@@ -373,7 +374,20 @@ class Drive(HotDevice):
         if prev[4:9] == current[4:9]:
             # only reads have been registered, it can be data reads or just our own temp probes showing up in
             # the counters
-            return (current[0] - prev[0] != probe_count * 5) or (current[2] - prev[2] != probe_count * 3)
+            if self.use_smartctl:
+                if self.supports_sct_temp_query:
+                    return (current[0] - prev[0] != probe_count * 4) or (current[2] - prev[2] != probe_count * 3)
+                else:
+                    # attrib
+                    # TODO confirm this, I have no drive to test
+                    return (current[0] - prev[0] != probe_count * 4) or (current[2] - prev[2] != probe_count * 3)
+
+            elif self.supports_hitachi_temp_query:
+                return current[0] - prev[0] != probe_count
+
+            else:
+                # hddtemp
+                return (current[0] - prev[0] != probe_count * 5) or (current[2] - prev[2] != probe_count * 3)
 
         # write occured
         return True
