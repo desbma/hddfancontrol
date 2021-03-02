@@ -647,7 +647,7 @@ class Fan:
         # preconditions
         assert 0 <= target_prct <= 100
 
-        self.logger.info(f"Setting fan speed to {target_prct}%%")
+        self.logger.info(f"Setting fan speed to {target_prct}%")
 
         # calculate target PWM value
         if target_prct == 0:
