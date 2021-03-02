@@ -602,12 +602,10 @@ Vendor (Seagate/Hitachi) factory information
 
     def test_compareActivityStats(self):
         """ Test drive stat analysis to detect activity. """
-        # TODO tests other probing methods
         self.drive.supports_hitachi_temp_query = False
         self.drive.supports_sct_temp_query = False
         self.drive.use_smartctl = False
-
-        only_probe_stats = (
+        only_hddtemp_probe_stats = (
             (
                 (
                     3368700,
@@ -653,10 +651,39 @@ Vendor (Seagate/Hitachi) factory information
                 (49118, 60, 904616, 39553, 17736, 2687, 1083896, 46424, 0, 234940, 86930, 0, 0, 0, 0, 36, 952),
             ),
         )
-        for prev_stat, current_stat in only_probe_stats:
+        for prev_stat, current_stat in only_hddtemp_probe_stats:
             self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 0), True)
             self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 1), False)
             self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 2), True)
+
+        self.drive.supports_hitachi_temp_query = False
+        self.drive.supports_sct_temp_query = True
+        self.drive.use_smartctl = True
+        only_smartctl_sct_probe_stats = (
+            (
+                (49675, 60, 904922, 42379, 17736, 2687, 1083896, 46424, 0, 241350, 89756, 0, 0, 0, 0, 36, 952),
+                (49679, 60, 904925, 42383, 17736, 2687, 1083896, 46424, 0, 241370, 89760, 0, 0, 0, 0, 36, 952),
+            ),
+        )
+        for prev_stat, current_stat in only_smartctl_sct_probe_stats:
+            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 0), True)
+            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 1), False)
+            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 2), True)
+
+        self.drive.supports_hitachi_temp_query = True
+        self.drive.supports_sct_temp_query = False
+        self.drive.use_smartctl = False
+        only_hdparm_probe_stats = (
+            (
+                (49690, 60, 904931, 42390, 17736, 2687, 1083896, 46424, 0, 241440, 89767, 0, 0, 0, 0, 36, 952),
+                (49691, 60, 904931, 42390, 17736, 2687, 1083896, 46424, 0, 241450, 89767, 0, 0, 0, 0, 36, 952),
+            ),
+        )
+        for prev_stat, current_stat in only_hdparm_probe_stats:
+            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 0), True)
+            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 1), False)
+            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 2), True)
+
         idle_stats = (
             (
                 (49113, 60, 904613, 39145, 17736, 2687, 1083896, 46424, 0, 234520, 86522, 0, 0, 0, 0, 36, 952),
@@ -667,6 +694,7 @@ Vendor (Seagate/Hitachi) factory information
             self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 0), False)
             self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 1), False)
             self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 2), False)
+
         busy_stats = (
             (
                 (49203, 60, 904662, 40016, 17736, 2687, 1083896, 46424, 0, 235960, 87393, 0, 0, 0, 0, 36, 952),
