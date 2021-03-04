@@ -129,6 +129,7 @@ class Drive(HotDevice):
         self.probe_count = 0
         self.get_state_lock = threading.Lock()
         self.get_state_count = 0
+        self.warned_smartctl_attrib_counters = False
 
     def __str__(self):
         """ Return a pretty drive name. """
@@ -395,11 +396,13 @@ class Drive(HotDevice):
                 expected_read_io_delta = temp_probe_count * 4
                 expected_read_sectors_delta = temp_probe_count * 3
             else:  # attrib
-                self.logger.warning(
-                    "Your kernel version and the current method of temperature probing "
-                    "does not allow reliably keeping track of drive activity. "
-                    "Auto spin down will not work."
-                )
+                if not self.warned_smartctl_attrib_counters:
+                    self.logger.warning(
+                        "Your kernel version and the current method of temperature probing "
+                        "does not allow reliably keeping track of drive activity. "
+                        "Auto spin down will not work."
+                    )
+                    self.warned_smartctl_attrib_counters = True
                 return True
 
         elif self.supports_hitachi_temp_query:
