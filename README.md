@@ -2,7 +2,7 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/hddfancontrol.svg?style=flat)](https://pypi.python.org/pypi/hddfancontrol/)
 [![AUR version](https://img.shields.io/aur/version/hddfancontrol.svg?style=flat)](https://aur.archlinux.org/packages/hddfancontrol/)
-[![Tests status](https://img.shields.io/travis/desbma/hddfancontrol/master.svg?label=tests&style=flat)](https://travis-ci.org/desbma/hddfancontrol)
+[![Tests status](https://github.com/desbma/hddfancontrol/actions/workflows/ci.yml/badge.svg)](https://github.com/desbma/hddfancontrol/actions/)
 [![Coverage](https://img.shields.io/coveralls/desbma/hddfancontrol/master.svg?style=flat)](https://coveralls.io/github/desbma/hddfancontrol?branch=master)
 [![Lines of code](https://tokei.rs/b1/github/desbma/hddfancontrol)](https://github.com/desbma/hddfancontrol)
 [![Supported Python versions](https://img.shields.io/pypi/pyversions/hddfancontrol.svg?style=flat)](https://pypi.python.org/pypi/hddfancontrol/)
