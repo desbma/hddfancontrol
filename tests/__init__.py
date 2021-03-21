@@ -542,9 +542,9 @@ Vendor (Seagate/Hitachi) factory information
         self.hddtemp_daemon.start()
         FakeHddtempDaemon.outgoing = b"|/dev/_sdz|DriveSDZ|30|C|"
         self.assertEqual(self.drive.getTemperature(), 30)
-        FakeHddtempDaemon.outgoing = b"|/dev_/sdy|DriveSDY|31|C||/dev/_sdz|DriveSDZ|30|C|"
+        FakeHddtempDaemon.outgoing = b"|/dev/_sdy|DriveSDY|31|C||/dev/_sdz|DriveSDZ|30|C|"
         self.assertEqual(self.drive.getTemperature(), 30)
-        FakeHddtempDaemon.outgoing = b"|/dev_/sdy|DriveSDY|31|C||/dev/_sdz|DriveSDZ|30|C||/dev_/sdx|DriveSDX|32|C|"
+        FakeHddtempDaemon.outgoing = b"|/dev/_sdy|DriveSDY|31|C||/dev/_sdz|DriveSDZ|30|C||/dev/_sdx|DriveSDX|32|C|"
         self.assertEqual(self.drive.getTemperature(), 30)
         FakeHddtempDaemon.outgoing = b"|/dev/_sdz|DriveSDZ|SLP|*|"
         with self.assertRaises(hddfancontrol.DriveAsleepError):
@@ -562,7 +562,7 @@ Vendor (Seagate/Hitachi) factory information
                 env=hddtemp_env,
                 universal_newlines=True,
             )
-        FakeHddtempDaemon.outgoing = b"|/dev_/sdx|DriveSDX|31|C||/dev_/sdy|DriveSDY|32|C|"
+        FakeHddtempDaemon.outgoing = b"|/dev/_sdx|DriveSDX|31|C||/dev/_sdy|DriveSDY|32|C|"
         with self.assertRaises(RuntimeError):
             self.drive.getTemperature()
         FakeHddtempDaemon.outgoing = b"|/dev/_sdz|DriveSDZ|30|F|"
