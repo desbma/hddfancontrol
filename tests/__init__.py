@@ -56,7 +56,7 @@ class TestDrive(unittest.TestCase):
             stat_mock.stat.S_IFBLK.return_value = True
             subprocess_check_output_mock.return_value = ""
             drive_getPrettyName.return_value = "drive_name"
-            self.drive = hddfancontrol.Drive("/dev_/sdz", None, 30, 50, False)
+            self.drive = hddfancontrol.Drive("/dev/_sdz", None, 30, 50, False)
         self.hddtemp_daemon = None
 
     def tearDown(self):
@@ -69,10 +69,10 @@ class TestDrive(unittest.TestCase):
     def test_getPrettyName(self):
         """ Test generation of pretty drive name. """
         with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
-            subprocess_check_output_mock.return_value = "\n/dev_/sdz:\n\nATA device, with non-removable media\n\tModel Number:       WDC WD4003FZEX-00Z4SA0                  \n\tSerial Number:      WD-WMC5D0D4YY1K\n\tFirmware Revision:  01.01A01\n\tTransport:          Serial, SATA 1.0a, SATA II Extensions, SATA Rev 2.5, SATA Rev 2.6, SATA Rev 3.0\nStandards:\n\tSupported: 9 8 7 6 5 \n\tLikely used: 9\nConfiguration:\n\tLogical\t\tmax\tcurrent\n\tcylinders\t16383\t16383\n\theads\t\t16\t16\n\tsectors/track\t63\t63\n\t--\n\tCHS current addressable sectors:   16514064\n\tLBA    user addressable sectors:  268435455\n\tLBA48  user addressable sectors: 7814037168\n\tLogical  Sector size:                   512 bytes\n\tPhysical Sector size:                  4096 bytes\n\tLogical Sector-0 offset:                  0 bytes\n\tdevice size with M = 1024*1024:     3815447 MBytes\n\tdevice size with M = 1000*1000:     4000787 MBytes (4000 GB)\n\tcache/buffer size  = unknown\n\tNominal Media Rotation Rate: 7200\nCapabilities:\n\tLBA, IORDY(can be disabled)\n\tQueue depth: 32\n\tStandby timer values: spec'd by Standard, with device specific minimum\n\tR/W multiple sector transfer: Max = 16\tCurrent = 0\n\tDMA: mdma0 mdma1 mdma2 udma0 udma1 udma2 udma3 udma4 udma5 *udma6 \n\t     Cycle time: min=120ns recommended=120ns\n\tPIO: pio0 pio1 pio2 pio3 pio4 \n\t     Cycle time: no flow control=120ns  IORDY flow control=120ns\nCommands/features:\n\tEnabled\tSupported:\n\t   *\tSMART feature set\n\t    \tSecurity Mode feature set\n\t   *\tPower Management feature set\n\t   *\tWrite cache\n\t   *\tLook-ahead\n\t   *\tHost Protected Area feature set\n\t   *\tWRITE_BUFFER command\n\t   *\tREAD_BUFFER command\n\t   *\tNOP cmd\n\t   *\tDOWNLOAD_MICROCODE\n\t    \tPower-Up In Standby feature set\n\t   *\tSET_FEATURES required to spinup after power up\n\t    \tSET_MAX security extension\n\t   *\t48-bit Address feature set\n\t   *\tMandatory FLUSH_CACHE\n\t   *\tFLUSH_CACHE_EXT\n\t   *\tSMART error logging\n\t   *\tSMART self-test\n\t   *\tGeneral Purpose Logging feature set\n\t   *\t64-bit World wide name\n\t   *\t{READ,WRITE}_DMA_EXT_GPL commands\n\t   *\tSegmented DOWNLOAD_MICROCODE\n\t   *\tGen1 signaling speed (1.5Gb/s)\n\t   *\tGen2 signaling speed (3.0Gb/s)\n\t   *\tGen3 signaling speed (6.0Gb/s)\n\t   *\tNative Command Queueing (NCQ)\n\t   *\tHost-initiated interface power management\n\t   *\tPhy event counters\n\t   *\tNCQ priority information\n\t   *\tREAD_LOG_DMA_EXT equivalent to READ_LOG_EXT\n\t   *\tDMA Setup Auto-Activate optimization\n\t   *\tSoftware settings preservation\n\t   *\tSMART Command Transport (SCT) feature set\n\t   *\tSCT Write Same (AC2)\n\t   *\tSCT Features Control (AC4)\n\t   *\tSCT Data Tables (AC5)\n\t    \tunknown 206[12] (vendor specific)\n\t    \tunknown 206[13] (vendor specific)\n\t    \tunknown 206[14] (vendor specific)\nSecurity: \n\tMaster password revision code = 65534\n\t\tsupported\n\tnot\tenabled\n\tnot\tlocked\n\tnot\tfrozen\n\tnot\texpired: security count\n\t\tsupported: enhanced erase\n\t424min for SECURITY ERASE UNIT. 424min for ENHANCED SECURITY ERASE UNIT. \nLogical Unit WWN Device Identifier: 50014ee0593d4632\n\tNAA\t\t: 5\n\tIEEE OUI\t: 0014ee\n\tUnique ID\t: 0593d4632\nChecksum: correct\n"  # noqa: E501
-            self.assertEqual(self.drive.getPrettyName(), "sdz WDC WD4003FZEX-00Z4SA0")
+            subprocess_check_output_mock.return_value = "\n/dev/_sdz:\n\nATA device, with non-removable media\n\tModel Number:       WDC WD4003FZEX-00Z4SA0                  \n\tSerial Number:      WD-WMC5D0D4YY1K\n\tFirmware Revision:  01.01A01\n\tTransport:          Serial, SATA 1.0a, SATA II Extensions, SATA Rev 2.5, SATA Rev 2.6, SATA Rev 3.0\nStandards:\n\tSupported: 9 8 7 6 5 \n\tLikely used: 9\nConfiguration:\n\tLogical\t\tmax\tcurrent\n\tcylinders\t16383\t16383\n\theads\t\t16\t16\n\tsectors/track\t63\t63\n\t--\n\tCHS current addressable sectors:   16514064\n\tLBA    user addressable sectors:  268435455\n\tLBA48  user addressable sectors: 7814037168\n\tLogical  Sector size:                   512 bytes\n\tPhysical Sector size:                  4096 bytes\n\tLogical Sector-0 offset:                  0 bytes\n\tdevice size with M = 1024*1024:     3815447 MBytes\n\tdevice size with M = 1000*1000:     4000787 MBytes (4000 GB)\n\tcache/buffer size  = unknown\n\tNominal Media Rotation Rate: 7200\nCapabilities:\n\tLBA, IORDY(can be disabled)\n\tQueue depth: 32\n\tStandby timer values: spec'd by Standard, with device specific minimum\n\tR/W multiple sector transfer: Max = 16\tCurrent = 0\n\tDMA: mdma0 mdma1 mdma2 udma0 udma1 udma2 udma3 udma4 udma5 *udma6 \n\t     Cycle time: min=120ns recommended=120ns\n\tPIO: pio0 pio1 pio2 pio3 pio4 \n\t     Cycle time: no flow control=120ns  IORDY flow control=120ns\nCommands/features:\n\tEnabled\tSupported:\n\t   *\tSMART feature set\n\t    \tSecurity Mode feature set\n\t   *\tPower Management feature set\n\t   *\tWrite cache\n\t   *\tLook-ahead\n\t   *\tHost Protected Area feature set\n\t   *\tWRITE_BUFFER command\n\t   *\tREAD_BUFFER command\n\t   *\tNOP cmd\n\t   *\tDOWNLOAD_MICROCODE\n\t    \tPower-Up In Standby feature set\n\t   *\tSET_FEATURES required to spinup after power up\n\t    \tSET_MAX security extension\n\t   *\t48-bit Address feature set\n\t   *\tMandatory FLUSH_CACHE\n\t   *\tFLUSH_CACHE_EXT\n\t   *\tSMART error logging\n\t   *\tSMART self-test\n\t   *\tGeneral Purpose Logging feature set\n\t   *\t64-bit World wide name\n\t   *\t{READ,WRITE}_DMA_EXT_GPL commands\n\t   *\tSegmented DOWNLOAD_MICROCODE\n\t   *\tGen1 signaling speed (1.5Gb/s)\n\t   *\tGen2 signaling speed (3.0Gb/s)\n\t   *\tGen3 signaling speed (6.0Gb/s)\n\t   *\tNative Command Queueing (NCQ)\n\t   *\tHost-initiated interface power management\n\t   *\tPhy event counters\n\t   *\tNCQ priority information\n\t   *\tREAD_LOG_DMA_EXT equivalent to READ_LOG_EXT\n\t   *\tDMA Setup Auto-Activate optimization\n\t   *\tSoftware settings preservation\n\t   *\tSMART Command Transport (SCT) feature set\n\t   *\tSCT Write Same (AC2)\n\t   *\tSCT Features Control (AC4)\n\t   *\tSCT Data Tables (AC5)\n\t    \tunknown 206[12] (vendor specific)\n\t    \tunknown 206[13] (vendor specific)\n\t    \tunknown 206[14] (vendor specific)\nSecurity: \n\tMaster password revision code = 65534\n\t\tsupported\n\tnot\tenabled\n\tnot\tlocked\n\tnot\tfrozen\n\tnot\texpired: security count\n\t\tsupported: enhanced erase\n\t424min for SECURITY ERASE UNIT. 424min for ENHANCED SECURITY ERASE UNIT. \nLogical Unit WWN Device Identifier: 50014ee0593d4632\n\tNAA\t\t: 5\n\tIEEE OUI\t: 0014ee\n\tUnique ID\t: 0593d4632\nChecksum: correct\n"  # noqa: E501
+            self.assertEqual(self.drive.getPrettyName(), "_sdz WDC WD4003FZEX-00Z4SA0")
             subprocess_check_output_mock.assert_called_once_with(
-                ("hdparm", "-I", "/dev_/sdz"),
+                ("hdparm", "-I", "/dev/_sdz"),
                 stdin=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 universal_newlines=True,
@@ -82,38 +82,38 @@ class TestDrive(unittest.TestCase):
         """ Test detection for "Hitachi" temp query. """
         with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
             subprocess_check_output_mock.return_value = (
-                "\n/dev_/sdz:\n drive temperature (celsius) is:  30\n drive temperature in range:  yes"
+                "\n/dev/_sdz:\n drive temperature (celsius) is:  30\n drive temperature in range:  yes"
             )
             self.assertTrue(self.drive.supportsHitachiTempQuery())
             subprocess_check_output_mock.assert_called_once_with(
-                ("hdparm", "-H", "/dev_/sdz"),
+                ("hdparm", "-H", "/dev/_sdz"),
                 stdin=subprocess.DEVNULL,
                 stderr=subprocess.STDOUT,
                 universal_newlines=True,
             )
         with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
-            subprocess_check_output_mock.return_value = "\n/dev_/sdz:\nSG_IO: questionable sense data, results may be incorrect\n drive temperature (celsius) is: -18\n drive temperature in range: yes"  # noqa: E501
+            subprocess_check_output_mock.return_value = "\n/dev/_sdz:\nSG_IO: questionable sense data, results may be incorrect\n drive temperature (celsius) is: -18\n drive temperature in range: yes"  # noqa: E501
             self.assertFalse(self.drive.supportsHitachiTempQuery())
             subprocess_check_output_mock.assert_called_once_with(
-                ("hdparm", "-H", "/dev_/sdz"),
+                ("hdparm", "-H", "/dev/_sdz"),
                 stdin=subprocess.DEVNULL,
                 stderr=subprocess.STDOUT,
                 universal_newlines=True,
             )
         with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
-            subprocess_check_output_mock.return_value = "\n/dev_/sdz:\nSG_IO: missing sense data, results may be incorrect\n drive temperature (celsius) is: -18\n drive temperature in range: yes"  # noqa: E501
+            subprocess_check_output_mock.return_value = "\n/dev/_sdz:\nSG_IO: missing sense data, results may be incorrect\n drive temperature (celsius) is: -18\n drive temperature in range: yes"  # noqa: E501
             self.assertFalse(self.drive.supportsHitachiTempQuery())
             subprocess_check_output_mock.assert_called_once_with(
-                ("hdparm", "-H", "/dev_/sdz"),
+                ("hdparm", "-H", "/dev/_sdz"),
                 stdin=subprocess.DEVNULL,
                 stderr=subprocess.STDOUT,
                 universal_newlines=True,
             )
         with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
-            subprocess_check_output_mock.return_value = "\n/dev_/sdz:\nSG_IO: bad/missing sense data, sb[]: 70 00 05 00 00 00 00 0a 04 51 40 00 21 04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n drive temperature (celsius) is: -18\n drive temperature in range: yes"  # noqa: E501
+            subprocess_check_output_mock.return_value = "\n/dev/_sdz:\nSG_IO: bad/missing sense data, sb[]: 70 00 05 00 00 00 00 0a 04 51 40 00 21 04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n drive temperature (celsius) is: -18\n drive temperature in range: yes"  # noqa: E501
             self.assertFalse(self.drive.supportsHitachiTempQuery())
             subprocess_check_output_mock.assert_called_once_with(
-                ("hdparm", "-H", "/dev_/sdz"),
+                ("hdparm", "-H", "/dev/_sdz"),
                 stdin=subprocess.DEVNULL,
                 stderr=subprocess.STDOUT,
                 universal_newlines=True,
@@ -140,7 +140,7 @@ Vendor specific:
 """
             self.assertTrue(self.drive.supportsSctTempQuery())
             subprocess_check_output_mock.assert_called_once_with(
-                ("smartctl", "-l", "scttempsts", "/dev_/sdz"),
+                ("smartctl", "-l", "scttempsts", "/dev/_sdz"),
                 stdin=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 universal_newlines=True,
@@ -155,7 +155,7 @@ SCT Commands not supported
 """
             self.assertFalse(self.drive.supportsSctTempQuery())
             subprocess_check_output_mock.assert_called_once_with(
-                ("smartctl", "-l", "scttempsts", "/dev_/sdz"),
+                ("smartctl", "-l", "scttempsts", "/dev/_sdz"),
                 stdin=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 universal_newlines=True,
@@ -164,28 +164,28 @@ SCT Commands not supported
     def test_getState(self):
         """ Test drive state identification. """
         with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
-            subprocess_check_output_mock.return_value = "\n/dev_/sdz:\n drive state is:  active/idle\n"
+            subprocess_check_output_mock.return_value = "\n/dev/_sdz:\n drive state is:  active/idle\n"
             self.assertEqual(self.drive.getState(), hddfancontrol.Drive.DriveState.ACTIVE_IDLE)
             subprocess_check_output_mock.assert_called_once_with(
-                ("hdparm", "-C", "/dev_/sdz"),
+                ("hdparm", "-C", "/dev/_sdz"),
                 stdin=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 universal_newlines=True,
             )
         with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
-            subprocess_check_output_mock.return_value = "\n/dev_/sdz:\n drive state is:  standby\n"
+            subprocess_check_output_mock.return_value = "\n/dev/_sdz:\n drive state is:  standby\n"
             self.assertEqual(self.drive.getState(), hddfancontrol.Drive.DriveState.STANDBY)
             subprocess_check_output_mock.assert_called_once_with(
-                ("hdparm", "-C", "/dev_/sdz"),
+                ("hdparm", "-C", "/dev/_sdz"),
                 stdin=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 universal_newlines=True,
             )
         with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
-            subprocess_check_output_mock.return_value = "\n/dev_/sdz:\n drive state is:  sleeping\n"
+            subprocess_check_output_mock.return_value = "\n/dev/_sdz:\n drive state is:  sleeping\n"
             self.assertEqual(self.drive.getState(), hddfancontrol.Drive.DriveState.SLEEPING)
             subprocess_check_output_mock.assert_called_once_with(
-                ("hdparm", "-C", "/dev_/sdz"),
+                ("hdparm", "-C", "/dev/_sdz"),
                 stdin=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 universal_newlines=True,
@@ -195,17 +195,17 @@ SCT Commands not supported
             with self.assertRaises(Exception):
                 self.drive.getState()
             subprocess_check_output_mock.assert_called_once_with(
-                ("hdparm", "-C", "/dev_/sdz"),
+                ("hdparm", "-C", "/dev/_sdz"),
                 stdin=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 universal_newlines=True,
             )
         with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
-            subprocess_check_output_mock.return_value = "/dev_/sdz: No such file or directory\n"
+            subprocess_check_output_mock.return_value = "/dev/_sdz: No such file or directory\n"
             with self.assertRaises(Exception):
                 self.drive.getState()
             subprocess_check_output_mock.assert_called_once_with(
-                ("hdparm", "-C", "/dev_/sdz"),
+                ("hdparm", "-C", "/dev/_sdz"),
                 stdin=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 universal_newlines=True,
@@ -214,28 +214,28 @@ SCT Commands not supported
     def test_isSleeping(self):
         """ Test sleeping device identification. """
         with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
-            subprocess_check_output_mock.return_value = "\n/dev_/sdz:\n drive state is:  active/idle\n"
+            subprocess_check_output_mock.return_value = "\n/dev/_sdz:\n drive state is:  active/idle\n"
             self.assertFalse(self.drive.isSleeping())
             subprocess_check_output_mock.assert_called_once_with(
-                ("hdparm", "-C", "/dev_/sdz"),
+                ("hdparm", "-C", "/dev/_sdz"),
                 stdin=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 universal_newlines=True,
             )
         with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
-            subprocess_check_output_mock.return_value = "\n/dev_/sdz:\n drive state is:  standby\n"
+            subprocess_check_output_mock.return_value = "\n/dev/_sdz:\n drive state is:  standby\n"
             self.assertTrue(self.drive.isSleeping())
             subprocess_check_output_mock.assert_called_once_with(
-                ("hdparm", "-C", "/dev_/sdz"),
+                ("hdparm", "-C", "/dev/_sdz"),
                 stdin=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 universal_newlines=True,
             )
         with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
-            subprocess_check_output_mock.return_value = "\n/dev_/sdz:\n drive state is:  sleeping\n"
+            subprocess_check_output_mock.return_value = "\n/dev/_sdz:\n drive state is:  sleeping\n"
             self.assertTrue(self.drive.isSleeping())
             subprocess_check_output_mock.assert_called_once_with(
-                ("hdparm", "-C", "/dev_/sdz"),
+                ("hdparm", "-C", "/dev/_sdz"),
                 stdin=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 universal_newlines=True,
@@ -245,17 +245,17 @@ SCT Commands not supported
             with self.assertRaises(Exception):
                 self.drive.isSleeping()
             subprocess_check_output_mock.assert_called_once_with(
-                ("hdparm", "-C", "/dev_/sdz"),
+                ("hdparm", "-C", "/dev/_sdz"),
                 stdin=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 universal_newlines=True,
             )
         with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
-            subprocess_check_output_mock.return_value = "/dev_/sdz: No such file or directory\n"
+            subprocess_check_output_mock.return_value = "/dev/_sdz: No such file or directory\n"
             with self.assertRaises(Exception):
                 self.drive.isSleeping()
             subprocess_check_output_mock.assert_called_once_with(
-                ("hdparm", "-C", "/dev_/sdz"),
+                ("hdparm", "-C", "/dev/_sdz"),
                 stdin=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 universal_newlines=True,
@@ -297,7 +297,7 @@ Vendor specific:
 """
             self.assertEqual(self.drive.getTemperature(), 30)
             subprocess_check_output_mock.assert_called_once_with(
-                ("smartctl", "-l", "scttempsts", "/dev_/sdz"),
+                ("smartctl", "-l", "scttempsts", "/dev/_sdz"),
                 stdin=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 universal_newlines=True,
@@ -337,7 +337,7 @@ ID# ATTRIBUTE_NAME          FLAG     VALUE WORST THRESH TYPE      UPDATED  WHEN_
 """
             self.assertEqual(self.drive.getTemperature(), 35)
             subprocess_check_output_mock.assert_called_once_with(
-                ("smartctl", "-A", "/dev_/sdz"),
+                ("smartctl", "-A", "/dev/_sdz"),
                 stdin=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 universal_newlines=True,
@@ -376,7 +376,7 @@ ID# ATTRIBUTE_NAME          FLAG     VALUE WORST THRESH TYPE      UPDATED  WHEN_
 """
             self.assertEqual(self.drive.getTemperature(), 44)
             subprocess_check_output_mock.assert_called_once_with(
-                ("smartctl", "-A", "/dev_/sdz"),
+                ("smartctl", "-A", "/dev/_sdz"),
                 stdin=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 universal_newlines=True,
@@ -410,7 +410,7 @@ Critical Comp. Temperature Time: 0
 """
             self.assertEqual(self.drive.getTemperature(), 37)
             subprocess_check_output_mock.assert_called_once_with(
-                ("smartctl", "-A", "/dev_/sdz"),
+                ("smartctl", "-A", "/dev/_sdz"),
                 stdin=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 universal_newlines=True,
@@ -437,7 +437,7 @@ Vendor (Seagate/Hitachi) factory information
 """
             self.assertEqual(self.drive.getTemperature(), 42)
             subprocess_check_output_mock.assert_called_once_with(
-                ("smartctl", "-A", "/dev_/sdz"),
+                ("smartctl", "-A", "/dev/_sdz"),
                 stdin=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 universal_newlines=True,
@@ -454,7 +454,7 @@ Vendor (Seagate/Hitachi) factory information
             subprocess_check_output_mock.return_value = "30\n"
             self.assertEqual(self.drive.getTemperature(), 30)
             subprocess_check_output_mock.assert_called_once_with(
-                ("hddtemp", "-u", "C", "-n", "/dev_/sdz"),
+                ("hddtemp", "-u", "C", "-n", "/dev/_sdz"),
                 stdin=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 env=hddtemp_env,
@@ -465,29 +465,29 @@ Vendor (Seagate/Hitachi) factory information
             with self.assertRaises(Exception):
                 self.drive.getTemperature()
             subprocess_check_output_mock.assert_called_once_with(
-                ("hddtemp", "-u", "C", "-n", "/dev_/sdz"),
+                ("hddtemp", "-u", "C", "-n", "/dev/_sdz"),
                 stdin=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 env=hddtemp_env,
                 universal_newlines=True,
             )
         with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
-            subprocess_check_output_mock.return_value = "/dev_/sdz: drive_name: drive is sleeping\n"
+            subprocess_check_output_mock.return_value = "/dev/_sdz: drive_name: drive is sleeping\n"
             with self.assertRaises(hddfancontrol.DriveAsleepError):
                 self.drive.getTemperature()
             subprocess_check_output_mock.assert_called_once_with(
-                ("hddtemp", "-u", "C", "-n", "/dev_/sdz"),
+                ("hddtemp", "-u", "C", "-n", "/dev/_sdz"),
                 stdin=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 env=hddtemp_env,
                 universal_newlines=True,
             )
         with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
-            subprocess_check_output_mock.return_value = "/dev_/sdz: open: No such file or directory\n\n"
+            subprocess_check_output_mock.return_value = "/dev/_sdz: open: No such file or directory\n\n"
             with self.assertRaises(Exception):
                 self.drive.getTemperature()
             subprocess_check_output_mock.assert_called_once_with(
-                ("hddtemp", "-u", "C", "-n", "/dev_/sdz"),
+                ("hddtemp", "-u", "C", "-n", "/dev/_sdz"),
                 stdin=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 env=hddtemp_env,
@@ -501,11 +501,11 @@ Vendor (Seagate/Hitachi) factory information
         for self.drive.hddtemp_daemon_port in (None, 12345):
             with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
                 subprocess_check_output_mock.return_value = (
-                    "/dev_/sdz:\n  drive temperature (celsius) is:  30\n  drive temperature in range:  yes\n"
+                    "/dev/_sdz:\n  drive temperature (celsius) is:  30\n  drive temperature in range:  yes\n"
                 )
                 self.assertEqual(self.drive.getTemperature(), 30)
                 subprocess_check_output_mock.assert_called_once_with(
-                    ("hdparm", "-H", "/dev_/sdz"),
+                    ("hdparm", "-H", "/dev/_sdz"),
                     stdin=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                     universal_newlines=True,
@@ -515,17 +515,17 @@ Vendor (Seagate/Hitachi) factory information
                 with self.assertRaises(Exception):
                     self.drive.getTemperature()
                 subprocess_check_output_mock.assert_called_once_with(
-                    ("hdparm", "-H", "/dev_/sdz"),
+                    ("hdparm", "-H", "/dev/_sdz"),
                     stdin=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                     universal_newlines=True,
                 )
             with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
-                subprocess_check_output_mock.return_value = "/dev_/sdz: No such file or directory\n"
+                subprocess_check_output_mock.return_value = "/dev/_sdz: No such file or directory\n"
                 with self.assertRaises(Exception):
                     self.drive.getTemperature()
                 subprocess_check_output_mock.assert_called_once_with(
-                    ("hdparm", "-H", "/dev_/sdz"),
+                    ("hdparm", "-H", "/dev/_sdz"),
                     stdin=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                     universal_newlines=True,
@@ -540,23 +540,23 @@ Vendor (Seagate/Hitachi) factory information
             self.drive.getTemperature()
         self.hddtemp_daemon = FakeHddtempDaemon(12345)
         self.hddtemp_daemon.start()
-        FakeHddtempDaemon.outgoing = b"|/dev_/sdz|DriveSDZ|30|C|"
+        FakeHddtempDaemon.outgoing = b"|/dev/_sdz|DriveSDZ|30|C|"
         self.assertEqual(self.drive.getTemperature(), 30)
-        FakeHddtempDaemon.outgoing = b"|/dev_/sdy|DriveSDY|31|C||/dev_/sdz|DriveSDZ|30|C|"
+        FakeHddtempDaemon.outgoing = b"|/dev_/sdy|DriveSDY|31|C||/dev/_sdz|DriveSDZ|30|C|"
         self.assertEqual(self.drive.getTemperature(), 30)
-        FakeHddtempDaemon.outgoing = b"|/dev_/sdy|DriveSDY|31|C||/dev_/sdz|DriveSDZ|30|C||/dev_/sdx|DriveSDX|32|C|"
+        FakeHddtempDaemon.outgoing = b"|/dev_/sdy|DriveSDY|31|C||/dev/_sdz|DriveSDZ|30|C||/dev_/sdx|DriveSDX|32|C|"
         self.assertEqual(self.drive.getTemperature(), 30)
-        FakeHddtempDaemon.outgoing = b"|/dev_/sdz|DriveSDZ|SLP|*|"
+        FakeHddtempDaemon.outgoing = b"|/dev/_sdz|DriveSDZ|SLP|*|"
         with self.assertRaises(hddfancontrol.DriveAsleepError):
             self.drive.getTemperature()
-        FakeHddtempDaemon.outgoing = b"|/dev_/sdz|DriveSDZ|ERR|*|"
+        FakeHddtempDaemon.outgoing = b"|/dev/_sdz|DriveSDZ|ERR|*|"
         with self.assertRaises(hddfancontrol.HddtempDaemonQueryFailed):
             self.drive.getTemperatureWithHddtempDaemon()
         with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
             subprocess_check_output_mock.return_value = "30\n"
             self.assertEqual(self.drive.getTemperature(), 30)
             subprocess_check_output_mock.assert_called_once_with(
-                ("hddtemp", "-u", "C", "-n", "/dev_/sdz"),
+                ("hddtemp", "-u", "C", "-n", "/dev/_sdz"),
                 stdin=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 env=hddtemp_env,
@@ -565,7 +565,7 @@ Vendor (Seagate/Hitachi) factory information
         FakeHddtempDaemon.outgoing = b"|/dev_/sdx|DriveSDX|31|C||/dev_/sdy|DriveSDY|32|C|"
         with self.assertRaises(RuntimeError):
             self.drive.getTemperature()
-        FakeHddtempDaemon.outgoing = b"|/dev_/sdz|DriveSDZ|30|F|"
+        FakeHddtempDaemon.outgoing = b"|/dev/_sdz|DriveSDZ|30|F|"
         with self.assertRaises(RuntimeError):
             self.drive.getTemperature()
         FakeHddtempDaemon.outgoing = b""
@@ -577,7 +577,7 @@ Vendor (Seagate/Hitachi) factory information
         with unittest.mock.patch("hddfancontrol.subprocess.check_call") as subprocess_check_call_mock:
             self.drive.spinDown()
             subprocess_check_call_mock.assert_called_once_with(
-                ("hdparm", "-y", "/dev_/sdz"),
+                ("hdparm", "-y", "/dev/_sdz"),
                 stdin=subprocess.DEVNULL,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
