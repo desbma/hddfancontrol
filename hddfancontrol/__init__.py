@@ -115,8 +115,15 @@ class Drive(HotDevice):
         use_smartctl: bool,
     ):
         assert stat.S_ISBLK(os.stat(device_filepath).st_mode)
-        self.device_filepath = self.__class__.normalizeDrivePath(device_filepath)
-        self.stat_filepath = f"/sys/block/{os.path.basename(self.device_filepath)}/stat"
+        device_filepath = self.__class__.normalizeDrivePath(device_filepath)
+        if not self.__class__.isPartition(device_filepath):
+            self.device_filepath = device_filepath
+            self.stat_filepath = f"/sys/block/{os.path.basename(self.device_filepath)}/stat"
+        else:
+            self.device_filepath = self.__class__.getParentDevice(device_filepath)
+            self.stat_filepath = (
+                f"/sys/block/{os.path.basename(self.device_filepath)}/{os.path.basename(device_filepath)}/stat"
+            )
         self.hddtemp_daemon_port = hddtemp_daemon_port
         self.min_temp = min_temp
         self.max_temp = max_temp
@@ -130,6 +137,12 @@ class Drive(HotDevice):
         self.get_state_lock = threading.Lock()
         self.get_state_count = 0
         self.warned_smartctl_attrib_counters = False
+
+        if self.__class__.isPartition(device_filepath):
+            self.logger.warning(
+                f"{device_filepath!r} is a partition, "
+                f"parent device {self.device_filepath!r} will be used except for activity stats"
+            )
 
     def __str__(self):
         """ Return a pretty drive name. """
@@ -459,6 +472,22 @@ class Drive(HotDevice):
         else:
             r = path
         return os.path.abspath(r)
+
+    @staticmethod
+    def isPartition(device_filepath: str) -> bool:
+        """ Return True if device is a partition, False otherwise. """
+        # https://github.com/python/mypy/issues/4177
+        assert __class__.normalizeDrivePath(device_filepath) == device_filepath  # type: ignore
+        return os.path.isfile(f"/sys/class/block/{os.path.basename(device_filepath)}/partition")
+
+    @staticmethod
+    def getParentDevice(device_filepath: str) -> str:
+        """ Get parent device from a partition device filepath. """
+        # https://github.com/python/mypy/issues/4177
+        assert __class__.normalizeDrivePath(device_filepath) == device_filepath  # type: ignore
+        sysfs_dev = os.readlink(f"/sys/class/block/{os.path.basename(device_filepath)}")
+        parent_dev = os.path.basename(os.path.dirname(sysfs_dev))
+        return f"/dev/{parent_dev}"
 
 
 class CPU(HotDevice):

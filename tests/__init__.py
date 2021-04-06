@@ -51,11 +51,14 @@ class TestDrive(unittest.TestCase):
             "hddfancontrol.subprocess.check_output"
         ) as subprocess_check_output_mock, unittest.mock.patch(
             "hddfancontrol.Drive.getPrettyName"
-        ) as drive_getPrettyName:
+        ) as drive_getPrettyName, unittest.mock.patch(
+            "hddfancontrol.os.path.isfile"
+        ) as isfile_mock:
             os_stat_mock.return_value = os.stat_result
             stat_mock.stat.S_IFBLK.return_value = True
             subprocess_check_output_mock.return_value = ""
             drive_getPrettyName.return_value = "drive_name"
+            isfile_mock.return_value = False
             self.drive = hddfancontrol.Drive("/dev/_sdz", None, 30, 50, False)
         self.hddtemp_daemon = None
 
