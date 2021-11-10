@@ -163,11 +163,11 @@ class Drive(HotDevice):
 
     def getDrivetempInputFilepath(self) -> Optional[str]:
         """ Return sysfs drivetemp input filepath if supported, None instead. """
-        sysfs_bus_dir = f"/sys/block/{os.path.basename(self.device_filepath)}"
-        sysfs_bus_dir = os.path.normpath(
-            os.path.join(os.path.dirname(sysfs_bus_dir), os.readlink(sysfs_bus_dir), "..", "..")
-        )
         try:
+            sysfs_bus_dir = f"/sys/block/{os.path.basename(self.device_filepath)}"
+            sysfs_bus_dir = os.path.normpath(
+                os.path.join(os.path.dirname(sysfs_bus_dir), os.readlink(sysfs_bus_dir), "..", "..")
+            )
             with os.scandir(f"{sysfs_bus_dir}/hwmon") as dir_it:
                 for entry in filter(operator.methodcaller("is_dir"), dir_it):
                     hwmon_dir = entry.path
