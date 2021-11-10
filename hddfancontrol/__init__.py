@@ -1062,7 +1062,7 @@ def cl_main():  # noqa: C901
         nargs="+",
         dest="fan_start_value",
         help="""PWM value (0-255), at which the fan starts moving.
-                                  Use the -t parameter, or run pwmconfig to find this value.""",
+                Use the -t parameter, or run pwmconfig to find this value.""",
     )
     arg_parser.add_argument(
         "--pwm-stop-value",
@@ -1071,8 +1071,8 @@ def cl_main():  # noqa: C901
         nargs="+",
         dest="fan_stop_value",
         help="""PWM value (0-255), at which the fan stop moving.
-                                  Use the -t parameter, or run pwmconfig to find this value.
-                                  Often 20-40 lower than start speed.""",
+                Use the -t parameter, or run pwmconfig to find this value.
+                Often 20-40 lower than start speed.""",
     )
     arg_parser.add_argument(
         "--min-temp",
@@ -1094,8 +1094,8 @@ def cl_main():  # noqa: C901
         default=20,
         dest="min_fan_speed_prct",
         help="""Minimum percentage of full fan speed to set the fan to.
-                                  Never set to 0 unless you have other fans to cool down your system,
-                                  or a case specially designed for passive cooling.""",
+                Never set to 0 unless you have other fans to cool down your system,
+                or a case specially designed for passive cooling.""",
     )
     arg_parser.add_argument(
         "-i",
@@ -1111,10 +1111,10 @@ def cl_main():  # noqa: C901
         default=None,
         dest="cpu_probe_filepath",
         help="""Also control fan speed according to this CPU temperature probe.
-                                  (ie. /sys/devices/platform/coretemp.0/hwmon/hwmonX/tempY_input).
-                                  WARNING: This is experimental, only use for low TDP CPUs. You
-                                  may need to set a low value for -i/--interval parameter to react quickly to
-                                  sudden CPU temperature increase.""",
+               (ie. /sys/devices/platform/coretemp.0/hwmon/hwmonX/tempY_input).
+                WARNING: This is experimental, only use for low TDP CPUs. You
+                may need to set a low value for -i/--interval parameter to react quickly to
+                sudden CPU temperature increase.""",
     )
     arg_parser.add_argument(
         "--cpu-temp-range",
@@ -1122,7 +1122,7 @@ def cl_main():  # noqa: C901
         nargs=2,
         default=(None, None),
         help="""CPU temperature range, if CPU temp monitoring is enabled.
-                                  If missing, will be autodetected or use a default value.""",
+                If missing, will be autodetected or use a default value.""",
     )
     arg_parser.add_argument(
         "--spin-down-time",
@@ -1162,7 +1162,7 @@ def cl_main():  # noqa: C901
         default=False,
         dest="hddtemp_daemon",
         help="""Get drive temperature from hddtemp daemon instead of spawning
-                                  a new process each time temperature is probed""",
+                a new process each time temperature is probed""",
     )
     arg_parser.add_argument(
         "--hddtemp-daemon-port",
