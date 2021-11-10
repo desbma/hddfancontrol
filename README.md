@@ -29,6 +29,13 @@ The ideal use case is for a NAS with several hard drives, a low power CPU (ie. A
 
 - Can run in daemon mode
 - Can control several fans and/or several drives with a single invocation
+- Supports 6 different ways of querying temperature:
+  - `hddtemp` invocation
+  - `hddtemp` daemon query
+  - `hdparm` invocation
+  - `smartctl` invocation (SCT)
+  - `smartctl` invocation (SMART attributes)
+  - `drivetemp` native kernel hwmon
 - Can automatically spin down drives after a customizable period of inactivity
 - Can adapt to different fan characteristics
 - Can be set to stop fans or run them at full speed at customizable temperatures

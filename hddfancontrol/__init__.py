@@ -129,6 +129,7 @@ class Drive(HotDevice):
         self.max_temp = max_temp
         self.pretty_name = self.getPrettyName()
         self.logger = logging.getLogger(str(self))
+        self.drivetemp_input_filepath = self.getDrivetempInputFilepath()
         self.supports_hitachi_temp_query = self.supportsHitachiTempQuery()
         self.supports_sct_temp_query = self.supportsSctTempQuery()
         self.use_smartctl = use_smartctl
@@ -159,6 +160,25 @@ class Drive(HotDevice):
         assert model_match is not None
         model = model_match.group(1).strip()
         return f"{os.path.basename(self.device_filepath)} {model}"
+
+    def getDrivetempInputFilepath(self) -> Optional[str]:
+        """ Return sysfs drivetemp input filepath if supported, None instead. """
+        sysfs_bus_dir = f"/sys/block/{os.path.basename(self.device_filepath)}"
+        sysfs_bus_dir = os.path.normpath(
+            os.path.join(os.path.dirname(sysfs_bus_dir), os.readlink(sysfs_bus_dir), "..", "..")
+        )
+        try:
+            with os.scandir(f"{sysfs_bus_dir}/hwmon") as dir_it:
+                for entry in filter(operator.methodcaller("is_dir"), dir_it):
+                    hwmon_dir = entry.path
+                    with open(f"{hwmon_dir}/name", "rt") as f:
+                        name = f.read().rstrip()
+                    if name == "drivetemp":
+                        return f"{hwmon_dir}/temp1_input"
+        except FileNotFoundError:
+            pass
+        self.logger.info("Drive does not support native drivetemp temp query")
+        return None
 
     def supportsHitachiTempQuery(self) -> bool:
         """ Test if drive supports hdparm -H. """
@@ -231,11 +251,17 @@ class Drive(HotDevice):
     def getTemperature(self) -> float:
         """ Get drive temperature in Celcius. """
         with self.probe_lock:
-            if self.use_smartctl:
+            if self.use_smartctl:  # priotize smartctl if user explicitly enabled it
                 if self.supports_sct_temp_query:
                     temp = self.getTemperatureWithSmartctlSctInvocation()
                 else:
                     temp = self.getTemperatureWithSmartctlAttribInvocation()
+
+            # TODO if this wakes up drives, try that method after hdparm
+            # see https://www.kernel.org/doc/html/v5.12/hwmon/drivetemp.html#usage-note
+            elif self.drivetemp_input_filepath is not None:
+                with open(self.drivetemp_input_filepath, "rt") as f:
+                    temp = int(f.read().rstrip()) // 1000
 
             elif self.supports_hitachi_temp_query:
                 temp = self.getTemperatureWithHdparmInvocation()
@@ -1175,7 +1201,7 @@ def cl_main():  # noqa: C901
         "--smartctl",
         action="store_true",
         default=False,
-        help="""Probe temperature using smartctl instead of hddtemp/hdparm (EXPERIMENTAL)""",
+        help="""Probe temperature using smartctl instead of hddtemp/hdparm/drivetemp (EXPERIMENTAL)""",
     )
     args = arg_parser.parse_args()
     if ((args.fan_start_value is not None) and (len(args.fan_pwm_filepath) != len(args.fan_start_value))) or (
