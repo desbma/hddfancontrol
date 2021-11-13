@@ -251,7 +251,7 @@ class Drive(HotDevice):
     def getTemperature(self) -> float:
         """ Get drive temperature in Celcius. """
         with self.probe_lock:
-            if self.use_smartctl:  # priotize smartctl if user explicitly enabled it
+            if self.use_smartctl:  # prioritize smartctl if user explicitly enabled it
                 if self.supports_sct_temp_query:
                     temp = self.getTemperatureWithSmartctlSctInvocation()
                 else:
@@ -443,6 +443,10 @@ class Drive(HotDevice):
                     )
                     self.warned_smartctl_attrib_counters = True
                 return True
+
+        elif self.drivetemp_input_filepath is not None:
+            expected_read_io_delta = 0
+            expected_read_sectors_delta = 0
 
         elif self.supports_hitachi_temp_query:
             expected_read_io_delta = temp_probe_count
