@@ -267,20 +267,8 @@ SCT Commands not supported
     def test_getTemperature(self):
         """ Test device temperature probing. """
 
-        #
-        # Temperature querying can be done in 5 different ways:
-        # * if smartctl use was enabled and SCT is supported => use smartctl -l scttempsts call
-        # * if smartctl use was enabled => use smartctl -A call
-        # * if drive supports Hitachi-style sensor => use hdparm call
-        # * if hddtemp daemon is available => use hddtemp daemon
-        # * otherwise use a hddtemp call
-        #
-
         # smartctl -l scttempsts call
-        self.drive.supports_hitachi_temp_query = False
-        self.drive.hddtemp_daemon_port = None
-        self.drive.use_smartctl = True
-        self.drive.supports_sct_temp_query = True
+        self.drive.temp_query_method = hddfancontrol.Drive.TempProbingMethod.SMARTCTL_SCT_INVOCATION
         with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
             subprocess_check_output_mock.return_value = """smartctl 7.0 2018-12-30 r4883 [x86_64-linux-4.19.36-1-lts] (local build)
 Copyright (C) 2002-18, Bruce Allen, Christian Franke, www.smartmontools.org
@@ -307,10 +295,7 @@ Vendor specific:
             )
 
         # smartctl -A call
-        self.drive.supports_hitachi_temp_query = False
-        self.drive.hddtemp_daemon_port = None
-        self.drive.use_smartctl = True
-        self.drive.supports_sct_temp_query = False
+        self.drive.temp_query_method = hddfancontrol.Drive.TempProbingMethod.SMARTCTL_ATTRIB_INVOCATION
         with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
             subprocess_check_output_mock.return_value = """smartctl 7.0 2018-12-30 r4883 [x86_64-linux-4.19.36-1-lts] (local build)
 Copyright (C) 2002-18, Bruce Allen, Christian Franke, www.smartmontools.org
@@ -446,13 +431,18 @@ Vendor (Seagate/Hitachi) factory information
                 universal_newlines=True,
             )
 
+        # drivetemp
+        with tempfile.NamedTemporaryFile("wt") as tmp_file:
+            tmp_file.write("31000\n")
+            tmp_file.flush()
+            self.drive.drivetemp_input_filepath = tmp_file.name
+            self.drive.temp_query_method = hddfancontrol.Drive.TempProbingMethod.DRIVETEMP
+            self.assertEqual(self.drive.getTemperature(), 31)
+
         # hddtemp call
         hddtemp_env = dict(os.environ)
         hddtemp_env["LANG"] = "C"
-        self.drive.supports_hitachi_temp_query = False
-        self.drive.hddtemp_daemon_port = None
-        self.drive.use_smartctl = False
-        self.drive.supports_sct_temp_query = False
+        self.drive.temp_query_method = hddfancontrol.Drive.TempProbingMethod.HDDTEMP_INVOCATION
         with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
             subprocess_check_output_mock.return_value = "30\n"
             self.assertEqual(self.drive.getTemperature(), 30)
@@ -498,47 +488,42 @@ Vendor (Seagate/Hitachi) factory information
             )
 
         # hdparm call
-        self.drive.supports_hitachi_temp_query = True
-        self.drive.use_smartctl = False
-        self.drive.supports_sct_temp_query = False
-        for self.drive.hddtemp_daemon_port in (None, 12345):
-            with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
-                subprocess_check_output_mock.return_value = (
-                    "/dev/_sdz:\n  drive temperature (celsius) is:  30\n  drive temperature in range:  yes\n"
-                )
-                self.assertEqual(self.drive.getTemperature(), 30)
-                subprocess_check_output_mock.assert_called_once_with(
-                    ("hdparm", "-H", "/dev/_sdz"),
-                    stdin=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    universal_newlines=True,
-                )
-            with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
-                subprocess_check_output_mock.side_effect = subprocess.CalledProcessError(0, "")
-                with self.assertRaises(Exception):
-                    self.drive.getTemperature()
-                subprocess_check_output_mock.assert_called_once_with(
-                    ("hdparm", "-H", "/dev/_sdz"),
-                    stdin=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    universal_newlines=True,
-                )
-            with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
-                subprocess_check_output_mock.return_value = "/dev/_sdz: No such file or directory\n"
-                with self.assertRaises(Exception):
-                    self.drive.getTemperature()
-                subprocess_check_output_mock.assert_called_once_with(
-                    ("hdparm", "-H", "/dev/_sdz"),
-                    stdin=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    universal_newlines=True,
-                )
+        self.drive.temp_query_method = hddfancontrol.Drive.TempProbingMethod.HDPARM_INVOCATION
+        with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
+            subprocess_check_output_mock.return_value = (
+                "/dev/_sdz:\n  drive temperature (celsius) is:  30\n  drive temperature in range:  yes\n"
+            )
+            self.assertEqual(self.drive.getTemperature(), 30)
+            subprocess_check_output_mock.assert_called_once_with(
+                ("hdparm", "-H", "/dev/_sdz"),
+                stdin=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                universal_newlines=True,
+            )
+        with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
+            subprocess_check_output_mock.side_effect = subprocess.CalledProcessError(0, "")
+            with self.assertRaises(Exception):
+                self.drive.getTemperature()
+            subprocess_check_output_mock.assert_called_once_with(
+                ("hdparm", "-H", "/dev/_sdz"),
+                stdin=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                universal_newlines=True,
+            )
+        with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
+            subprocess_check_output_mock.return_value = "/dev/_sdz: No such file or directory\n"
+            with self.assertRaises(Exception):
+                self.drive.getTemperature()
+            subprocess_check_output_mock.assert_called_once_with(
+                ("hdparm", "-H", "/dev/_sdz"),
+                stdin=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                universal_newlines=True,
+            )
 
         # hddtemp daemon
-        self.drive.supports_hitachi_temp_query = False
+        self.drive.temp_query_method = hddfancontrol.Drive.TempProbingMethod.HDDTEMP_DAEMON
         self.drive.hddtemp_daemon_port = 12345
-        self.drive.use_smartctl = False
-        self.drive.supports_sct_temp_query = False
         with self.assertRaises(Exception):
             self.drive.getTemperature()
         self.hddtemp_daemon = FakeHddtempDaemon(12345)
@@ -605,9 +590,7 @@ Vendor (Seagate/Hitachi) factory information
 
     def test_compareActivityStats(self):
         """ Test drive stat analysis to detect activity. """
-        self.drive.supports_hitachi_temp_query = False
-        self.drive.supports_sct_temp_query = False
-        self.drive.use_smartctl = False
+        self.drive.temp_query_method = hddfancontrol.Drive.TempProbingMethod.HDDTEMP_INVOCATION
         only_hddtemp_probe_stats = (
             (
                 (
@@ -659,9 +642,7 @@ Vendor (Seagate/Hitachi) factory information
             self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 1, 0), False)
             self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 2, 0), True)
 
-        self.drive.supports_hitachi_temp_query = False
-        self.drive.supports_sct_temp_query = True
-        self.drive.use_smartctl = True
+        self.drive.temp_query_method = hddfancontrol.Drive.TempProbingMethod.SMARTCTL_SCT_INVOCATION
         only_smartctl_sct_probe_stats = (
             (
                 (49675, 60, 904922, 42379, 17736, 2687, 1083896, 46424, 0, 241350, 89756, 0, 0, 0, 0, 36, 952),
@@ -673,9 +654,20 @@ Vendor (Seagate/Hitachi) factory information
             self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 1, 0), False)
             self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 2, 0), True)
 
-        self.drive.supports_hitachi_temp_query = True
-        self.drive.supports_sct_temp_query = False
-        self.drive.use_smartctl = False
+        self.drive.temp_query_method = hddfancontrol.Drive.TempProbingMethod.DRIVETEMP
+        only_drivetemp_probe_stats = (
+            (
+                (49690, 60, 904931, 42390, 17736, 2687, 1083896, 46424, 0, 241440, 89767, 0, 0, 0, 0, 36, 952),
+                (49691, 60, 904931, 42390, 17736, 2687, 1083896, 46424, 0, 241440, 89767, 0, 0, 0, 0, 36, 952),
+            ),
+        )
+        for prev_stat, current_stat in only_drivetemp_probe_stats:
+            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 0, 0), True)
+            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 1, 0), True)
+            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 0, 1), False)
+            self.assertEqual(self.drive.compareActivityStats(prev_stat, current_stat, 0, 2), True)
+
+        self.drive.temp_query_method = hddfancontrol.Drive.TempProbingMethod.HDPARM_INVOCATION
         only_hdparm_probe_stats = (
             (
                 (49690, 60, 904931, 42390, 17736, 2687, 1083896, 46424, 0, 241440, 89767, 0, 0, 0, 0, 36, 952),

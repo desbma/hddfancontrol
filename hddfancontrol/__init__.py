@@ -106,10 +106,21 @@ class Drive(HotDevice):
     HDPARM_GET_MODEL_REGEX = re.compile(r"Model Number:\s*(.*)")
     HDDTEMP_SLEEPING_SUFFIX = ": drive is sleeping\n"
 
+    class TempProbingMethod(enum.Enum):
+
+        """ Method used to query drive temperature, depending on what the drive/system support. """
+
+        HDDTEMP_INVOCATION = enum.auto()
+        HDDTEMP_DAEMON = enum.auto()
+        HDPARM_INVOCATION = enum.auto()
+        SMARTCTL_ATTRIB_INVOCATION = enum.auto()
+        SMARTCTL_SCT_INVOCATION = enum.auto()
+        DRIVETEMP = enum.auto()
+
     def __init__(
         self,
         device_filepath: str,
-        hddtemp_daemon_port: int,
+        hddtemp_daemon_port: Optional[int],
         min_temp: float,
         max_temp: float,
         use_smartctl: bool,
@@ -125,18 +136,34 @@ class Drive(HotDevice):
                 f"/sys/block/{os.path.basename(self.device_filepath)}/{os.path.basename(device_filepath)}/stat"
             )
         self.hddtemp_daemon_port = hddtemp_daemon_port
+
         self.min_temp = min_temp
         self.max_temp = max_temp
+
         self.pretty_name = self.getPrettyName()
         self.logger = logging.getLogger(str(self))
+
         self.drivetemp_input_filepath = self.getDrivetempInputFilepath()
-        self.supports_hitachi_temp_query = self.supportsHitachiTempQuery()
-        self.supports_sct_temp_query = self.supportsSctTempQuery()
-        self.use_smartctl = use_smartctl
+        if use_smartctl:
+            if self.supportsSctTempQuery():
+                self.temp_query_method = Drive.TempProbingMethod.SMARTCTL_SCT_INVOCATION
+            else:
+                self.temp_query_method = Drive.TempProbingMethod.SMARTCTL_ATTRIB_INVOCATION
+        elif self.drivetemp_input_filepath is not None:
+            self.temp_query_method = Drive.TempProbingMethod.DRIVETEMP
+        elif self.supportsHitachiTempQuery():
+            self.temp_query_method = Drive.TempProbingMethod.HDPARM_INVOCATION
+        elif self.hddtemp_daemon_port is not None:
+            self.temp_query_method = Drive.TempProbingMethod.HDDTEMP_DAEMON
+        else:
+            self.temp_query_method = Drive.TempProbingMethod.HDDTEMP_INVOCATION
+        self.logger.info(f"Will probe temperature with method {self.temp_query_method.name}")
+
         self.probe_lock = threading.Lock()
         self.probe_count = 0
         self.get_state_lock = threading.Lock()
         self.get_state_count = 0
+
         self.warned_smartctl_attrib_counters = False
 
         if self.__class__.isPartition(device_filepath):
@@ -219,9 +246,7 @@ class Drive(HotDevice):
 
     def supportsProbingWhileAsleep(self) -> bool:
         """ Return True if drive can be probed while asleep, without waking up, False instead. """
-        return (not self.use_smartctl) and (
-            (self.supports_hitachi_temp_query) or (self.drivetemp_input_filepath is not None)
-        )
+        return self.temp_query_method in (Drive.TempProbingMethod.HDPARM_INVOCATION, Drive.TempProbingMethod.DRIVETEMP)
 
     def getState(self) -> DriveState:
         """ Get drive power state, as a DriveState enum. """
@@ -252,33 +277,24 @@ class Drive(HotDevice):
 
     def getTemperature(self) -> float:
         """ Get drive temperature in Celcius. """
+        methods = {
+            Drive.TempProbingMethod.HDDTEMP_INVOCATION: self.getTemperatureWithHddtempInvocation,
+            Drive.TempProbingMethod.HDDTEMP_DAEMON: self.getTemperatureWithHddtempDaemon,
+            Drive.TempProbingMethod.HDPARM_INVOCATION: self.getTemperatureWithHdparmInvocation,
+            Drive.TempProbingMethod.SMARTCTL_ATTRIB_INVOCATION: self.getTemperatureWithSmartctlAttribInvocation,
+            Drive.TempProbingMethod.SMARTCTL_SCT_INVOCATION: self.getTemperatureWithSmartctlSctInvocation,
+            Drive.TempProbingMethod.DRIVETEMP: self.getTemperatureWithDrivetemp,
+        }
         with self.probe_lock:
-            if self.use_smartctl:  # prioritize smartctl if user explicitly enabled it
-                if self.supports_sct_temp_query:
-                    temp = self.getTemperatureWithSmartctlSctInvocation()
-                else:
-                    temp = self.getTemperatureWithSmartctlAttribInvocation()
-
-            elif self.drivetemp_input_filepath is not None:
-                with open(self.drivetemp_input_filepath, "rt") as f:
-                    temp = int(f.read().rstrip()) // 1000
-
-            elif self.supports_hitachi_temp_query:
-                temp = self.getTemperatureWithHdparmInvocation()
-
-            elif self.hddtemp_daemon_port is not None:
-                try:
-                    temp = self.getTemperatureWithHddtempDaemon()
-                except HddtempDaemonQueryFailed:
-                    self.logger.warning(
-                        "Hddtemp daemon returned an error when querying temperature for this drive, "
-                        "falling back to hddtemp process invocation. "
-                        "If that happens often, you may need to raise the hddtemp daemon priority "
-                        "(see: https://github.com/desbma/hddfancontrol/issues/15#issuecomment-461405402)."
-                    )
-                    temp = self.getTemperatureWithHddtempInvocation()
-
-            else:
+            try:
+                temp = methods[self.temp_query_method]()
+            except HddtempDaemonQueryFailed:
+                self.logger.warning(
+                    "Hddtemp daemon returned an error when querying temperature for this drive, "
+                    "falling back to hddtemp process invocation. "
+                    "If that happens often, you may need to raise the hddtemp daemon priority "
+                    "(see: https://github.com/desbma/hddfancontrol/issues/15#issuecomment-461405402)."
+                )
                 temp = self.getTemperatureWithHddtempInvocation()
 
             self.probe_count += 1
@@ -385,6 +401,12 @@ class Drive(HotDevice):
         temp_line = next(filter(lambda x: x.lstrip().startswith("Current Temperature: "), output.splitlines()))
         return int(temp_line.split()[2])
 
+    def getTemperatureWithDrivetemp(self) -> int:
+        """ Get drive temperature in Celcius using drivetemp sysfs. """
+        assert self.drivetemp_input_filepath is not None
+        with open(self.drivetemp_input_filepath, "rt") as f:
+            return int(f.read().rstrip()) // 1000
+
     def spinDown(self) -> None:
         """ Spin down a drive, effectively setting it to DriveState.STANDBY state. """
         self.logger.info(f"Spinning down drive {self}")
@@ -430,30 +452,35 @@ class Drive(HotDevice):
 
         # only reads have been registered, it can be data reads or just our own temp/state probes showing up in
         # the counters
-        if self.use_smartctl:
-            if self.supports_sct_temp_query:
-                expected_read_io_delta = temp_probe_count * 4
-                expected_read_sectors_delta = temp_probe_count * 3
-            else:  # attrib
-                if not self.warned_smartctl_attrib_counters:
-                    self.logger.warning(
-                        "Your kernel version and the current method of temperature probing "
-                        "does not allow reliably keeping track of drive activity. "
-                        "Auto spin down will not work."
-                    )
-                    self.warned_smartctl_attrib_counters = True
-                return True
 
-        elif self.drivetemp_input_filepath is not None:
+        if self.temp_query_method is Drive.TempProbingMethod.SMARTCTL_SCT_INVOCATION:
+            expected_read_io_delta = temp_probe_count * 4
+            expected_read_sectors_delta = temp_probe_count * 3
+
+        elif self.temp_query_method is Drive.TempProbingMethod.SMARTCTL_ATTRIB_INVOCATION:
+            if not self.warned_smartctl_attrib_counters:
+                self.logger.warning(
+                    "Your kernel version and the current method of temperature probing "
+                    "does not allow reliably keeping track of drive activity. "
+                    "Auto spin down will not work."
+                )
+                self.warned_smartctl_attrib_counters = True
+            return True
+
+        elif self.temp_query_method is Drive.TempProbingMethod.DRIVETEMP:
             expected_read_io_delta = 0
             expected_read_sectors_delta = 0
 
-        elif self.supports_hitachi_temp_query:
+        elif self.temp_query_method is Drive.TempProbingMethod.HDPARM_INVOCATION:
             expected_read_io_delta = temp_probe_count
             expected_read_sectors_delta = 0
 
         else:
             # hddtemp
+            assert self.temp_query_method in (
+                Drive.TempProbingMethod.HDDTEMP_INVOCATION,
+                Drive.TempProbingMethod.HDDTEMP_DAEMON,
+            )
             expected_read_io_delta = temp_probe_count * 5
             expected_read_sectors_delta = temp_probe_count * 3
 
@@ -942,7 +969,7 @@ def main(  # noqa: C901
     cpu_temp_range: Tuple[float, float],
     interval_s: int,
     spin_down_time_s: int,
-    hddtemp_daemon_port: int,
+    hddtemp_daemon_port: Optional[int],
     use_smartctl: bool,
 ):
     """ Run main program logic, after handling command line specific stuff. """
