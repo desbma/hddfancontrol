@@ -219,7 +219,9 @@ class Drive(HotDevice):
 
     def supportsProbingWhileAsleep(self) -> bool:
         """ Return True if drive can be probed while asleep, without waking up, False instead. """
-        return (not self.use_smartctl) and (self.supports_hitachi_temp_query)
+        return (not self.use_smartctl) and (
+            (self.supports_hitachi_temp_query) or (self.drivetemp_input_filepath is not None)
+        )
 
     def getState(self) -> DriveState:
         """ Get drive power state, as a DriveState enum. """
@@ -257,8 +259,6 @@ class Drive(HotDevice):
                 else:
                     temp = self.getTemperatureWithSmartctlAttribInvocation()
 
-            # TODO if this wakes up drives, try that method after hdparm
-            # see https://www.kernel.org/doc/html/v5.12/hwmon/drivetemp.html#usage-note
             elif self.drivetemp_input_filepath is not None:
                 with open(self.drivetemp_input_filepath, "rt") as f:
                     temp = int(f.read().rstrip()) // 1000
