@@ -693,7 +693,7 @@ class Fan:
         assert pwm_num_match is not None
         pwm_num = int(pwm_num_match.group(1))
         self.fan_input_filepath = os.path.join(os.path.dirname(self.pwm_filepath), f"fan{pwm_num}_input")
-        self.enable_filepath = f"{self.pwm_filepath}_enable"
+        self.enable_filepath: Optional[str] = f"{self.pwm_filepath}_enable"
         self.start_value = start_value
         self.stop_value = stop_value
         self.startup = False
@@ -757,12 +757,16 @@ class Fan:
     def setPwmValue(self, value: int) -> None:
         """Set fan PWM value."""
         assert 0 <= value <= 255
-        with open(self.enable_filepath, "r+t") as enable_file:
-            enabled_val = int(enable_file.read().strip())
-            if enabled_val != 1:
-                self.logger.warning(f"{self.enable_filepath} was {enabled_val}, setting it to 1")
-                enable_file.seek(0)
-                enable_file.write("1")
+        if self.enable_filepath is not None:
+            try:
+                with open(self.enable_filepath, "r+t") as enable_file:
+                    enabled_val = int(enable_file.read().strip())
+                    if enabled_val != 1:
+                        self.logger.warning(f"{self.enable_filepath} was {enabled_val}, setting it to 1")
+                        enable_file.seek(0)
+                        enable_file.write("1")
+            except FileNotFoundError:
+                self.enable_filepath = None
         self.logger.debug(f"Setting PWM value to {value}")
         with open(self.pwm_filepath, "wt") as pwm_file:
             pwm_file.write(str(value))
