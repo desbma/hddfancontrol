@@ -106,7 +106,7 @@ class Drive(HotDevice):
     HDPARM_GET_TEMP_HITACHI_ERROR_REGEX = re.compile("^SG_IO: .* sense data", re.MULTILINE)
     HDPARM_GET_MODEL_REGEX = re.compile(r"Model Number:\s*(.*)")
     HDDTEMP_SLEEPING_SUFFIX = ": drive is sleeping\n"
-    SMARTCTL_GET_MODEL_REGEX = re.compile(r"Model Number:\s*(.*)")
+    SMARTCTL_GET_MODEL_REGEXS = (re.compile(r"Model Number:\s*(.*)"), re.compile(r"Product:\s*(.*)"))
 
     class TempProbingMethod(enum.Enum):
 
@@ -191,7 +191,10 @@ class Drive(HotDevice):
             output = subprocess.check_output(
                 cmd, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, universal_newlines=True
             )
-            model_match = self.__class__.SMARTCTL_GET_MODEL_REGEX.search(output)
+            for regex in self.__class__.SMARTCTL_GET_MODEL_REGEXS:
+                model_match = regex.search(output)
+                if model_match is not None:
+                    break
         assert model_match is not None
         model = model_match.group(1).strip()
         return f"{os.path.basename(self.device_filepath)} {model}"
