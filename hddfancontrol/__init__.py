@@ -252,6 +252,8 @@ class Drive(HotDevice):
         """Get drive power state, as a DriveState enum."""
         states = {
             "unknown": self.__class__.DriveState.UNKNOWN,
+            "active": self.__class__.DriveState.ACTIVE_IDLE,
+            "idle": self.__class__.DriveState.ACTIVE_IDLE,
             "active/idle": self.__class__.DriveState.ACTIVE_IDLE,
             "standby": self.__class__.DriveState.STANDBY,
             "sleeping": self.__class__.DriveState.SLEEPING,
