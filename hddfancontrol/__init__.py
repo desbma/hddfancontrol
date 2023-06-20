@@ -700,6 +700,8 @@ class Fan:
         self.stop_value = stop_value
         self.startup = False
         self.logger = logging.getLogger(f"Fan #{self.id}")
+        self.enable_restore = self.getEnabledValue()
+        self.pwm_restore = self.getPwmValue()
 
     def getRpm(self) -> int:
         """Read fan speed in revolutions per minute."""
@@ -759,19 +761,58 @@ class Fan:
     def setPwmValue(self, value: int) -> None:
         """Set fan PWM value."""
         assert 0 <= value <= 255
+        self.setEnabledValue(1)
+        self.logger.debug(f"Setting PWM value to {value}")
+        with open(self.pwm_filepath, "wt") as pwm_file:
+            pwm_file.write(str(value))
+
+    def getEnabledValue(self) -> int:
+        """Read the enabled value of the fan"""
+        if self.enable_filepath is not None:
+            try:
+                with open(self.enable_filepath, "rt") as enable_file:
+                    enabled_val = int(enable_file.read().strip())
+                    self.logger.debug(f"Fan is in enabled state {enabled_val}")
+                    return enabled_val
+            except FileNotFoundError:
+                self.enable_filepath = None
+        return None
+
+    def setEnabledValue(self, value: int) -> None:
+        """
+        Set fan enabled value.
+        
+		0: no fan speed control (i.e. fan at full speed)
+		1: manual fan speed control enabled
+		2+: automatic fan speed control enabled
+        """
+        assert 0 <= value
         if self.enable_filepath is not None:
             try:
                 with open(self.enable_filepath, "r+t") as enable_file:
                     enabled_val = int(enable_file.read().strip())
-                    if enabled_val != 1:
-                        self.logger.warning(f"{self.enable_filepath} was {enabled_val}, setting it to 1")
+                    if enabled_val != value:
+                        self.logger.warning(f"{self.enable_filepath} was {enabled_val}, setting it to {value}")
                         enable_file.seek(0)
-                        enable_file.write("1")
+                        enable_file.write(str(value))
             except FileNotFoundError:
                 self.enable_filepath = None
-        self.logger.debug(f"Setting PWM value to {value}")
-        with open(self.pwm_filepath, "wt") as pwm_file:
-            pwm_file.write(str(value))
+
+    def getPwmValue(self) -> int:
+        """Read pwm value of the fan"""
+        with open(self.pwm_filepath, "rt") as pwm_file:
+            pwm = int(pwm_file.read().strip())
+        self.logger.debug(f"PWM value is currently {pwm}")
+        return pwm
+
+    def restoreFanSettings(self) -> None:
+        """Restore fan settings"""
+        self.logger.debug(f"Fan PWM is restored to {self.pwm_restore}")
+        self.setPwmValue(self.pwm_restore)
+        if self.enable_restore is not None:
+            self.setEnabledValue(self.enable_restore)
+            self.logger.debug(f"Fan enabled state is restored to {self.enable_restore}")       
+
 
 
 class TestHardware:
@@ -977,6 +1018,7 @@ def main(  # noqa: C901
     spin_down_time_s: int,
     hddtemp_daemon_port: Optional[int],
     use_smartctl: bool,
+    restore_fan_settings: bool,
 ):
     """Run main program logic, after handling command line specific stuff."""
     logger = logging.getLogger("Main")
@@ -1090,10 +1132,12 @@ def main(  # noqa: C901
         logger.error(f"{e.__class__.__qualname__}: {e}")
         exit_evt.set()
 
-    # run fans at full speed at exit
+    # restore fan settings or run fans at full speed at exit
     for fan in fans:
-        fan.setSpeed(100)
-
+        if restore_fan_settings:
+            fan.restoreFanSettings()
+        else:
+            fan.setSpeed(100)
 
 def cl_main():  # noqa: C901
     """Command line entry point."""
@@ -1184,7 +1228,7 @@ def cl_main():  # noqa: C901
         type=int,
         nargs=2,
         default=(None, None),
-        help="""CPU temperature range, if CPU temp monitoring is enabled.
+        help="""CPU temperature range (max, critical), if CPU temp monitoring is enabled.
                 If missing, will be autodetected or use a default value.""",
     )
     arg_parser.add_argument(
@@ -1239,6 +1283,12 @@ def cl_main():  # noqa: C901
         action="store_true",
         default=False,
         help="""Probe temperature using smartctl instead of hddtemp/hdparm/drivetemp (EXPERIMENTAL)""",
+    )
+    arg_parser.add_argument(
+        "--restore-fan-settings",
+        action="store_true",
+        default=False,
+        help="""Restore fan settings on exit, otherwise the fans are run with full speed on exit""",
     )
     args = arg_parser.parse_args()
     if ((args.fan_start_value is not None) and (len(args.fan_pwm_filepath) != len(args.fan_start_value))) or (
@@ -1326,6 +1376,7 @@ def cl_main():  # noqa: C901
                 args.spin_down_time_s,
                 args.hddtemp_daemon_port if args.hddtemp_daemon else None,
                 args.smartctl,
+                args.restore_fan_settings,
             )
 
 
