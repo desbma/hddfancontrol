@@ -140,7 +140,7 @@ Vendor specific:
 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
 
-"""
+"""  # noqa: E501
             self.assertTrue(self.drive.supportsSctTempQuery())
             subprocess_check_output_mock.assert_called_once_with(
                 ("smartctl", "-l", "scttempsts", "/dev/_sdz"),
@@ -155,7 +155,7 @@ Copyright (C) 2002-18, Bruce Allen, Christian Franke, www.smartmontools.org
 === START OF READ SMART DATA SECTION ===
 SCT Commands not supported
 
-"""
+"""  # noqa: E501
             self.assertFalse(self.drive.supportsSctTempQuery())
             subprocess_check_output_mock.assert_called_once_with(
                 ("smartctl", "-l", "scttempsts", "/dev/_sdz"),
@@ -285,7 +285,7 @@ Vendor specific:
 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
 
-"""
+"""  # noqa: E501
             self.assertEqual(self.drive.getTemperature(), 30)
             subprocess_check_output_mock.assert_called_once_with(
                 ("smartctl", "-l", "scttempsts", "/dev/_sdz"),
@@ -322,7 +322,7 @@ ID# ATTRIBUTE_NAME          FLAG     VALUE WORST THRESH TYPE      UPDATED  WHEN_
 198 Offline_Uncorrectable   0x0008   100   100   000    Old_age   Offline      -       0
 199 UDMA_CRC_Error_Count    0x000a   200   200   000    Old_age   Always       -       0
 
-"""
+"""  # noqa: E501
             self.assertEqual(self.drive.getTemperature(), 35)
             subprocess_check_output_mock.assert_called_once_with(
                 ("smartctl", "-A", "/dev/_sdz"),
@@ -361,7 +361,7 @@ ID# ATTRIBUTE_NAME          FLAG     VALUE WORST THRESH TYPE      UPDATED  WHEN_
 200 Multi_Zone_Error_Rate   0x0000   100   253   000    Old_age   Offline      -       0
 202 TA_Increase_Count       0x0032   100   253   000    Old_age   Always       -       0
 
-"""
+"""  # noqa: E501
             self.assertEqual(self.drive.getTemperature(), 44)
             subprocess_check_output_mock.assert_called_once_with(
                 ("smartctl", "-A", "/dev/_sdz"),
@@ -395,7 +395,7 @@ Error Information Log Entries: 0
 Warning Comp. Temperature Time: 0
 Critical Comp. Temperature Time: 0
 
-"""
+"""  # noqa: E501
             self.assertEqual(self.drive.getTemperature(), 37)
             subprocess_check_output_mock.assert_called_once_with(
                 ("smartctl", "-A", "/dev/_sdz"),
@@ -422,7 +422,7 @@ Vendor (Seagate/Hitachi) factory information
   number of hours powered up = 19.86
   number of minutes until next internal SMART test = 108
 
-"""
+"""  # noqa: E501
             self.assertEqual(self.drive.getTemperature(), 42)
             subprocess_check_output_mock.assert_called_once_with(
                 ("smartctl", "-A", "/dev/_sdz"),
