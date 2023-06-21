@@ -69,16 +69,16 @@ Some Linux distributions have a hddfancontrol package available in their reposit
 
 1. If you don't already have it, [install pip](https://pip.pypa.io/en/stable/installing/) for Python 3
 2. Install HDD Fan control: `pip3 install hddfancontrol`
-3. Install [hdparm](http://sourceforge.net/projects/hdparm/) and [hddtemp](http://www.guzu.net/linux/hddtemp.php).
-   On Ubuntu and other Debian derivatives: `sudo apt-get install hdparm hddtemp`.
+3. Install [hdparm](http://sourceforge.net/projects/hdparm/) and [hddtemp](http://www.guzu.net/linux/hddtemp.php) or [smartctl](https://www.smartmontools.org/).
+   On recent Ubuntu and other Debian derivatives: `sudo apt-get install hdparm smartmontools`.
 
 ### From source
 
 1. If you don't already have it, [install setuptools](https://pypi.python.org/pypi/setuptools#installation-instructions) for Python 3
 2. Clone this repository: `git clone https://github.com/desbma/hddfancontrol`
 3. Install HDD Fan control: `python3 setup.py install`
-4. Install [hdparm](http://sourceforge.net/projects/hdparm/) and [hddtemp](http://www.guzu.net/linux/hddtemp.php).
-   On Ubuntu and other Debian derivatives: `sudo apt-get install hdparm hddtemp`.
+4. Install [hdparm](http://sourceforge.net/projects/hdparm/) and [hddtemp](http://www.guzu.net/linux/hddtemp.php) or [smartctl](https://www.smartmontools.org/).
+   On recent Ubuntu and other Debian derivatives: `sudo apt-get install hdparm smartmontools`.
 
 To query fan characteristics, you may also need pwmconfig. On Ubuntu and other Debian derivatives, it is part of the fancontrol package, that you can install with `sudo apt-get install fancontrol`. HDD fancontrol and fancontrol are unrelated. The fancontrol daemon is **not** needed for HDD fan control to operate. If you use both fancontrol and HDD fancontrol, be careful not to make them control the same fans.
 

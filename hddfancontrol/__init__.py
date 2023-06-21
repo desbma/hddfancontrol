@@ -1287,6 +1287,9 @@ def cl_main():  # noqa: C901
         logging.getLogger("Startup").error("You need to run this script as root")
         exit(1)
 
+    # check mandatory deps
+    bin_dep.check_bin_dependency(("hdparm",))
+
     if args.test_mode or (args.fan_start_value is None) or (args.fan_stop_value is None):
         if (args.fan_start_value is None) or (args.fan_stop_value is None):
             logging.getLogger("Startup").warning(
@@ -1324,10 +1327,6 @@ def cl_main():  # noqa: C901
                 args.hddtemp_daemon_port if args.hddtemp_daemon else None,
                 args.smartctl,
             )
-
-
-# check deps
-bin_dep.check_bin_dependency(("hddtemp", "hdparm"))
 
 
 if __name__ == "__main__":

@@ -20,7 +20,6 @@ jobs:
         with:
           python-version: ${{matrix.python-version}}
       - run: |
-          sudo apt-get install hddtemp hdparm
           pip install -U pip
           pip install coveralls
           pip install -r requirements.txt
