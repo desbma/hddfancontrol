@@ -766,8 +766,8 @@ class Fan:
         with open(self.pwm_filepath, "wt") as pwm_file:
             pwm_file.write(str(value))
 
-    def getEnabledValue(self) -> int:
-        """Read the enabled value of the fan"""
+    def getEnabledValue(self) -> Optional[int]:
+        """Read the enabled value of the fan."""
         if self.enable_filepath is not None:
             try:
                 with open(self.enable_filepath, "rt") as enable_file:
@@ -781,10 +781,10 @@ class Fan:
     def setEnabledValue(self, value: int) -> None:
         """
         Set fan enabled value.
-        
-		0: no fan speed control (i.e. fan at full speed)
-		1: manual fan speed control enabled
-		2+: automatic fan speed control enabled
+
+                0: no fan speed control (i.e. fan at full speed)
+                1: manual fan speed control enabled
+                2+: automatic fan speed control enabled
         """
         assert 0 <= value
         if self.enable_filepath is not None:
@@ -799,20 +799,19 @@ class Fan:
                 self.enable_filepath = None
 
     def getPwmValue(self) -> int:
-        """Read pwm value of the fan"""
+        """Read pwm value of the fan."""
         with open(self.pwm_filepath, "rt") as pwm_file:
             pwm = int(pwm_file.read().strip())
         self.logger.debug(f"PWM value is currently {pwm}")
         return pwm
 
     def restoreFanSettings(self) -> None:
-        """Restore fan settings"""
+        """Restore fan settings."""
         self.logger.debug(f"Fan PWM is restored to {self.pwm_restore}")
         self.setPwmValue(self.pwm_restore)
         if self.enable_restore is not None:
             self.setEnabledValue(self.enable_restore)
-            self.logger.debug(f"Fan enabled state is restored to {self.enable_restore}")       
-
+            self.logger.debug(f"Fan enabled state is restored to {self.enable_restore}")
 
 
 class TestHardware:
@@ -1138,6 +1137,7 @@ def main(  # noqa: C901
             fan.restoreFanSettings()
         else:
             fan.setSpeed(100)
+
 
 def cl_main():  # noqa: C901
     """Command line entry point."""
