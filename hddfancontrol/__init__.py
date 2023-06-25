@@ -782,9 +782,9 @@ class Fan:
         """
         Set fan enabled value.
 
-                0: no fan speed control (i.e. fan at full speed)
-                1: manual fan speed control enabled
-                2+: automatic fan speed control enabled
+        0: no fan speed control (i.e. fan at full speed)
+        1: manual fan speed control enabled
+        2+: automatic fan speed control enabled
         """
         assert 0 <= value
         if self.enable_filepath is not None:
@@ -1228,7 +1228,7 @@ def cl_main():  # noqa: C901
         type=int,
         nargs=2,
         default=(None, None),
-        help="""CPU temperature range (max, critical), if CPU temp monitoring is enabled.
+        help="""CPU temperature range, if CPU temp monitoring is enabled.
                 If missing, will be autodetected or use a default value.""",
     )
     arg_parser.add_argument(
