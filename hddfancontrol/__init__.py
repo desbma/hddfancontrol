@@ -259,12 +259,15 @@ class Drive(HotDevice):
             "sleeping": self.__class__.DriveState.SLEEPING,
         }
         cmd = ("hdparm", "-C", self.device_filepath)
-        with self.get_state_lock:
-            output = subprocess.check_output(
-                cmd, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, universal_newlines=True
-            )
-            self.get_state_count += 1
-        str_state = output.rsplit(" ", 1)[-1].strip()
+        try:
+            with self.get_state_lock:
+                output = subprocess.check_output(
+                    cmd, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, universal_newlines=True
+                )
+                self.get_state_count += 1
+            str_state = output.rsplit(" ", 1)[-1].strip()
+        except Exception:
+           str_state = "unknown"
         state = states[str_state]
         self.logger.debug(f"Drive state: {state.name}")
         return state
