@@ -974,19 +974,22 @@ def set_high_priority(logger: logging.Logger) -> None:
     # use "real time" scheduler
     done = False
     sched = os.SCHED_RR
-    if os.sched_getscheduler(0) == sched:
-        # already running with RR scheduler, likely set from init system, don't touch priority
-        done = True
-    else:
-        prio = (os.sched_get_priority_max(sched) - os.sched_get_priority_min(sched)) // 2
-        param = os.sched_param(prio)  # type: ignore
-        try:
-            os.sched_setscheduler(0, sched, param)
-        except OSError:
-            logger.warning(f"Failed to set real time process scheduler to {sched}, priority {prio}")
-        else:
+    try:
+        if os.sched_getscheduler(0) == sched:
+            # already running with RR scheduler, likely set from init system, don't touch priority
             done = True
-            logger.info(f"Process real time scheduler set to {sched}, priority {prio}")
+        else:
+            prio = (os.sched_get_priority_max(sched) - os.sched_get_priority_min(sched)) // 2
+            param = os.sched_param(prio)  # type: ignore
+            try:
+                os.sched_setscheduler(0, sched, param)
+            except OSError:
+                logger.warning(f"Failed to set real time process scheduler to {sched}, priority {prio}")
+            else:
+                done = True
+                logger.info(f"Process real time scheduler set to {sched}, priority {prio}")
+    except OSError:
+        logger.warning(f"Failed to set real time process scheduler to {sched}")
 
     if not done:
         # renice to highest priority
