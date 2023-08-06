@@ -149,7 +149,7 @@ You can then start the daemon with `sudo systemctl start hddfancontrol`, see its
 
 ## OpenRC service
 
-A OpenRC service file is provided to control the daemon easily.
+An OpenRC service file is provided to control the daemon easily.
 If you installed hddfancontrol from a distribution package, you likely already have it installed, otherwise you can install it from the sources of this repository with:
 
 ```
