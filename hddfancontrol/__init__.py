@@ -266,9 +266,9 @@ class Drive(HotDevice):
                 )
                 self.get_state_count += 1
             str_state = output.rsplit(" ", 1)[-1].strip()
+            state = states[str_state]
         except Exception:
-           str_state = "unknown"
-        state = states[str_state]
+           state = self.__class__.DriveState.UNKNOWN
         self.logger.debug(f"Drive state: {state.name}")
         return state
 
