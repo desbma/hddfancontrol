@@ -975,7 +975,13 @@ def set_high_priority(logger: logging.Logger) -> None:
     done = False
     sched = os.SCHED_RR
     try:
-        if os.sched_getscheduler(0) == sched:
+        current_sched = os.sched_getscheduler(0)
+    except OSError as e:
+        if e.errno != errno.ENOSYS: 
+            raise
+        logger.warning(f"sched_getscheduler is not supported on this system, leaving scheduler as is")
+    else:
+        if current_sched == sched:
             # already running with RR scheduler, likely set from init system, don't touch priority
             done = True
         else:
@@ -988,8 +994,6 @@ def set_high_priority(logger: logging.Logger) -> None:
             else:
                 done = True
                 logger.info(f"Process real time scheduler set to {sched}, priority {prio}")
-    except OSError:
-        logger.warning(f"Failed to set real time process scheduler to {sched}")
 
     if not done:
         # renice to highest priority
