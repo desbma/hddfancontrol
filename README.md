@@ -147,6 +147,21 @@ Then you need to edit the `HDDFANCONTROL_ARGS` variable in `/etc/conf.d/hddfanco
 
 You can then start the daemon with `sudo systemctl start hddfancontrol`, see its status with `sudo systemctl status hddfancontrol` and enable automatic startup at boot time with `sudo systemctl enable hddfancontrol`.
 
+## OpenRC service
+
+An OpenRC service file is provided to control the daemon easily.
+If you installed hddfancontrol from a distribution package, you likely already have it installed, otherwise you can install it from the sources of this repository with:
+
+```
+sudo cp ./openrc/hddfancontrol /etc/init.d/
+sudo mkdir -p /etc/conf.d
+sudo cp ./systemd/hddfancontrol.conf /etc/conf.d/hddfancontrol
+```
+
+Then you need to edit the `HDDFANCONTROL_ARGS` variable in `/etc/conf.d/hddfancontrol` to set the parameters (drives, temperature range...).
+
+You can then start the daemon with `sudo rc-service hddfancontrol start`, see its status with `sudo rc-service hddfancontrol status` and enable automatic startup at boot time with `sudo rc-update add hddfancontrol default`.
+
 ## License
 
 [GPLv3](https://www.gnu.org/licenses/gpl-3.0-standalone.html)
