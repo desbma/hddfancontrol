@@ -194,9 +194,8 @@ SCT Commands not supported
                 universal_newlines=True,
             )
         with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
-            subprocess_check_output_mock.side_effect = subprocess.CalledProcessError(0, "")
-            with self.assertRaises(Exception):
-                self.drive.getState()
+            subprocess_check_output_mock.return_value = "\n/dev/_sdz:\n drive state is:  unknown\n"
+            self.assertEqual(self.drive.getState(), hddfancontrol.Drive.DriveState.UNKNOWN)
             subprocess_check_output_mock.assert_called_once_with(
                 ("hdparm", "-C", "/dev/_sdz"),
                 stdin=subprocess.DEVNULL,
@@ -244,9 +243,8 @@ SCT Commands not supported
                 universal_newlines=True,
             )
         with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
-            subprocess_check_output_mock.side_effect = subprocess.CalledProcessError(0, "")
-            with self.assertRaises(Exception):
-                self.drive.isSleeping()
+            subprocess_check_output_mock.return_value = "\n/dev/_sdz:\n drive state is:  unknown\n"
+            self.assertEqual(self.drive.getState(), hddfancontrol.Drive.DriveState.UNKNOWN)
             subprocess_check_output_mock.assert_called_once_with(
                 ("hdparm", "-C", "/dev/_sdz"),
                 stdin=subprocess.DEVNULL,
