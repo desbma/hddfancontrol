@@ -268,7 +268,7 @@ class Drive(HotDevice):
             str_state = output.rsplit(" ", 1)[-1].strip()
             state = states[str_state]
         except subprocess.CalledProcessError:
-           state = self.__class__.DriveState.UNKNOWN
+            state = self.__class__.DriveState.UNKNOWN
         self.logger.debug(f"Drive state: {state.name}")
         return state
 
