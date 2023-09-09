@@ -978,7 +978,7 @@ def set_high_priority(logger: logging.Logger) -> None:
     try:
         current_sched = os.sched_getscheduler(0)
     except OSError as e:
-        if e.errno != errno.ENOSYS: 
+        if e.errno != errno.ENOSYS:
             raise
         logger.warning(f"sched_getscheduler is not supported on this system, leaving scheduler as is")
     else:
