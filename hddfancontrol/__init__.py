@@ -980,7 +980,7 @@ def set_high_priority(logger: logging.Logger) -> None:
     except OSError as e:
         if e.errno != errno.ENOSYS:
             raise
-        logger.warning(f"sched_getscheduler is not supported on this system, leaving scheduler as is")
+        logger.warning("sched_getscheduler is not supported on this system, leaving scheduler as is")
     else:
         if current_sched == sched:
             # already running with RR scheduler, likely set from init system, don't touch priority
