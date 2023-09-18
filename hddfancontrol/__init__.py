@@ -11,6 +11,7 @@ import argparse
 import collections
 import contextlib
 import enum
+import errno
 import itertools
 import logging
 import logging.handlers
@@ -981,19 +982,26 @@ def set_high_priority(logger: logging.Logger) -> None:
     # use "real time" scheduler
     done = False
     sched = os.SCHED_RR
-    if os.sched_getscheduler(0) == sched:
-        # already running with RR scheduler, likely set from init system, don't touch priority
-        done = True
+    try:
+        current_sched = os.sched_getscheduler(0)
+    except OSError as e:
+        if e.errno != errno.ENOSYS:
+            raise
+        logger.warning("sched_getscheduler is not supported on this system, leaving scheduler as is")
     else:
-        prio = (os.sched_get_priority_max(sched) - os.sched_get_priority_min(sched)) // 2
-        param = os.sched_param(prio)  # type: ignore
-        try:
-            os.sched_setscheduler(0, sched, param)
-        except OSError:
-            logger.warning(f"Failed to set real time process scheduler to {sched}, priority {prio}")
-        else:
+        if current_sched == sched:
+            # already running with RR scheduler, likely set from init system, don't touch priority
             done = True
-            logger.info(f"Process real time scheduler set to {sched}, priority {prio}")
+        else:
+            prio = (os.sched_get_priority_max(sched) - os.sched_get_priority_min(sched)) // 2
+            param = os.sched_param(prio)  # type: ignore
+            try:
+                os.sched_setscheduler(0, sched, param)
+            except OSError:
+                logger.warning(f"Failed to set real time process scheduler to {sched}, priority {prio}")
+            else:
+                done = True
+                logger.info(f"Process real time scheduler set to {sched}, priority {prio}")
 
     if not done:
         # renice to highest priority
