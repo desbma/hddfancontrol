@@ -81,6 +81,29 @@ class TestDrive(unittest.TestCase):
                 universal_newlines=True,
             )
 
+        with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
+            subprocess_check_output_mock.side_effect = (
+                "\n/dev/_sdz:",
+                "smartctl 7.3 2022-02-28 r5338 [x86_64-linux-6.1.53-1-lts] (local build)\nCopyright (C) 2002-22, Bruce Allen, Christian Franke, www.smartmontools.org\n\n=== START OF INFORMATION SECTION ===\nModel Number:                       WD_BLACK SN850 2TB\nFirmware Version:\n                   611100WD\nPCI Vendor/Subsystem ID:            0x15b7\nIEEE OUI Identifier:                0x001b44\nTotal NVM Capacity:                 2 000 398 934 016 [2,00 TB]\nUnallocated NVM Capacity:           0\nController ID:                      8224\nNVMe Version:                       1.4\nNumber of Namespaces:               1\nNamespace 1 Size/Capacity:          2 000 398 934 016 [2,00 TB]\nNamespace 1 Formatted LBA Size:     512\nNamespace 1 IEEE EUI-64:            001b44 8b492d482c\n\n",  # noqa: E501
+            )
+            self.assertEqual(self.drive.getPrettyName(), "_sdz WD_BLACK SN850 2TB")
+            subprocess_check_output_mock.assert_has_calls(
+                (
+                    unittest.mock.call(
+                        ("hdparm", "-I", "/dev/_sdz"),
+                        stdin=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        universal_newlines=True,
+                    ),
+                    unittest.mock.call(
+                        ("smartctl", "-i", "/dev/_sdz"),
+                        stdin=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        universal_newlines=True,
+                    ),
+                )
+            )
+
     def test_supportsHitachiTempQuery(self):
         """Test detection for "Hitachi" temp query."""
         with unittest.mock.patch("hddfancontrol.subprocess.check_output") as subprocess_check_output_mock:
