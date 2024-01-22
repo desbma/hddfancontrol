@@ -4,14 +4,21 @@ use std::{path::PathBuf, str::FromStr};
 
 use clap::{Parser, Subcommand};
 
+/// Device temperature
 pub type Temperature = u8;
+/// PWM sysfs value
 pub type PwmValue = u8;
+/// Speed percentage
 pub type Percentage = u8;
 
+/// PWM operation settings
 #[derive(Clone, Debug)]
 pub struct PwmSettings {
+    /// Sysfs filepath
     pub filepath: PathBuf,
+    /// Minimum value at which the fans start moving
     pub start: PwmValue,
+    /// Maximum value at which the fans stop moving
     pub stop: PwmValue,
 }
 
@@ -39,10 +46,12 @@ impl FromStr for PwmSettings {
     }
 }
 
+/// Parse percentage integer value
 fn percentage(s: &str) -> Result<u8, String> {
     clap_num::number_range(s, 0, 100)
 }
 
+/// Hddfancontrol command line arguments
 #[derive(Parser, Debug)]
 pub struct Args {
     /// Level of logging output (TRACE, DEBUG, INFO, WARN, ERROR).
