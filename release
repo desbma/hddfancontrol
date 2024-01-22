@@ -7,9 +7,12 @@ readonly VERSION=${1:?}
 
 cd "$(git rev-parse --show-toplevel)"
 
-sed -i "s/^\(__version__ = \"\).*\(\"\)/\1$VERSION\2/w /dev/stdout" hddfancontrol/__init__.py
+sed -i "s/^\(version = \"\).*\(\"\)/\1${VERSION}\2/w /dev/stdout" Cargo.toml
 
-git add hddfancontrol/__init__.py
+cargo update
+cargo check && cargo test
+
+git add Cargo.{toml,lock}
 
 git commit -m "Version ${VERSION}"
 
