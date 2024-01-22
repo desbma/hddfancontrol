@@ -88,9 +88,9 @@ Before using HDD Fan control unmonitored for long period of time, I recommend ke
 
 ### Fan configuration
 
-To get the value for the `--pwm`, `--pwm-start-value` and `--pwm-stop-value` parameters, you can either:
+To get the start/stop values for the `--pwm` parameter, you can either:
 
-- Use the `-t` or `--test` parameter, which will run some tests and detect the values at which the fans start and stop. However you need to have previously identified the PWM file (the `--pwm` parameter)
+- Use the `pwm-test` command, which will run some tests and detect the values at which the fans start and stop. However you need to have previously identified the PWM file (the `--pwm` parameter)
 - use the [pwmconfig tool](http://www.lm-sensors.org/wiki/man/pwmconfig).
 
 ### Drive auto spin down
@@ -121,10 +121,8 @@ As an example, the command line below will instruct HDD Fan control to:
 - never run the fans below 10% of their maximum speed
 - check temperature at least every minute
 - automatically spin down drives if they are inactive for 2 hours (7200 seconds)
-- run in daemon mode
-- log what is going on to `/var/log/hddfancontrol.log`
 
-`hddfancontrol -d /dev/sda /dev/sdb -p /sys/class/hwmon/hwmon1/device/pwm2 /sys/class/hwmon/hwmon1/device/pwm3 --pwm-start-value 200 200 --pwm-stop-value 75 75 --min-fan-speed-prct 10 -i 60 --spin-down-time 7200 -b -l /var/log/hddfancontrol.log`
+`hddfancontrol daemon -d /dev/sda /dev/sdb -p /sys/class/hwmon/hwmon1/device/pwm2:200:75 /sys/class/hwmon/hwmon1/device/pwm3:200:75 --min-fan-speed-prct 10 -i 1min -s 7200`
 
 ## Systemd service
 
@@ -137,24 +135,9 @@ sudo mkdir -p /etc/conf.d
 sudo cp ./systemd/hddfancontrol.conf /etc/conf.d/hddfancontrol
 ```
 
-Then you need to edit the `HDDFANCONTROL_ARGS` variable in `/etc/conf.d/hddfancontrol` to set the parameters (drives, temperature range...).
+Then you need to edit the `HDDFANCONTROL_DAEMON_ARGS` variable in `/etc/conf.d/hddfancontrol` to set the parameters (drives, temperature range...).
 
 You can then start the daemon with `sudo systemctl start hddfancontrol`, see its status with `sudo systemctl status hddfancontrol` and enable automatic startup at boot time with `sudo systemctl enable hddfancontrol`.
-
-## OpenRC service
-
-An OpenRC service file is provided to control the daemon easily.
-If you installed hddfancontrol from a distribution package, you likely already have it installed, otherwise you can install it from the sources of this repository with:
-
-```
-sudo cp ./openrc/hddfancontrol /etc/init.d/
-sudo mkdir -p /etc/conf.d
-sudo cp ./systemd/hddfancontrol.conf /etc/conf.d/hddfancontrol
-```
-
-Then you need to edit the `HDDFANCONTROL_ARGS` variable in `/etc/conf.d/hddfancontrol` to set the parameters (drives, temperature range...).
-
-You can then start the daemon with `sudo rc-service hddfancontrol start`, see its status with `sudo rc-service hddfancontrol status` and enable automatic startup at boot time with `sudo rc-update add hddfancontrol default`.
 
 ## License
 
