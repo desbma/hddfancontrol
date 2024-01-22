@@ -1,3 +1,5 @@
+//! Control fan speed according to drive temperature
+
 use anyhow::Context;
 use clap::Parser;
 

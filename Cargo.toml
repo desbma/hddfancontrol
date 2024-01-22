@@ -3,7 +3,10 @@ name = "hddfancontrol"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
 
 [dependencies]
 anyhow = { version = "1.0.79", default-features = false, features = ["std", "backtrace"] }
@@ -12,3 +15,32 @@ clap-num = { version = "1.1.1", default-features = false }
 humantime = { version = "2.1.0", default-features = false }
 log = { version = "0.4.20", default-features = false, features = ["max_level_trace", "release_max_level_debug"] }
 simple_logger = { version = "4.3.3", default-features = false, features = ["colors", "stderr"] }
+
+[lints.rust]
+missing_docs = "warn"
+# unreachable_pub = "warn"
+unsafe_code = "forbid"
+unused_crate_dependencies = "warn"
+
+[lints.clippy]
+pedantic = "warn"
+# from clippy::restrictions
+clone_on_ref_ptr = "warn"
+dbg_macro = "warn"
+expect_used = "warn"
+format_push_string = "warn"
+if_then_some_else_none = "warn"
+missing_docs_in_private_items = "warn"
+multiple_inherent_impl = "warn"
+panic = "warn"
+redundant_type_annotations = "warn"
+ref_patterns = "warn"
+same_name_method = "warn"
+self_named_module_files = "warn"
+semicolon_inside_block = "warn"
+shadow_unrelated = "warn"
+str_to_string = "warn"
+string_to_string = "warn"
+unneeded_field_pattern = "warn"
+unwrap_used = "warn"
+verbose_file_reads = "warn"
