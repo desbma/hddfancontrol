@@ -4,10 +4,10 @@ use std::{path::PathBuf, str::FromStr};
 
 use clap::{Parser, Subcommand};
 
+use crate::pwm;
+
 /// Device temperature
 pub type Temperature = u8;
-/// PWM sysfs value
-pub type PwmValue = u8;
 /// Speed percentage
 pub type Percentage = u8;
 
@@ -17,9 +17,9 @@ pub struct PwmSettings {
     /// Sysfs filepath
     pub filepath: PathBuf,
     /// Minimum value at which the fans start moving
-    pub start: PwmValue,
+    pub start: pwm::Value,
     /// Maximum value at which the fans stop moving
-    pub stop: PwmValue,
+    pub stop: pwm::Value,
 }
 
 impl FromStr for PwmSettings {
@@ -118,5 +118,9 @@ pub enum Command {
     },
 
     /// Test PWM to find start/stop fan values
-    PwmTest {},
+    PwmTest {
+        /// PWM filepath(s) (ie. /sys/class/hwmon/hwmonX/device/pwmY).
+        #[arg(short, long, num_args = 1.., required = true)]
+        pwm: Vec<PathBuf>,
+    },
 }
