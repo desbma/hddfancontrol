@@ -680,7 +680,7 @@ class DriveSpinDownThread(threading.Thread):
             self.logger.info("Exiting")
 
         except Exception as e:
-            self.logger.error(f"{e.__class__.__qualname__}: {e}")
+            self.logger.exception(f"{e.__class__.__qualname__}: {e}")
 
     def sleep(self, s: int) -> None:
         """Sleep for s seconds, or less if exit event occurs."""
@@ -1149,7 +1149,7 @@ def main(  # noqa: C901
             thread.join()
 
     except Exception as e:
-        logger.error(f"{e.__class__.__qualname__}: {e}")
+        logger.exception(f"{e.__class__.__qualname__}: {e}")
         exit_evt.set()
 
     # restore fan settings or run fans at full speed at exit
