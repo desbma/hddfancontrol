@@ -130,6 +130,11 @@ impl Pwm {
         Self::write_value(&self.val, val)
     }
 
+    /// Get PWM value
+    pub fn get(&self) -> anyhow::Result<Value> {
+        Self::read_value(&self.val)
+    }
+
     /// Get fan RPM value
     pub fn get_rpm(&self) -> anyhow::Result<u32> {
         Self::read_value(&self.rpm)
@@ -172,7 +177,8 @@ mod tests {
     struct FakePwm {
         dir: TempDir,
         pwm_path: PathBuf,
-        pwm_file: File,
+        val_file_read: File,
+        val_file_write: File,
         rpm_file_read: File,
         rpm_file_write: File,
         mode_file_read: File,
@@ -186,11 +192,12 @@ mod tests {
 
             let pwm_path = dir.path().join("pwm2");
             mkfifo(&pwm_path, stat::Mode::from_bits(0o600).unwrap()).unwrap();
-            let pwm_file = OpenOptions::new()
+            let val_file_read = OpenOptions::new()
                 .read(true)
                 .custom_flags(O_NONBLOCK)
                 .open(&pwm_path)
                 .unwrap();
+            let val_file_write = File::create(&pwm_path).unwrap();
 
             let rpm_path = dir.path().join("fan2_input");
             mkfifo(&rpm_path, stat::Mode::from_bits(0o600).unwrap()).unwrap();
@@ -218,7 +225,8 @@ mod tests {
             Self {
                 dir,
                 pwm_path,
-                pwm_file,
+                val_file_read,
+                val_file_write,
                 rpm_file_read,
                 rpm_file_write,
                 mode_file_read,
@@ -239,7 +247,15 @@ mod tests {
         let mut fake_pwm = FakePwm::new();
         let pwm = Pwm::new(&fake_pwm.pwm_path).unwrap();
         pwm.set(123).unwrap();
-        assert_file_content(&mut fake_pwm.pwm_file, "123\n");
+        assert_file_content(&mut fake_pwm.val_file_read, "123\n");
+    }
+
+    #[test]
+    fn test_get() {
+        let mut fake_pwm = FakePwm::new();
+        let pwm = Pwm::new(&fake_pwm.pwm_path).unwrap();
+        fake_pwm.val_file_write.write_all(b"124\n").unwrap();
+        assert_eq!(pwm.get().unwrap(), 124);
     }
 
     #[test]
