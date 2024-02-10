@@ -7,7 +7,7 @@ mod cl;
 mod fan;
 mod pwm;
 
-use crate::fan::{Fan, Speed as FanSpeed};
+use crate::fan::Fan;
 
 fn main() -> anyhow::Result<()> {
     // Parse cl args
@@ -20,8 +20,15 @@ fn main() -> anyhow::Result<()> {
         cl::Command::PwmTest { pwm } => {
             for pwm_path in &pwm {
                 let mut fan = Fan::new(pwm_path)?;
-                fan.set_speed(FanSpeed(255))?;
-                todo!();
+                log::info!("Testing fan {fan}, this may take a long time");
+                match fan.test() {
+                    Ok(t) => {
+                        log::info!("Fan {fan}] start/stop thresholds: {t}");
+                    }
+                    Err(e) => {
+                        log::error!("Fan {fan} test failed: {e}");
+                    }
+                }
             }
         }
         cl::Command::Daemon { .. } => {
