@@ -11,7 +11,7 @@ mod pwm;
 #[cfg(test)]
 mod tests;
 
-use crate::fan::Fan;
+use crate::{device::Drive, fan::Fan, probe::DriveTempProber};
 
 fn main() -> anyhow::Result<()> {
     // Parse cl args
@@ -35,7 +35,15 @@ fn main() -> anyhow::Result<()> {
                 }
             }
         }
-        cl::Command::Daemon { .. } => {
+        cl::Command::Daemon { drives, .. } => {
+            for drive_path in drives {
+                let drive = Drive::new(&drive_path)?;
+                let mut prober = probe::prober(&drive)?.ok_or_else(|| {
+                    anyhow::anyhow!("No probing method found for drive {drive_path:?}")
+                })?;
+                let _temp = prober.probe_temp()?;
+                // dbg!(temp);
+            }
             todo!();
         }
     }

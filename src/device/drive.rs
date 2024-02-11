@@ -13,7 +13,7 @@ use std::{
 /// Block device drive
 pub struct Drive {
     /// Normalized (under /dev) device filepath
-    dev_path: PathBuf,
+    pub dev_path: PathBuf,
     /// Pretty name for display
     name: String,
 }
