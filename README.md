@@ -45,7 +45,7 @@ The ideal use case is for a NAS with several hard drives, a low power CPU (ie. A
 ## Prerequisites
 
 - A Linux distribution
-- A least one SATA hard drive, that supports:
+- A least one SATA hard drive\*, that supports:
   - Temperature querying
   - Power state querying
 - A motherboard which:
@@ -53,6 +53,8 @@ The ideal use case is for a NAS with several hard drives, a low power CPU (ie. A
   - exposes to the OS a sensor to query fan speed
 
 Most motherboards and SATA drives fit these requirements.
+
+\* There has been reports of `hddfancontrol` working well with SAS drives, however this has not been thoroughly tested.
 
 ## Installation
 
@@ -77,7 +79,7 @@ Some Linux distributions have a hddfancontrol package available in their reposit
 1. If you don't already have it, [install setuptools](https://pypi.python.org/pypi/setuptools#installation-instructions) for Python 3
 2. Clone this repository: `git clone https://github.com/desbma/hddfancontrol`
 3. Install HDD Fan control: `python3 setup.py install`
-4. Install [hdparm](http://sourceforge.net/projects/hdparm/) and [hddtemp](http://www.guzu.net/linux/hddtemp.php) or [smartctl](https://www.smartmontools.org/).
+4. Install [hdparm](http://sourceforge.net/projects/hdparm/), [smartctl](https://www.smartmontools.org/) and optionally [hddtemp](http://www.guzu.net/linux/hddtemp.php).
    On recent Ubuntu and other Debian derivatives: `sudo apt-get install hdparm smartmontools`.
 
 To query fan characteristics, you may also need pwmconfig. On Ubuntu and other Debian derivatives, it is part of the fancontrol package, that you can install with `sudo apt-get install fancontrol`. HDD fancontrol and fancontrol are unrelated. The fancontrol daemon is **not** needed for HDD fan control to operate. If you use both fancontrol and HDD fancontrol, be careful not to make them control the same fans.
