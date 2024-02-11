@@ -1,0 +1,1 @@
+//! Smartctl temperature probing
