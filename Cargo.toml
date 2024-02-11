@@ -18,8 +18,10 @@ log = { version = "0.4.20", default-features = false, features = ["max_level_tra
 nix = { version = "0.27.1", default-features = false, features = ["fs"] }
 simple_logger = { version = "4.3.3", default-features = false, features = ["colors", "stderr"] }
 strum = { version = "0.26.1", default-features = false, features = ["std", "derive"] }
+thiserror = { version = "1.0.56", default-features = false }
 
 [dev-dependencies]
+serial_test = { version = "3.0.0", default-features = false }
 tempfile = { version = "3.9.0", default-features = false }
 
 [lints.rust]

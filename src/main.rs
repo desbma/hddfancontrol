@@ -4,8 +4,12 @@ use anyhow::Context;
 use clap::Parser;
 
 mod cl;
+mod device;
 mod fan;
+mod probe;
 mod pwm;
+#[cfg(test)]
+mod tests;
 
 use crate::fan::Fan;
 

@@ -1,0 +1,1 @@
+//! Hdparm temperature probing

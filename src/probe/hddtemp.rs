@@ -1,0 +1,1 @@
+//! Hddtemp temperature probing
