@@ -847,7 +847,7 @@ class TestHardware:
         if self.ko_count > 0:
             print(f"{self.ko_count}/{self.ko_count + self.ok_count} tests failed!")
         else:
-            print(f"{self.ok_count}/{self.ok_count} tests OK, all good :)")
+            print(f"{self.ok_count}/{self.ok_count} tests OK")
         self.logger.info(
             "Recommended parameters: --pwm-start-value %s --pwm-stop-value %s"
             % (
