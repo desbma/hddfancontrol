@@ -11,7 +11,7 @@ mod pwm;
 #[cfg(test)]
 mod tests;
 
-use crate::{device::Drive, fan::Fan, probe::DriveTempProber};
+use crate::{device::Drive, fan::Fan};
 
 fn main() -> anyhow::Result<()> {
     // Parse cl args
