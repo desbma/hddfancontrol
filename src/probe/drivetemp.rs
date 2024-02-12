@@ -2,20 +2,17 @@
 //! See <https://docs.kernel.org/hwmon/drivetemp.html>
 
 use std::{
-    fs,
+    fmt, fs,
     path::{Path, PathBuf},
 };
 
-use super::{Drive, DriveTempProber, ProberError, Temp};
+use super::{Drive, DriveTempProbeMethod, DriveTempProber, ProberError, Temp};
 
-/// Drivetemp kernel temperature probing
-pub struct Drivetemp {
-    /// Sysfs file temp1_input
-    input_path: PathBuf,
-}
+/// Drivetemp native kernel temperature probing
+pub struct Method;
 
-impl DriveTempProber for Drivetemp {
-    fn new(drive: &Drive) -> Result<Self, ProberError> {
+impl DriveTempProbeMethod for Method {
+    fn prober(&self, drive: &Drive) -> Result<Box<dyn DriveTempProber>, ProberError> {
         #[allow(clippy::unwrap_used)] // At this point we already checked it is a valid device
         let drive_name = drive.dev_path.file_name().unwrap();
         let hwmon_dir = Path::new("/sys/block/")
@@ -44,14 +41,28 @@ impl DriveTempProber for Drivetemp {
                         "{input_path:?} does not exist"
                     )));
                 }
-                return Ok(Self { input_path });
+                return Ok(Box::new(Prober { input_path }));
             }
         }
         Err(ProberError::Unsupported(format!(
             "No drivetemp hwmon found in {hwmon_dir:?}"
         )))
     }
+}
 
+impl fmt::Display for Method {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        write!(f, "native Linux drivetemp")
+    }
+}
+
+/// Drivetemp kernel temperature probing
+pub struct Prober {
+    /// Sysfs file temp1_input
+    input_path: PathBuf,
+}
+
+impl DriveTempProber for Prober {
     fn probe_temp(&mut self) -> anyhow::Result<Temp> {
         Ok(f64::from(
             fs::read_to_string(&self.input_path)?
