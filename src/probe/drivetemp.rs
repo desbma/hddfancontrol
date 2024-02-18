@@ -8,7 +8,7 @@ use std::{
 
 use super::{Drive, DriveTempProbeMethod, DriveTempProber, ProberError, Temp};
 
-/// Drivetemp native kernel temperature probing
+/// Drivetemp native kernel temperature probing method
 pub struct Method;
 
 impl DriveTempProbeMethod for Method {
@@ -56,7 +56,7 @@ impl fmt::Display for Method {
     }
 }
 
-/// Drivetemp kernel temperature probing
+/// Drivetemp kernel temperature prober
 pub struct Prober {
     /// Sysfs file temp1_input
     input_path: PathBuf,

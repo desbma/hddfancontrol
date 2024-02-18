@@ -1,7 +1,5 @@
 //! Temperature probing
 
-#![allow(dead_code)]
-
 mod drivetemp;
 mod hddtemp;
 mod hdparm;
