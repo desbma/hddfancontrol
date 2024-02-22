@@ -37,7 +37,12 @@ pub trait DriveTempProber {
 
 /// Find first supported prober for a drive
 pub fn prober(drive: &Drive) -> anyhow::Result<Option<Box<dyn DriveTempProber>>> {
-    let methods: [Box<dyn DriveTempProbeMethod>; 1] = [Box::new(drivetemp::Method)];
+    let methods: [Box<dyn DriveTempProbeMethod>; 4] = [
+        Box::new(drivetemp::Method),
+        Box::new(hdparm::Method),
+        Box::new(smartctl::SctMethod),
+        Box::new(smartctl::AttribMethod),
+    ];
     for method in methods {
         match method.prober(drive) {
             Ok(p) => return Ok(Some(p)),
