@@ -5,7 +5,10 @@ mod hddtemp;
 mod hdparm;
 mod smartctl;
 
-use std::fmt;
+use std::{
+    fmt,
+    net::{Ipv4Addr, SocketAddrV4},
+};
 
 use crate::device::Drive;
 
@@ -36,11 +39,18 @@ pub trait DriveTempProber {
 }
 
 /// Find first supported prober for a drive
-pub fn prober(drive: &Drive) -> anyhow::Result<Option<Box<dyn DriveTempProber>>> {
-    let methods: [Box<dyn DriveTempProbeMethod>; 4] = [
+pub fn prober(
+    drive: &Drive,
+    hddtemp_daemon_port: u16,
+) -> anyhow::Result<Option<Box<dyn DriveTempProber>>> {
+    let methods: [Box<dyn DriveTempProbeMethod>; 6] = [
         Box::new(drivetemp::Method),
         Box::new(hdparm::Method),
         Box::new(smartctl::SctMethod),
+        Box::new(hddtemp::DaemonMethod {
+            addr: SocketAddrV4::new(Ipv4Addr::LOCALHOST, hddtemp_daemon_port),
+        }),
+        Box::new(hddtemp::InvocationMethod),
         Box::new(smartctl::AttribMethod),
     ];
     for method in methods {
