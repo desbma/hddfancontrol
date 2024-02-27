@@ -10,6 +10,21 @@ use std::{
     process::{Command, Stdio},
 };
 
+/// Drive runtime state
+#[derive(strum::EnumString)]
+#[strum(serialize_all = "lowercase")]
+pub enum State {
+    /// Active/idle
+    #[strum(serialize = "active/idle")]
+    ActiveIdle,
+    /// Standby
+    Standby,
+    /// Sleeping (power saving mode)
+    Sleeping,
+    /// Error occured while querying drive state
+    Unknown,
+}
+
 /// Block device drive
 pub struct Drive {
     /// Normalized (under /dev) device filepath
@@ -68,10 +83,43 @@ impl Drive {
         }
         anyhow::bail!("Unable to get drive {path:?} model name");
     }
+
+    /// Get drive runtime state
+    fn state_(path: &Path) -> anyhow::Result<State> {
+        let output = Command::new("hdparm")
+            .args([
+                "-C",
+                path.to_str()
+                    .ok_or_else(|| anyhow::anyhow!("Invalid device path"))?,
+            ])
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .output()?;
+        let state = output
+            .stdout
+            .lines()
+            .map_while(Result::ok)
+            .filter(|l| l.trim_start().starts_with("drive state is: "))
+            .find_map(|l| {
+                l.split_ascii_whitespace()
+                    .next_back()
+                    .map(ToOwned::to_owned)
+            })
+            .ok_or_else(|| anyhow::anyhow!("Failed to parse hdparm drive state output"))?
+            .parse()
+            .unwrap_or(State::Unknown);
+        Ok(state)
+    }
+
+    /// Get drive runtime state
+    pub fn state(&self) -> anyhow::Result<State> {
+        Self::state_(&self.dev_path)
+    }
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
+#[allow(clippy::unwrap_used, clippy::shadow_unrelated)]
 mod tests {
     use super::*;
 
@@ -101,5 +149,71 @@ mod tests {
             Drive::model(Path::new("/dev/_sdX")).unwrap().as_str(),
             "WD_BLACK SN850 2TB"
         );
+    }
+
+    #[serial_test::serial]
+    #[test]
+    fn test_state() {
+        let _ = simple_logger::init_with_level(log::Level::Trace);
+
+        let _hdparm_mock = BinaryMock::new(
+            "hdparm",
+            "\n/dev/_sdX:\n drive state is:  active/idle\n".as_bytes(),
+            &[],
+            0,
+        )
+        .unwrap();
+        assert!(matches!(
+            Drive::state_(Path::new("/dev/_sdX")).unwrap(),
+            State::ActiveIdle
+        ));
+
+        let _hdparm_mock = BinaryMock::new(
+            "hdparm",
+            "\n/dev/_sdz:\n drive state is:  standby\n".as_bytes(),
+            &[],
+            0,
+        )
+        .unwrap();
+        assert!(matches!(
+            Drive::state_(Path::new("/dev/_sdX")).unwrap(),
+            State::Standby
+        ));
+
+        let _hdparm_mock = BinaryMock::new(
+            "hdparm",
+            "\n/dev/_sdz:\n drive state is:  sleeping\n".as_bytes(),
+            &[],
+            0,
+        )
+        .unwrap();
+        assert!(matches!(
+            Drive::state_(Path::new("/dev/_sdX")).unwrap(),
+            State::Sleeping
+        ));
+
+        let _hdparm_mock = BinaryMock::new(
+            "hdparm",
+            "\n/dev/_sdz:\n drive state is:  NVcache_spindown\n".as_bytes(),
+            &[],
+            0,
+        )
+        .unwrap();
+        assert!(matches!(
+            Drive::state_(Path::new("/dev/_sdX")).unwrap(),
+            State::Unknown
+        ));
+
+        let _hdparm_mock = BinaryMock::new(
+            "hdparm",
+            "\n/dev/_sdz:\n drive state is:  unknown\n".as_bytes(),
+            &[],
+            0,
+        )
+        .unwrap();
+        assert!(matches!(
+            Drive::state_(Path::new("/dev/_sdX")).unwrap(),
+            State::Unknown
+        ));
     }
 }
