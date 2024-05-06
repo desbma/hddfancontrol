@@ -35,12 +35,24 @@ impl fmt::Display for Fan {
 }
 
 /// Fan speed as [0-255] value
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Speed(pub u8);
 
 impl Speed {
     /// Maximum speed value
-    const MAX: Self = Self(u8::MAX);
+    pub const MAX: Self = Self(u8::MAX);
+
+    /// Build a speed with the value max * dividend / divisor
+    pub fn from_max_division_f64(dividend: f64, divisor: f64) -> Self {
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+        Self((f64::from(u8::MAX) * dividend / divisor) as u8)
+    }
+
+    /// Build a speed with the value max * dividend / divisor
+    pub fn from_max_division_u8(dividend: u8, divisor: u8) -> Self {
+        #[allow(clippy::cast_possible_truncation)]
+        Self((u32::from(u8::MAX) * u32::from(dividend) / u32::from(divisor)) as u8)
+    }
 }
 
 impl fmt::Display for Speed {
@@ -83,6 +95,8 @@ impl Fan {
             self.pwm.set(pwm_value)?;
             log::info!("Fan {} speed set to {}", self.pwm, speed);
             self.speed = Some(speed);
+        } else {
+            log::trace!("Fan {} speed unchanged: {}", self.pwm, speed);
         }
         Ok(())
     }
