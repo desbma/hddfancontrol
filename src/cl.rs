@@ -93,7 +93,7 @@ pub enum Command {
         interval: humantime::Duration,
 
         /// Also control fan speed according to this CPU temperature probe.
-        /// (ie. /sys/devices/platform/coretemp.0/hwmon/hwmonX/tempY_input).
+        /// (ie. `/sys/devices/platform/coretemp.0/hwmon/hwmonX/tempY_input`).
         /// WARNING: Only use for low TDP CPUs. You may need to set
         /// a low value for -i/--interval parameter to react quickly to sudden CPU temperature increase.
         #[arg(short, long)]
