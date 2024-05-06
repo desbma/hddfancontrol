@@ -26,7 +26,7 @@ impl DriveTempProbeMethod for Method {
         for hwmon_subdir_entry in fs::read_dir(&hwmon_dir)
             .map_err(|e| ProberError::Other(e.into()))?
             .map_while(Result::ok)
-            .filter(|e| e.file_type().map(|t| t.is_dir()).unwrap_or_default())
+            .filter(|e| e.file_type().is_ok_and(|t| t.is_dir()))
         {
             let hwmon_subdir = hwmon_subdir_entry.path();
             let name_file = hwmon_subdir.join("name");
@@ -58,7 +58,7 @@ impl fmt::Display for Method {
 
 /// Drivetemp kernel temperature prober
 pub struct Prober {
-    /// Sysfs file temp1_input
+    /// Sysfs file, ie `temp1_input`
     input_path: PathBuf,
 }
 

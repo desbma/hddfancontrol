@@ -24,9 +24,9 @@ pub type Value = u8;
 pub struct Pwm {
     /// pwmX sysfs filepath
     val: PathBuf,
-    /// fanX_input sysfs filepath
+    /// `fanX_input` sysfs filepath
     rpm: PathBuf,
-    /// pwmX_enable sysfs filepath
+    /// `pwmX_enable` sysfs filepath
     mode: PathBuf,
     /// Kernel device name (different from PWM name)
     device: String,
