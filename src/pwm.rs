@@ -45,6 +45,14 @@ pub enum ControlMode {
     Hardware = 2,
 }
 
+/// Pwm state used to restore initial state
+pub struct State {
+    /// Original PWM value
+    pub value: Value,
+    /// Original PWM control mode
+    pub mode: ControlMode,
+}
+
 impl Pwm {
     /// Build a PWM driver
     pub fn new(path: &Path) -> anyhow::Result<Self> {
@@ -150,6 +158,21 @@ impl Pwm {
     /// Set PWM control mode
     pub fn set_mode(&self, mode: ControlMode) -> anyhow::Result<()> {
         Self::write_value(&self.mode, mode as u8)
+    }
+
+    /// Get current state
+    pub fn get_state(&self) -> anyhow::Result<State> {
+        Ok(State {
+            value: self.get()?,
+            mode: self.get_mode()?,
+        })
+    }
+
+    /// Set state
+    pub fn set_state(&self, state: &State) -> anyhow::Result<()> {
+        self.set(state.value)?;
+        self.set_mode(state.mode)?;
+        Ok(())
     }
 }
 
