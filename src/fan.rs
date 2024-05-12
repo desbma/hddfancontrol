@@ -2,9 +2,19 @@
 
 #![allow(dead_code)]
 
-use std::{cmp::Ordering, fmt, path::Path, thread::sleep, time::Duration};
+use std::{
+    cmp::{max, Ordering},
+    fmt,
+    ops::Range,
+    path::Path,
+    thread::sleep,
+    time::Duration,
+};
 
-use crate::pwm::{self, ControlMode, Pwm};
+use crate::{
+    probe::Temp,
+    pwm::{self, ControlMode, Pwm},
+};
 
 /// Fan characteristics
 pub struct Thresholds {
@@ -35,7 +45,7 @@ impl fmt::Display for Fan {
 }
 
 /// Fan speed as [0-255] value
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Speed(pub u8);
 
 impl Speed {
@@ -177,5 +187,108 @@ impl Fan {
             min_start,
             max_stop,
         })
+    }
+}
+
+/// Compute target fan speed for the given temp and parameters
+pub fn target_speed(temp: Temp, temp_range: &Range<Temp>, min_speed: Speed) -> Speed {
+    if temp_range.contains(&temp) {
+        let s = Speed::from_max_division_f64(
+            temp - temp_range.start,
+            temp_range.end - temp_range.start,
+        );
+        max(min_speed, s)
+    } else if temp < temp_range.start {
+        min_speed
+    } else {
+        Speed::MAX
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn test_target_speed() {
+        assert_eq!(
+            target_speed(
+                45.0,
+                &Range {
+                    start: 40.0,
+                    end: 50.0
+                },
+                Speed::from_max_division_u8(20, 100)
+            ),
+            Speed(127)
+        );
+        assert_eq!(
+            target_speed(
+                40.0,
+                &Range {
+                    start: 40.0,
+                    end: 50.0
+                },
+                Speed::from_max_division_u8(20, 100)
+            ),
+            Speed(51)
+        );
+        assert_eq!(
+            target_speed(
+                35.0,
+                &Range {
+                    start: 40.0,
+                    end: 50.0
+                },
+                Speed::from_max_division_u8(20, 100)
+            ),
+            Speed(51)
+        );
+        assert_eq!(
+            target_speed(
+                40.0,
+                &Range {
+                    start: 40.0,
+                    end: 50.0
+                },
+                Speed::from_max_division_u8(0, 100)
+            ),
+            Speed(0)
+        );
+        assert_eq!(
+            target_speed(
+                35.0,
+                &Range {
+                    start: 40.0,
+                    end: 50.0
+                },
+                Speed::from_max_division_u8(0, 100)
+            ),
+            Speed(0)
+        );
+        assert_eq!(
+            target_speed(
+                50.0,
+                &Range {
+                    start: 40.0,
+                    end: 50.0
+                },
+                Speed::from_max_division_u8(20, 100)
+            ),
+            Speed::MAX
+        );
+        assert_eq!(
+            target_speed(
+                55.0,
+                &Range {
+                    start: 40.0,
+                    end: 50.0
+                },
+                Speed::from_max_division_u8(20, 100)
+            ),
+            Speed::MAX
+        );
     }
 }

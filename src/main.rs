@@ -1,11 +1,10 @@
 //! Control fan speed according to drive temperature
 
-use std::{cmp::max, ops::Range, thread::sleep, time::Instant};
+use std::{ops::Range, thread::sleep, time::Instant};
 
 use anyhow::Context;
 use clap::Parser;
 use fan::Speed;
-use probe::Temp;
 
 mod cl;
 mod device;
@@ -16,21 +15,6 @@ mod pwm;
 mod tests;
 
 use crate::{device::Drive, fan::Fan, probe::DriveTempProber};
-
-/// Compute target fan speed for the given temp and parameters
-fn target_fan_speed(temp: Temp, temp_range: &Range<Temp>, min_speed: Speed) -> Speed {
-    if temp_range.contains(&temp) {
-        let s = Speed::from_max_division_f64(
-            temp - temp_range.start,
-            temp_range.end - temp_range.start,
-        );
-        max(min_speed, s)
-    } else if temp < temp_range.start {
-        min_speed
-    } else {
-        Speed::MAX
-    }
-}
 
 fn main() -> anyhow::Result<()> {
     // Parse cl args
@@ -110,7 +94,7 @@ fn main() -> anyhow::Result<()> {
                     .unwrap();
                 log::info!("Max temp: {max_temp}°C");
 
-                let speed = target_fan_speed(max_temp, &temp_range, min_fan_speed);
+                let speed = fan::target_speed(max_temp, &temp_range, min_fan_speed);
                 for fan in &mut fans {
                     fan.set_speed(speed)?;
                 }
