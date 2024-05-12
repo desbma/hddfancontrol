@@ -4,10 +4,12 @@ use std::{ops::Range, thread::sleep, time::Instant};
 
 use anyhow::Context;
 use clap::Parser;
+use exit::ExitHook;
 use fan::Speed;
 
 mod cl;
 mod device;
+mod exit;
 mod fan;
 mod probe;
 mod pwm;
@@ -48,7 +50,7 @@ fn main() -> anyhow::Result<()> {
             // cpu_sensor: _,
             // cpu_temp_range: _,
             // spin_down_time: _,
-            // restore_fan_settings: _,
+            restore_fan_settings,
             ..
         } => {
             let temp_range = Range {
@@ -75,6 +77,12 @@ fn main() -> anyhow::Result<()> {
                 .iter()
                 .map(|p| Fan::new(&p.filepath))
                 .collect::<anyhow::Result<_>>()?;
+            let _exit_hook = ExitHook::new(
+                pwm.iter()
+                    .map(|p| pwm::Pwm::new(&p.filepath))
+                    .collect::<anyhow::Result<_>>()?,
+                restore_fan_settings,
+            );
 
             loop {
                 let start = Instant::now();
