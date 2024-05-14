@@ -104,10 +104,6 @@ pub enum Command {
         #[arg(long, num_args = 2)]
         cpu_temp_range: Option<Vec<Temperature>>,
 
-        /// Interval in seconds after which inactive drives will be put to standby state.
-        #[arg(short, long)]
-        spin_down_time: Option<humantime::Duration>,
-
         /// hddtemp daemon TCP port.
         #[arg(long, default_value_t = 7634)]
         hddtemp_daemon_port: u16,
