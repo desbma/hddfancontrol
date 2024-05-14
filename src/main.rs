@@ -49,7 +49,6 @@ fn main() -> anyhow::Result<()> {
             interval,
             // cpu_sensor: _,
             // cpu_temp_range: _,
-            // spin_down_time: _,
             restore_fan_settings,
             ..
         } => {
