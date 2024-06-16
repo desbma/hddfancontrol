@@ -11,7 +11,7 @@ use std::{
 };
 
 /// Drive runtime state
-#[derive(strum::EnumString)]
+#[derive(strum::EnumString, strum::Display)]
 #[strum(serialize_all = "lowercase")]
 pub enum State {
     /// Active/idle
