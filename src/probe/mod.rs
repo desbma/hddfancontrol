@@ -29,11 +29,11 @@ pub type Temp = f64;
 /// A way to probe drive temperature
 pub trait DriveTempProbeMethod: fmt::Display {
     /// Build a new prober if supported for this device
-    fn prober(&self, drive: &Drive) -> Result<Box<dyn DriveTempProber>, ProberError>;
+    fn prober(&self, drive: &Drive) -> Result<Box<dyn DeviceTempProber>, ProberError>;
 }
 
-/// Drive temperature prober
-pub trait DriveTempProber {
+/// Device temperature prober
+pub trait DeviceTempProber {
     /// Get current drive temperature
     fn probe_temp(&mut self) -> anyhow::Result<Temp>;
 }
@@ -42,7 +42,7 @@ pub trait DriveTempProber {
 pub fn prober(
     drive: &Drive,
     hddtemp_daemon_port: u16,
-) -> anyhow::Result<Option<Box<dyn DriveTempProber>>> {
+) -> anyhow::Result<Option<Box<dyn DeviceTempProber>>> {
     let methods: [Box<dyn DriveTempProbeMethod>; 6] = [
         Box::new(drivetemp::Method),
         Box::new(hdparm::Method),

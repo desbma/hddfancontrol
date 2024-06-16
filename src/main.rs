@@ -1,9 +1,10 @@
 //! Control fan speed according to drive temperature
 
-use std::{ops::Range, thread::sleep, time::Instant};
+use std::{cmp::max, ops::Range, thread::sleep, time::Instant};
 
 use anyhow::Context;
 use clap::Parser;
+use device::Cpu;
 use exit::ExitHook;
 use fan::Speed;
 
@@ -16,7 +17,7 @@ mod pwm;
 #[cfg(test)]
 mod tests;
 
-use crate::{device::Drive, fan::Fan, probe::DriveTempProber};
+use crate::{device::Drive, fan::Fan, probe::DeviceTempProber};
 
 fn main() -> anyhow::Result<()> {
     // Parse cl args
@@ -44,25 +45,23 @@ fn main() -> anyhow::Result<()> {
             drives: drive_paths,
             hddtemp_daemon_port,
             pwm,
-            temp_range,
+            drive_temp_range,
             min_fan_speed_prct,
             interval,
-            // cpu_sensor: _,
-            // cpu_temp_range: _,
+            cpu_sensor,
+            cpu_temp_range,
             restore_fan_settings,
             ..
         } => {
-            let temp_range = Range {
-                start: f64::from(temp_range[0]),
-                end: f64::from(temp_range[1]),
+            let drive_temp_range = Range {
+                start: f64::from(drive_temp_range[0]),
+                end: f64::from(drive_temp_range[1]),
             };
-            let min_fan_speed = Speed::from_max_division_u8(min_fan_speed_prct, 100);
-
             let drives: Vec<Drive> = drive_paths
                 .iter()
                 .map(|path| Drive::new(path))
                 .collect::<anyhow::Result<_>>()?;
-            let mut drive_probers: Vec<Box<dyn DriveTempProber>> = drives
+            let mut drive_probers: Vec<Box<dyn DeviceTempProber>> = drives
                 .iter()
                 .zip(drive_paths.iter())
                 .map(|(drive, path)| {
@@ -72,6 +71,30 @@ fn main() -> anyhow::Result<()> {
                 })
                 .collect::<anyhow::Result<_>>()?;
 
+            let mut cpu_range = match (cpu_sensor.map(|s| Cpu::new(&s)), cpu_temp_range) {
+                // Default range
+                (Some(cpu), None) => {
+                    let range = cpu.default_range()?;
+                    log::info!(
+                        "CPU temperature range set to {}-{}°C",
+                        range.start,
+                        range.end
+                    );
+                    Some((cpu, range))
+                }
+                // Range set by user
+                (Some(cpu), Some(range)) => Some((
+                    cpu,
+                    Range {
+                        start: f64::from(range[0]),
+                        end: f64::from(range[1]),
+                    },
+                )),
+                // No CPU
+                (None, _) => None,
+            };
+
+            let min_fan_speed = Speed::from_max_division_u8(min_fan_speed_prct, 100);
             let mut fans: Vec<_> = pwm
                 .iter()
                 .map(|p| Fan::new(&p.filepath))
@@ -87,9 +110,10 @@ fn main() -> anyhow::Result<()> {
                 let start = Instant::now();
 
                 #[allow(clippy::unwrap_used)]
-                let max_temp = drive_probers
+                let max_drive_temp = drive_probers
                     .iter_mut()
                     .zip(drives.iter())
+                    // TODO filter by drive state
                     .map(|(prober, drive)| {
                         let temp = prober.probe_temp()?;
                         log::debug!("Drive {}: {}°C", drive, temp);
@@ -99,9 +123,24 @@ fn main() -> anyhow::Result<()> {
                     .into_iter()
                     .reduce(f64::max)
                     .unwrap();
-                log::info!("Max temp: {max_temp}°C");
+                log::info!("Max drive temperature: {max_drive_temp}°C");
 
-                let speed = fan::target_speed(max_temp, &temp_range, min_fan_speed);
+                let cpu_temp = cpu_range
+                    .as_mut()
+                    .map(|(cpu, _range)| -> anyhow::Result<_> {
+                        let temp = cpu.probe_temp()?;
+                        log::info!("CPU temperature: {}°C", temp);
+                        Ok(temp)
+                    })
+                    .map_or(Ok(None), |v| v.map(Some))?;
+
+                let mut speed = fan::target_speed(max_drive_temp, &drive_temp_range, min_fan_speed);
+                if let (Some(cpu_temp), Some((_, temp_range))) = (cpu_temp, cpu_range.as_ref()) {
+                    speed = max(
+                        speed,
+                        fan::target_speed(cpu_temp, temp_range, min_fan_speed),
+                    );
+                }
                 for fan in &mut fans {
                     fan.set_speed(speed)?;
                 }

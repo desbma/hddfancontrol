@@ -34,6 +34,7 @@ unused_crate_dependencies = "warn"
 
 [lints.clippy]
 pedantic = { level = "warn", priority = -1 }
+too_many_lines = "allow"
 # from clippy::restrictions
 clone_on_ref_ptr = "warn"
 dbg_macro = "warn"

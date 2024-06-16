@@ -8,13 +8,13 @@ use std::{
     str::FromStr,
 };
 
-use super::{Drive, DriveTempProbeMethod, DriveTempProber, ProberError, Temp};
+use super::{DeviceTempProber, Drive, DriveTempProbeMethod, ProberError, Temp};
 
 /// Smartctl SCT temperature probing method
 pub struct SctMethod;
 
 impl DriveTempProbeMethod for SctMethod {
-    fn prober(&self, drive: &Drive) -> Result<Box<dyn DriveTempProber>, ProberError> {
+    fn prober(&self, drive: &Drive) -> Result<Box<dyn DeviceTempProber>, ProberError> {
         let mut prober = SctProber {
             device: drive.dev_path.clone(),
         };
@@ -37,7 +37,7 @@ pub struct SctProber {
     device: PathBuf,
 }
 
-impl DriveTempProber for SctProber {
+impl DeviceTempProber for SctProber {
     fn probe_temp(&mut self) -> anyhow::Result<Temp> {
         let output = Command::new("smartctl")
             .args([
@@ -71,7 +71,7 @@ impl DriveTempProber for SctProber {
 pub struct AttribMethod;
 
 impl DriveTempProbeMethod for AttribMethod {
-    fn prober(&self, drive: &Drive) -> Result<Box<dyn DriveTempProber>, ProberError> {
+    fn prober(&self, drive: &Drive) -> Result<Box<dyn DeviceTempProber>, ProberError> {
         let mut prober = AttribProber {
             device: drive.dev_path.clone(),
         };
@@ -142,7 +142,7 @@ impl SmartAttribLog {
     }
 }
 
-impl DriveTempProber for AttribProber {
+impl DeviceTempProber for AttribProber {
     fn probe_temp(&mut self) -> anyhow::Result<Temp> {
         let output = Command::new("smartctl")
             .args([
