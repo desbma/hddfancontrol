@@ -80,7 +80,7 @@ pub enum Command {
 
         /// Temperatures in Celcius at which the fan(s) will be set to minimum/maximum speed.
         #[arg(short, long, num_args = 2, default_values_t = vec![30, 50])]
-        temp_range: Vec<Temperature>,
+        drive_temp_range: Vec<Temperature>,
 
         /// Minimum percentage of full fan speed to set the fan to.
         /// Never set to 0 unless you have other fans to cool down your system,

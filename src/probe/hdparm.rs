@@ -9,13 +9,13 @@ use std::{
 
 use crate::device::Drive;
 
-use super::{DriveTempProbeMethod, DriveTempProber, ProberError, Temp};
+use super::{DeviceTempProber, DriveTempProbeMethod, ProberError, Temp};
 
 /// Hdparm Hitachi/HGST temperature probing method
 pub struct Method;
 
 impl DriveTempProbeMethod for Method {
-    fn prober(&self, drive: &Drive) -> Result<Box<dyn DriveTempProber>, ProberError> {
+    fn prober(&self, drive: &Drive) -> Result<Box<dyn DeviceTempProber>, ProberError> {
         let mut prober = Prober {
             device: drive.dev_path.clone(),
         };
@@ -38,7 +38,7 @@ pub struct Prober {
     device: PathBuf,
 }
 
-impl DriveTempProber for Prober {
+impl DeviceTempProber for Prober {
     fn probe_temp(&mut self) -> anyhow::Result<Temp> {
         let output = Command::new("hdparm")
             .args([

@@ -11,7 +11,7 @@ use std::{
 
 use itertools::Itertools;
 
-use super::{Drive, DriveTempProbeMethod, DriveTempProber, ProberError, Temp};
+use super::{DeviceTempProber, Drive, DriveTempProbeMethod, ProberError, Temp};
 
 /// Hddtemp daemon probing method
 pub struct DaemonMethod {
@@ -20,7 +20,7 @@ pub struct DaemonMethod {
 }
 
 impl DriveTempProbeMethod for DaemonMethod {
-    fn prober(&self, drive: &Drive) -> Result<Box<dyn DriveTempProber>, ProberError> {
+    fn prober(&self, drive: &Drive) -> Result<Box<dyn DeviceTempProber>, ProberError> {
         let mut prober = DaemonProber {
             addr: self.addr,
             device: drive.dev_path.clone(),
@@ -46,7 +46,7 @@ pub struct DaemonProber {
     device: PathBuf,
 }
 
-impl DriveTempProber for DaemonProber {
+impl DeviceTempProber for DaemonProber {
     fn probe_temp(&mut self) -> anyhow::Result<Temp> {
         let mut stream = TcpStream::connect(self.addr)?;
         let mut buf = String::new();
@@ -79,7 +79,7 @@ impl DriveTempProber for DaemonProber {
 pub struct InvocationMethod;
 
 impl DriveTempProbeMethod for InvocationMethod {
-    fn prober(&self, drive: &Drive) -> Result<Box<dyn DriveTempProber>, ProberError> {
+    fn prober(&self, drive: &Drive) -> Result<Box<dyn DeviceTempProber>, ProberError> {
         let mut prober = InvocationProber {
             device: drive.dev_path.clone(),
         };
@@ -102,7 +102,7 @@ pub struct InvocationProber {
     device: PathBuf,
 }
 
-impl DriveTempProber for InvocationProber {
+impl DeviceTempProber for InvocationProber {
     fn probe_temp(&mut self) -> anyhow::Result<Temp> {
         let output = Command::new("hddtemp")
             .args([

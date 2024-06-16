@@ -6,13 +6,13 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use super::{Drive, DriveTempProbeMethod, DriveTempProber, ProberError, Temp};
+use super::{DeviceTempProber, Drive, DriveTempProbeMethod, ProberError, Temp};
 
 /// Drivetemp native kernel temperature probing method
 pub struct Method;
 
 impl DriveTempProbeMethod for Method {
-    fn prober(&self, drive: &Drive) -> Result<Box<dyn DriveTempProber>, ProberError> {
+    fn prober(&self, drive: &Drive) -> Result<Box<dyn DeviceTempProber>, ProberError> {
         #[allow(clippy::unwrap_used)] // At this point we already checked it is a valid device
         let drive_name = drive.dev_path.file_name().unwrap();
         let hwmon_dir = Path::new("/sys/block/")
@@ -62,7 +62,7 @@ pub struct Prober {
     input_path: PathBuf,
 }
 
-impl DriveTempProber for Prober {
+impl DeviceTempProber for Prober {
     fn probe_temp(&mut self) -> anyhow::Result<Temp> {
         Ok(f64::from(
             fs::read_to_string(&self.input_path)?
