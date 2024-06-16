@@ -41,9 +41,9 @@ impl Cpu {
             .collect::<String>()
             .parse()?;
         // Try to get crit and max temp
-        let crit_filepath = sysfs_dir.with_file_name(format!("temp{sensor_num}_crit"));
+        let crit_filepath = sysfs_dir.join(format!("temp{sensor_num}_crit"));
         let crit_temp_milli = Self::read_sysfs_temp_milli(&crit_filepath)?;
-        let max_filepath = sysfs_dir.with_file_name(format!("temp{sensor_num}_max"));
+        let max_filepath = sysfs_dir.join(format!("temp{sensor_num}_max"));
         let max_temp_milli = Self::read_sysfs_temp_milli(&max_filepath).unwrap_or_else(|_| {
             // Default to crit - 20 if we have no max temp
             crit_temp_milli - 1000 * 20
