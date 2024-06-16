@@ -114,12 +114,13 @@ fn main() -> anyhow::Result<()> {
                     .zip(drives.iter())
                     .map(|((prober, supports_probing_sleeping), drive)| {
                         let state = drive.state()?;
+                        log::debug!("Drive {drive} state: {state}");
                         let temp = if state.is_spun_down() && !*supports_probing_sleeping {
-                            log::debug!("Drive {} is sleeping", drive);
+                            log::debug!("Drive {drive} is sleeping");
                             None
                         } else {
                             let temp = prober.probe_temp()?;
-                            log::debug!("Drive {}: {}°C", drive, temp);
+                            log::debug!("Drive {drive}: {temp}°C");
                             Some(temp)
                         };
                         Ok(temp)
@@ -133,7 +134,7 @@ fn main() -> anyhow::Result<()> {
                     .as_mut()
                     .map(|(cpu, _range)| -> anyhow::Result<_> {
                         let temp = cpu.probe_temp()?;
-                        log::info!("CPU temperature: {}°C", temp);
+                        log::info!("CPU temperature: {temp}°C");
                         Ok(temp)
                     })
                     .map_or(Ok(None), |v| v.map(Some))?;

@@ -63,12 +63,7 @@ pub fn prober(
                 return Ok(Some((p, sqa)));
             }
             Err(ProberError::Unsupported(e)) => {
-                log::info!(
-                    "Drive '{}' does not support probing method '{}': {}",
-                    drive,
-                    method,
-                    e
-                );
+                log::info!("Drive '{drive}' does not support probing method '{method}': {e}",);
             }
             Err(ProberError::Other(e)) => return Err(e),
         }
