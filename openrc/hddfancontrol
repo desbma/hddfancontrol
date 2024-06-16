@@ -2,7 +2,7 @@
 
 description="Adjust the fan speed according to the temperature of the hard drive"
 
-cfgfile="/etc/conf.d/hddfancontrol.conf"
+cfgfile="/etc/conf.d/hddfancontrol"
 pidfile="/run/$RC_SVCNAME.pid"
 
 command=/usr/bin/hddfancontrol
