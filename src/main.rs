@@ -1,6 +1,6 @@
 //! Control fan speed according to drive temperature
 
-use std::{cmp::max, ops::Range, thread::sleep, time::Instant};
+use std::{ops::Range, thread::sleep, time::Instant};
 
 use anyhow::Context;
 use clap::Parser;
@@ -61,7 +61,7 @@ fn main() -> anyhow::Result<()> {
                 .iter()
                 .map(|path| Drive::new(path))
                 .collect::<anyhow::Result<_>>()?;
-            let mut drive_probers: Vec<Box<dyn DeviceTempProber>> = drives
+            let mut drive_probers: Vec<(Box<dyn DeviceTempProber>, bool)> = drives
                 .iter()
                 .zip(drive_paths.iter())
                 .map(|(drive, path)| {
@@ -109,21 +109,25 @@ fn main() -> anyhow::Result<()> {
             loop {
                 let start = Instant::now();
 
-                #[allow(clippy::unwrap_used)]
                 let max_drive_temp = drive_probers
                     .iter_mut()
                     .zip(drives.iter())
-                    // TODO filter by drive state
-                    .map(|(prober, drive)| {
-                        let temp = prober.probe_temp()?;
-                        log::debug!("Drive {}: {}°C", drive, temp);
+                    .map(|((prober, supports_probing_sleeping), drive)| {
+                        let state = drive.state()?;
+                        let temp = if state.is_spun_down() && !*supports_probing_sleeping {
+                            log::debug!("Drive {} is sleeping", drive);
+                            None
+                        } else {
+                            let temp = prober.probe_temp()?;
+                            log::debug!("Drive {}: {}°C", drive, temp);
+                            Some(temp)
+                        };
                         Ok(temp)
                     })
                     .collect::<anyhow::Result<Vec<_>>>()?
                     .into_iter()
-                    .reduce(f64::max)
-                    .unwrap();
-                log::info!("Max drive temperature: {max_drive_temp}°C");
+                    .flatten()
+                    .reduce(f64::max);
 
                 let cpu_temp = cpu_range
                     .as_mut()
@@ -134,12 +138,15 @@ fn main() -> anyhow::Result<()> {
                     })
                     .map_or(Ok(None), |v| v.map(Some))?;
 
-                let mut speed = fan::target_speed(max_drive_temp, &drive_temp_range, min_fan_speed);
+                let mut speed = min_fan_speed;
+                if let Some(max_drive_temp) = max_drive_temp {
+                    log::info!("Max drive temperature: {max_drive_temp}°C");
+                    speed = fan::target_speed(max_drive_temp, &drive_temp_range, speed);
+                } else {
+                    log::info!("All drives are spun down");
+                }
                 if let (Some(cpu_temp), Some((_, temp_range))) = (cpu_temp, cpu_range.as_ref()) {
-                    speed = max(
-                        speed,
-                        fan::target_speed(cpu_temp, temp_range, min_fan_speed),
-                    );
+                    speed = fan::target_speed(cpu_temp, temp_range, speed);
                 }
                 for fan in &mut fans {
                     fan.set_speed(speed)?;

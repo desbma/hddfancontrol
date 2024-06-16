@@ -23,6 +23,10 @@ impl DriveTempProbeMethod for SctMethod {
             .map_err(|e| ProberError::Unsupported(e.to_string()))?;
         Ok(Box::new(prober))
     }
+
+    fn supports_probing_sleeping(&self) -> bool {
+        false
+    }
 }
 
 impl fmt::Display for SctMethod {
@@ -79,6 +83,10 @@ impl DriveTempProbeMethod for AttribMethod {
             .probe_temp()
             .map_err(|e| ProberError::Unsupported(e.to_string()))?;
         Ok(Box::new(prober))
+    }
+
+    fn supports_probing_sleeping(&self) -> bool {
+        false
     }
 }
 

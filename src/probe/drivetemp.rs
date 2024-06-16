@@ -48,6 +48,10 @@ impl DriveTempProbeMethod for Method {
             "No drivetemp hwmon found in {hwmon_dir:?}"
         )))
     }
+
+    fn supports_probing_sleeping(&self) -> bool {
+        true
+    }
 }
 
 impl fmt::Display for Method {

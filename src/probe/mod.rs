@@ -30,6 +30,9 @@ pub type Temp = f64;
 pub trait DriveTempProbeMethod: fmt::Display {
     /// Build a new prober if supported for this device
     fn prober(&self, drive: &Drive) -> Result<Box<dyn DeviceTempProber>, ProberError>;
+
+    /// Does prober supports probing spun down drive without waking it
+    fn supports_probing_sleeping(&self) -> bool;
 }
 
 /// Device temperature prober
@@ -42,7 +45,7 @@ pub trait DeviceTempProber {
 pub fn prober(
     drive: &Drive,
     hddtemp_daemon_port: u16,
-) -> anyhow::Result<Option<Box<dyn DeviceTempProber>>> {
+) -> anyhow::Result<Option<(Box<dyn DeviceTempProber>, bool)>> {
     let methods: [Box<dyn DriveTempProbeMethod>; 6] = [
         Box::new(drivetemp::Method),
         Box::new(hdparm::Method),
@@ -55,7 +58,10 @@ pub fn prober(
     ];
     for method in methods {
         match method.prober(drive) {
-            Ok(p) => return Ok(Some(p)),
+            Ok(p) => {
+                let sqa = method.supports_probing_sleeping();
+                return Ok(Some((p, sqa)));
+            }
             Err(ProberError::Unsupported(e)) => {
                 log::info!(
                     "Drive '{}' does not support probing method '{}': {}",
