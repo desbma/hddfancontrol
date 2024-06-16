@@ -24,6 +24,10 @@ impl DriveTempProbeMethod for Method {
             .map_err(|e| ProberError::Unsupported(e.to_string()))?;
         Ok(Box::new(prober))
     }
+
+    fn supports_probing_sleeping(&self) -> bool {
+        true
+    }
 }
 
 impl fmt::Display for Method {

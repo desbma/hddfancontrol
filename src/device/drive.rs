@@ -25,6 +25,16 @@ pub enum State {
     Unknown,
 }
 
+impl State {
+    /// Is drive currently spun down
+    pub fn is_spun_down(&self) -> bool {
+        match self {
+            State::Standby | State::Sleeping => true,
+            State::ActiveIdle | State::Unknown => false,
+        }
+    }
+}
+
 /// Block device drive
 pub struct Drive {
     /// Normalized (under /dev) device filepath

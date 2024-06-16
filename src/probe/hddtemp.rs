@@ -30,6 +30,10 @@ impl DriveTempProbeMethod for DaemonMethod {
             .map_err(|e| ProberError::Unsupported(e.to_string()))?;
         Ok(Box::new(prober))
     }
+
+    fn supports_probing_sleeping(&self) -> bool {
+        false
+    }
 }
 
 impl fmt::Display for DaemonMethod {
@@ -87,6 +91,10 @@ impl DriveTempProbeMethod for InvocationMethod {
             .probe_temp()
             .map_err(|e| ProberError::Unsupported(e.to_string()))?;
         Ok(Box::new(prober))
+    }
+
+    fn supports_probing_sleeping(&self) -> bool {
+        false
     }
 }
 

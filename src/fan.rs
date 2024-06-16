@@ -52,6 +52,9 @@ impl Speed {
     /// Maximum speed value
     pub const MAX: Self = Self(u8::MAX);
 
+    /// Minimum speed value
+    pub const MIN: Self = Self(u8::MIN);
+
     /// Build a speed with the value max * dividend / divisor
     pub fn from_max_division_f64(dividend: f64, divisor: f64) -> Self {
         #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
