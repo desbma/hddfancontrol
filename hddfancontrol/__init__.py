@@ -27,7 +27,7 @@ import sys
 import syslog
 import threading
 import time
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
 import daemon
 import daemon.pidfile
@@ -107,6 +107,7 @@ class Drive(HotDevice):
     HDPARM_GET_MODEL_REGEX = re.compile(r"Model Number:\s*(.*)")
     HDDTEMP_SLEEPING_SUFFIX = ": drive is sleeping\n"
     SMARTCTL_GET_MODEL_REGEXS = (re.compile(r"Model Number:\s*(.*)"), re.compile(r"Product:\s*(.*)"))
+    DEBUG_ACTIVITY_STATS = False
 
     class TempProbingMethod(enum.Enum):
 
@@ -451,19 +452,25 @@ class Drive(HotDevice):
         So try to detect that and see if it matches our probe count.
         See https://www.kernel.org/doc/Documentation/iostats.txt
         """
+
+        log_activity_stats: Callable[[str], None] = (
+            self.logger.debug if self.__class__.DEBUG_ACTIVITY_STATS else lambda _: None  # type: ignore
+        )
+        log_activity_stats(f"{prev=} {current=} ")
+
         if prev == current:
             # no activity whatsoever
-            # self.logger.debug("No activity")
+            log_activity_stats("No activity")
             return False
 
         if prev[4:9] != current[4:9]:
             # write occured
-            # self.logger.debug("Write activity")
+            log_activity_stats("Write activity")
             return True
 
         if prev[1] != current[1]:
             # actual read occured
-            # self.logger.debug("Read activity")
+            log_activity_stats("Read activity")
             return True
 
         # only reads have been registered, it can be data reads or just our own temp/state probes showing up in
@@ -502,10 +509,9 @@ class Drive(HotDevice):
 
         expected_read_io_delta += state_probe_count
 
-        # self.logger.debug(
-        #     f"prev={prev!r} current={current!r} "
-        #     f"expected_delta=({expected_read_io_delta}, {expected_read_sectors_delta})"
-        # )
+        log_activity_stats(
+            f"expected_delta=({expected_read_io_delta}, {expected_read_sectors_delta})"
+        )
 
         return not (
             (current[0] - prev[0] == expected_read_io_delta) and (current[2] - prev[2] == expected_read_sectors_delta)
