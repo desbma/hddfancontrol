@@ -1,4 +1,4 @@
-""" Formatter for the logging module, coloring terminal output according to error criticity. """
+"""Formatter for the logging module, coloring terminal output according to error criticity."""
 
 import enum
 import logging
@@ -6,12 +6,19 @@ import sys
 
 Colors = enum.Enum("Colors", ("RED", "GREEN", "YELLOW", "BLUE"))
 
-LEVEL_COLOR_MAPPING = {logging.WARNING: Colors.YELLOW, logging.ERROR: Colors.RED, logging.CRITICAL: Colors.RED}
-LEVEL_BOLD_MAPPING = {logging.WARNING: False, logging.ERROR: False, logging.CRITICAL: True}
+LEVEL_COLOR_MAPPING = {
+    logging.WARNING: Colors.YELLOW,
+    logging.ERROR: Colors.RED,
+    logging.CRITICAL: Colors.RED,
+}
+LEVEL_BOLD_MAPPING = {
+    logging.WARNING: False,
+    logging.ERROR: False,
+    logging.CRITICAL: True,
+}
 
 
 class ColoredFormatter(logging.Formatter):
-
     """Formatter for the logging module, coloring terminal output according to error criticity."""
 
     def format(self, record):

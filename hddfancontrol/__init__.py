@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-""" Dynamically control fan speed according to hard drive temperature. """
+"""Dynamically control fan speed according to hard drive temperature."""
 
 __version__ = "1.6.2"
 __author__ = "desbma"
@@ -43,21 +43,18 @@ exit_evt = threading.Event()
 
 
 class DriveAsleepError(Exception):
-
     """Exception raised when getTemperature fails because drive is asleep."""
 
     pass
 
 
 class HddtempDaemonQueryFailed(Exception):
-
     """Exception raised when hddtemp daemon fails to return temperature for a drive."""
 
     pass
 
 
 class LoggingSysLogHandler(logging.Handler):
-
     """Class similar in goal to logging.handlers.SysLogHandler, but uses the syslog call instead of socket."""
 
     def __init__(self, facility, options=syslog.LOG_PID):
@@ -78,7 +75,6 @@ class LoggingSysLogHandler(logging.Handler):
 
 
 class HotDevice:
-
     """Base class for devices generating heat."""
 
     @abc.abstractmethod
@@ -97,20 +93,27 @@ class HotDevice:
 
 
 class Drive(HotDevice):
-
     """Drive represented by a device file like /dev/sdX."""
 
-    DriveState = enum.Enum("DriveState", ("UNKNOWN", "ACTIVE_IDLE", "STANDBY", "SLEEPING"))
+    DriveState = enum.Enum(
+        "DriveState", ("UNKNOWN", "ACTIVE_IDLE", "STANDBY", "SLEEPING")
+    )
 
-    HDPARM_GET_TEMP_HITACHI_REGEX = re.compile(r"drive temperature \(celsius\) is:\s*([0-9]*)")
-    HDPARM_GET_TEMP_HITACHI_ERROR_REGEX = re.compile("^SG_IO: .* sense data", re.MULTILINE)
+    HDPARM_GET_TEMP_HITACHI_REGEX = re.compile(
+        r"drive temperature \(celsius\) is:\s*([0-9]*)"
+    )
+    HDPARM_GET_TEMP_HITACHI_ERROR_REGEX = re.compile(
+        "^SG_IO: .* sense data", re.MULTILINE
+    )
     HDPARM_GET_MODEL_REGEX = re.compile(r"Model Number:\s*(.*)")
     HDDTEMP_SLEEPING_SUFFIX = ": drive is sleeping\n"
-    SMARTCTL_GET_MODEL_REGEXS = (re.compile(r"Model Number:\s*(.*)"), re.compile(r"Product:\s*(.*)"))
+    SMARTCTL_GET_MODEL_REGEXS = (
+        re.compile(r"Model Number:\s*(.*)"),
+        re.compile(r"Product:\s*(.*)"),
+    )
     DEBUG_ACTIVITY_STATS = False
 
     class TempProbingMethod(enum.Enum):
-
         """Method used to query drive temperature, depending on what the drive/system support."""
 
         HDDTEMP_INVOCATION = enum.auto()
@@ -132,12 +135,12 @@ class Drive(HotDevice):
         device_filepath = self.__class__.normalizeDrivePath(device_filepath)
         if not self.__class__.isPartition(device_filepath):
             self.device_filepath = device_filepath
-            self.stat_filepath = f"/sys/block/{os.path.basename(self.device_filepath)}/stat"
+            self.stat_filepath = (
+                f"/sys/block/{os.path.basename(self.device_filepath)}/stat"
+            )
         else:
             self.device_filepath = self.__class__.getParentDevice(device_filepath)
-            self.stat_filepath = (
-                f"/sys/block/{os.path.basename(self.device_filepath)}/{os.path.basename(device_filepath)}/stat"
-            )
+            self.stat_filepath = f"/sys/block/{os.path.basename(self.device_filepath)}/{os.path.basename(device_filepath)}/stat"
         self.hddtemp_daemon_port = hddtemp_daemon_port
 
         self.min_temp = min_temp
@@ -151,7 +154,9 @@ class Drive(HotDevice):
             if self.supportsSctTempQuery():
                 self.temp_query_method = Drive.TempProbingMethod.SMARTCTL_SCT_INVOCATION
             else:
-                self.temp_query_method = Drive.TempProbingMethod.SMARTCTL_ATTRIB_INVOCATION
+                self.temp_query_method = (
+                    Drive.TempProbingMethod.SMARTCTL_ATTRIB_INVOCATION
+                )
         elif self.drivetemp_input_filepath is not None:
             self.temp_query_method = Drive.TempProbingMethod.DRIVETEMP
         elif self.supportsHitachiTempQuery():
@@ -160,7 +165,9 @@ class Drive(HotDevice):
             self.temp_query_method = Drive.TempProbingMethod.HDDTEMP_DAEMON
         else:
             self.temp_query_method = Drive.TempProbingMethod.HDDTEMP_INVOCATION
-        self.logger.info(f"Will probe temperature with method {self.temp_query_method.name}")
+        self.logger.info(
+            f"Will probe temperature with method {self.temp_query_method.name}"
+        )
 
         self.probe_lock = threading.Lock()
         self.probe_count = 0
@@ -184,13 +191,19 @@ class Drive(HotDevice):
         # get device metadata to grab model string
         cmd = ("hdparm", "-I", self.device_filepath)
         output = subprocess.check_output(
-            cmd, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, universal_newlines=True
+            cmd,
+            stdin=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            universal_newlines=True,
         )
         model_match = self.__class__.HDPARM_GET_MODEL_REGEX.search(output)
         if model_match is None:
             cmd = ("smartctl", "-i", self.device_filepath)
             output = subprocess.check_output(
-                cmd, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, universal_newlines=True
+                cmd,
+                stdin=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                universal_newlines=True,
             )
             for regex in self.__class__.SMARTCTL_GET_MODEL_REGEXS:
                 model_match = regex.search(output)
@@ -205,7 +218,12 @@ class Drive(HotDevice):
         try:
             sysfs_bus_dir = f"/sys/block/{os.path.basename(self.device_filepath)}"
             sysfs_bus_dir = os.path.normpath(
-                os.path.join(os.path.dirname(sysfs_bus_dir), os.readlink(sysfs_bus_dir), "..", "..")
+                os.path.join(
+                    os.path.dirname(sysfs_bus_dir),
+                    os.readlink(sysfs_bus_dir),
+                    "..",
+                    "..",
+                )
             )
             with os.scandir(f"{sysfs_bus_dir}/hwmon") as dir_it:
                 for entry in filter(operator.methodcaller("is_dir"), dir_it):
@@ -225,14 +243,20 @@ class Drive(HotDevice):
         cmd = ("hdparm", "-H", self.device_filepath)
         try:
             output = subprocess.check_output(
-                cmd, stdin=subprocess.DEVNULL, stderr=subprocess.STDOUT, universal_newlines=True
+                cmd,
+                stdin=subprocess.DEVNULL,
+                stderr=subprocess.STDOUT,
+                universal_newlines=True,
             )
         except subprocess.CalledProcessError:
             supported = False
         else:
             # catch non fatal errors
             # see: https://github.com/Distrotech/hdparm/blob/4517550db29a91420fb2b020349523b1b4512df2/sgio.c#L308-L315
-            if self.__class__.HDPARM_GET_TEMP_HITACHI_ERROR_REGEX.search(output) is not None:
+            if (
+                self.__class__.HDPARM_GET_TEMP_HITACHI_ERROR_REGEX.search(output)
+                is not None
+            ):
                 supported = False
         if not supported:
             self.logger.warning("Drive does not support HGST temp query")
@@ -243,10 +267,18 @@ class Drive(HotDevice):
         supported = True
         cmd = ("smartctl", "-l", "scttempsts", self.device_filepath)
         output = subprocess.check_output(
-            cmd, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, universal_newlines=True
+            cmd,
+            stdin=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            universal_newlines=True,
         )
         try:
-            temp_line = next(filter(lambda x: x.lstrip().startswith("Current Temperature: "), output.splitlines()))
+            temp_line = next(
+                filter(
+                    lambda x: x.lstrip().startswith("Current Temperature: "),
+                    output.splitlines(),
+                )
+            )
             int(temp_line.split()[2])
         except Exception:
             supported = False
@@ -258,7 +290,10 @@ class Drive(HotDevice):
 
     def supportsProbingWhileAsleep(self) -> bool:
         """Return True if drive can be probed while asleep, without waking up, False instead."""
-        return self.temp_query_method in (Drive.TempProbingMethod.HDPARM_INVOCATION, Drive.TempProbingMethod.DRIVETEMP)
+        return self.temp_query_method in (
+            Drive.TempProbingMethod.HDPARM_INVOCATION,
+            Drive.TempProbingMethod.DRIVETEMP,
+        )
 
     def getState(self) -> DriveState:
         """Get drive power state, as a DriveState enum."""
@@ -274,7 +309,10 @@ class Drive(HotDevice):
         try:
             with self.get_state_lock:
                 output = subprocess.check_output(
-                    cmd, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, universal_newlines=True
+                    cmd,
+                    stdin=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    universal_newlines=True,
                 )
                 self.get_state_count += 1
             str_state = output.rsplit(" ", 1)[-1].strip()
@@ -347,13 +385,17 @@ class Drive(HotDevice):
                     raise DriveAsleepError
                 temp_unit = drive_data[4]
                 if temp_unit != "C":
-                    raise RuntimeError("hddtemp daemon is not returning temp as Celsius")
+                    raise RuntimeError(
+                        "hddtemp daemon is not returning temp as Celsius"
+                    )
                 temp = int(drive_data[3])
                 found = True
                 break
 
         if not found:
-            raise RuntimeError(f"Unable to get temperature from hddtemp daemon for drive {self}")
+            raise RuntimeError(
+                f"Unable to get temperature from hddtemp daemon for drive {self}"
+            )
         return temp
 
     def getTemperatureWithHddtempInvocation(self) -> int:
@@ -362,7 +404,11 @@ class Drive(HotDevice):
         cmd_env = dict(os.environ)
         cmd_env["LANG"] = "C"
         output = subprocess.check_output(
-            cmd, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=cmd_env, universal_newlines=True
+            cmd,
+            stdin=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            env=cmd_env,
+            universal_newlines=True,
         )
         if output.endswith(self.__class__.HDDTEMP_SLEEPING_SUFFIX):
             raise DriveAsleepError
@@ -372,7 +418,10 @@ class Drive(HotDevice):
         """Get drive temperature in Celcius using hdparm."""
         cmd = ("hdparm", "-H", self.device_filepath)
         output = subprocess.check_output(
-            cmd, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, universal_newlines=True
+            cmd,
+            stdin=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            universal_newlines=True,
         )
         temp_match = self.__class__.HDPARM_GET_TEMP_HITACHI_REGEX.search(output)
         assert temp_match is not None
@@ -382,7 +431,10 @@ class Drive(HotDevice):
         """Get drive temperature in Celcius using smartctl SMART attribute."""
         cmd = ("smartctl", "-A", self.device_filepath)
         output = subprocess.check_output(
-            cmd, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, universal_newlines=True
+            cmd,
+            stdin=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            universal_newlines=True,
         )
         output_lines = output.splitlines()
 
@@ -402,7 +454,9 @@ class Drive(HotDevice):
 
         for line_prefix, token_index in prefixes.items():
             try:
-                temp_line = next(filter(lambda x: x.lstrip().startswith(line_prefix), output_lines))
+                temp_line = next(
+                    filter(lambda x: x.lstrip().startswith(line_prefix), output_lines)
+                )
             except StopIteration:
                 continue
             break
@@ -413,9 +467,17 @@ class Drive(HotDevice):
         """Get drive temperature in Celcius using smartctl SCT reading."""
         cmd = ("smartctl", "-l", "scttempsts", self.device_filepath)
         output = subprocess.check_output(
-            cmd, stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, universal_newlines=True
+            cmd,
+            stdin=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            universal_newlines=True,
         )
-        temp_line = next(filter(lambda x: x.lstrip().startswith("Current Temperature: "), output.splitlines()))
+        temp_line = next(
+            filter(
+                lambda x: x.lstrip().startswith("Current Temperature: "),
+                output.splitlines(),
+            )
+        )
         return int(temp_line.split()[2])
 
     def getTemperatureWithDrivetemp(self) -> int:
@@ -428,19 +490,30 @@ class Drive(HotDevice):
         """Spin down a drive, effectively setting it to DriveState.STANDBY state."""
         self.logger.info(f"Spinning down drive {self}")
         cmd = ("hdparm", "-y", self.device_filepath)
-        subprocess.check_call(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.check_call(
+            cmd,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
 
     def getActivityStats(self) -> Tuple[int, ...]:
         """Return drive stats as in /proc/diskstats, as a tuple of integer."""
         with open(self.stat_filepath, "rt") as stat_file:
             stat_data = stat_file.read()
-        stats = tuple(map(int, filter(None, map(str.strip, stat_data.strip().split(" ")))))
+        stats = tuple(
+            map(int, filter(None, map(str.strip, stat_data.strip().split(" "))))
+        )
         if not stats:
             raise RuntimeError(f"Unable to get stats for drive {self}")
         return stats
 
     def compareActivityStats(
-        self, prev: Tuple[int, ...], current: Tuple[int, ...], temp_probe_count: int, state_probe_count: int
+        self,
+        prev: Tuple[int, ...],
+        current: Tuple[int, ...],
+        temp_probe_count: int,
+        state_probe_count: int,
     ) -> bool:
         """
         Compare two samples of activity stats and return True if real activity occured.
@@ -480,7 +553,9 @@ class Drive(HotDevice):
             expected_read_io_delta = temp_probe_count * 4
             expected_read_sectors_delta = temp_probe_count * 3
 
-        elif self.temp_query_method is Drive.TempProbingMethod.SMARTCTL_ATTRIB_INVOCATION:
+        elif (
+            self.temp_query_method is Drive.TempProbingMethod.SMARTCTL_ATTRIB_INVOCATION
+        ):
             if not self.warned_smartctl_attrib_counters:
                 self.logger.warning(
                     "Your kernel version and the current method of temperature probing "
@@ -514,7 +589,8 @@ class Drive(HotDevice):
         )
 
         return not (
-            (current[0] - prev[0] == expected_read_io_delta) and (current[2] - prev[2] == expected_read_sectors_delta)
+            (current[0] - prev[0] == expected_read_io_delta)
+            and (current[2] - prev[2] == expected_read_sectors_delta)
         )
 
     def getTempProbeLock(self) -> threading.Lock:
@@ -557,7 +633,9 @@ class Drive(HotDevice):
         """Return True if device is a partition, False otherwise."""
         # https://github.com/python/mypy/issues/4177
         assert __class__.normalizeDrivePath(device_filepath) == device_filepath  # type: ignore
-        return os.path.isfile(f"/sys/class/block/{os.path.basename(device_filepath)}/partition")
+        return os.path.isfile(
+            f"/sys/class/block/{os.path.basename(device_filepath)}/partition"
+        )
 
     @staticmethod
     def getParentDevice(device_filepath: str) -> str:
@@ -570,7 +648,6 @@ class Drive(HotDevice):
 
 
 class CPU(HotDevice):
-
     """CPU device with a sysfs temp sensor."""
 
     SENSOR_DIGITS_REGEX = re.compile("temp([0-9])*_input$")
@@ -600,11 +677,17 @@ class CPU(HotDevice):
     def getDefaultMaxTemp(self) -> float:
         """Compute maximum temperature."""
         # first compute filepath for max and crit sysfs files
-        sensor_match = self.__class__.SENSOR_DIGITS_REGEX.search(self.cpu_sensor_input_filepath)
+        sensor_match = self.__class__.SENSOR_DIGITS_REGEX.search(
+            self.cpu_sensor_input_filepath
+        )
         assert sensor_match is not None
         sensor_num = int(sensor_match.group(1))
-        max_filepath = os.path.join(os.path.dirname(self.cpu_sensor_input_filepath), f"temp{sensor_num}_max")
-        crit_filepath = os.path.join(os.path.dirname(self.cpu_sensor_input_filepath), f"temp{sensor_num}_crit")
+        max_filepath = os.path.join(
+            os.path.dirname(self.cpu_sensor_input_filepath), f"temp{sensor_num}_max"
+        )
+        crit_filepath = os.path.join(
+            os.path.dirname(self.cpu_sensor_input_filepath), f"temp{sensor_num}_crit"
+        )
 
         # get values
         crit_temp = self.getSysfsTempValue(crit_filepath)
@@ -628,7 +711,6 @@ class CPU(HotDevice):
 
 
 class DriveSpinDownThread(threading.Thread):
-
     """Thread responsible for spinning down a drive when it is not active for a certain amount of time."""
 
     LOOP_SLEEP_DELAY_S = 60
@@ -673,7 +755,10 @@ class DriveSpinDownThread(threading.Thread):
 
                 # spin down if needed
                 if self.drive.compareActivityStats(
-                    previous_stats, stats, temp_probe_count_delta, state_probe_count_delta
+                    previous_stats,
+                    stats,
+                    temp_probe_count_delta,
+                    state_probe_count_delta,
                 ):
                     self.logger.debug("Drive is active")
                     previous_stats = None
@@ -697,7 +782,6 @@ class DriveSpinDownThread(threading.Thread):
 
 
 class Fan:
-
     """Represent a fan associated with a PWM file to control its speed."""
 
     LAST_DIGITS_REGEX = re.compile("[^0-9]*([0-9]*)$")
@@ -710,11 +794,15 @@ class Fan:
         if stat.S_ISBLK(os.stat(self.pwm_filepath).st_mode):
             # we don't want to write to a block device in setPwmValue
             # command line parameters have probably been mixed up
-            raise RuntimeError(f"{self.pwm_filepath!r} is a block device, PWM /sys file expected")
+            raise RuntimeError(
+                f"{self.pwm_filepath!r} is a block device, PWM /sys file expected"
+            )
         pwm_num_match = self.__class__.LAST_DIGITS_REGEX.search(self.pwm_filepath)
         assert pwm_num_match is not None
         pwm_num = int(pwm_num_match.group(1))
-        self.fan_input_filepath = os.path.join(os.path.dirname(self.pwm_filepath), f"fan{pwm_num}_input")
+        self.fan_input_filepath = os.path.join(
+            os.path.dirname(self.pwm_filepath), f"fan{pwm_num}_input"
+        )
         self.enable_filepath: Optional[str] = f"{self.pwm_filepath}_enable"
         self.start_value = start_value
         self.stop_value = stop_value
@@ -766,7 +854,9 @@ class Fan:
         if target_prct == 0:
             target_value = 0
         else:
-            target_value = self.stop_value + ((255 - self.stop_value) * target_prct) // 100
+            target_value = (
+                self.stop_value + ((255 - self.stop_value) * target_prct) // 100
+            )
 
         if (0 < target_value < self.start_value) and (not self.isRunning()):
             self.logger.debug("Applying startup boost")
@@ -812,7 +902,9 @@ class Fan:
                 with open(self.enable_filepath, "r+t") as enable_file:
                     enabled_val = int(enable_file.read().strip())
                     if enabled_val != value:
-                        self.logger.warning(f"{self.enable_filepath} was {enabled_val}, setting it to {value}")
+                        self.logger.warning(
+                            f"{self.enable_filepath} was {enabled_val}, setting it to {value}"
+                        )
                         enable_file.seek(0)
                         enable_file.write(str(value))
             except FileNotFoundError:
@@ -835,7 +927,6 @@ class Fan:
 
 
 class TestHardware:
-
     """Run basic drive tests, and analyze fan start/stop behaviour."""
 
     def __init__(self, drives: Sequence[Drive], fans: Sequence[Fan]):
@@ -970,13 +1061,27 @@ class TestHardware:
             self.ok_count += 1
         else:
             self.ko_count += 1
-        print(("[ %s ]" % ("OK" if ok else "KO")).rjust(shutil.get_terminal_size()[0] - len(desc) - 1))
+        print(
+            ("[ %s ]" % ("OK" if ok else "KO")).rjust(
+                shutil.get_terminal_size()[0] - len(desc) - 1
+            )
+        )
 
 
-def test(drive_filepaths: Sequence[str], fan_pwm_filepaths: Sequence[str], hddtemp_daemon_port: int):
+def test(
+    drive_filepaths: Sequence[str],
+    fan_pwm_filepaths: Sequence[str],
+    hddtemp_daemon_port: int,
+):
     """Entry point to run hardware tests."""
-    fans = [Fan(i, fan_pwm_filepath, 0, 0) for i, fan_pwm_filepath in enumerate(fan_pwm_filepaths, 1)]
-    drives = [Drive(drive_filepath, hddtemp_daemon_port, 0, 0, False) for drive_filepath in drive_filepaths]
+    fans = [
+        Fan(i, fan_pwm_filepath, 0, 0)
+        for i, fan_pwm_filepath in enumerate(fan_pwm_filepaths, 1)
+    ]
+    drives = [
+        Drive(drive_filepath, hddtemp_daemon_port, 0, 0, False)
+        for drive_filepath in drive_filepaths
+    ]
 
     tester = TestHardware(drives, fans)
     tester.run()
@@ -999,21 +1104,29 @@ def set_high_priority(logger: logging.Logger) -> None:
     except OSError as e:
         if e.errno != errno.ENOSYS:
             raise
-        logger.warning("sched_getscheduler is not supported on this system, leaving scheduler as is")
+        logger.warning(
+            "sched_getscheduler is not supported on this system, leaving scheduler as is"
+        )
     else:
         if current_sched == sched:
             # already running with RR scheduler, likely set from init system, don't touch priority
             done = True
         else:
-            prio = (os.sched_get_priority_max(sched) - os.sched_get_priority_min(sched)) // 2
+            prio = (
+                os.sched_get_priority_max(sched) - os.sched_get_priority_min(sched)
+            ) // 2
             param = os.sched_param(prio)  # type: ignore
             try:
                 os.sched_setscheduler(0, sched, param)
             except OSError:
-                logger.warning(f"Failed to set real time process scheduler to {sched}, priority {prio}")
+                logger.warning(
+                    f"Failed to set real time process scheduler to {sched}, priority {prio}"
+                )
             else:
                 done = True
-                logger.info(f"Process real time scheduler set to {sched}, priority {prio}")
+                logger.info(
+                    f"Process real time scheduler set to {sched}, priority {prio}"
+                )
 
     if not done:
         # renice to highest priority
@@ -1025,7 +1138,9 @@ def set_high_priority(logger: logging.Logger) -> None:
         except OSError:
             new_niceness = previous_niceness
         if new_niceness != target_niceness:
-            logger.warning(f"Unable to renice process to {target_niceness}, current niceness is {new_niceness}")
+            logger.warning(
+                f"Unable to renice process to {target_niceness}, current niceness is {new_niceness}"
+            )
         else:
             logger.info(f"Process reniced from {previous_niceness} to {new_niceness}")
 
@@ -1068,7 +1183,13 @@ def main(  # noqa: C901
 
         # init devices
         drives = [
-            Drive(drive_filepath, hddtemp_daemon_port, min_drive_temp, max_drive_temp, use_smartctl)
+            Drive(
+                drive_filepath,
+                hddtemp_daemon_port,
+                min_drive_temp,
+                max_drive_temp,
+                use_smartctl,
+            )
             for drive_filepath in drive_filepaths
         ]
         cpus = []
@@ -1099,7 +1220,9 @@ def main(  # noqa: C901
                         assert not drive.supportsProbingWhileAsleep()
                         drive_awake = False
                 if (not drive_awake) and (not drive.supportsProbingWhileAsleep()):
-                    logger.debug(f"Drive {drive} is in low power state, unable to query temperature")
+                    logger.debug(
+                        f"Drive {drive} is in low power state, unable to query temperature"
+                    )
                 drive_awakes.append(drive_awake)
             if not device_temps:
                 assert not any(drive_awakes)
@@ -1114,7 +1237,9 @@ def main(  # noqa: C901
                 device_temps[cpus[0]] = cpus[0].getTemperature()
 
             if device_temps:
-                logger.info(f"Maximum device temperature: {max(device_temps.values())} °C")
+                logger.info(
+                    f"Maximum device temperature: {max(device_temps.values())} °C"
+                )
 
             # calc target percentage fan speed
             fan_speed_prct: float = 0
@@ -1123,7 +1248,9 @@ def main(  # noqa: C901
                 if device_temp > device_temp_range[0]:
                     fan_speed_prct = max(
                         fan_speed_prct,
-                        100 * (device_temp - device_temp_range[0]) // (device_temp_range[1] - device_temp_range[0]),
+                        100
+                        * (device_temp - device_temp_range[0])
+                        // (device_temp_range[1] - device_temp_range[0]),
                     )
             # cap at 100%
             fan_speed_prct = int(min(fan_speed_prct, 100))
@@ -1140,7 +1267,9 @@ def main(  # noqa: C901
             if any(map(operator.methodcaller("isStartingUp"), fans)):
                 # at least one fan is starting up, quickly cancel startup boost
                 current_interval_s = min(MAX_FAN_STARTUP_TIME_S, interval_s)
-            elif any(drive_awakes) and ((now - drives_startup_time) < DRIVE_STARTUP_TIME_S):
+            elif any(drive_awakes) and (
+                (now - drives_startup_time) < DRIVE_STARTUP_TIME_S
+            ):
                 # if at least a drive was started or waken up less than 5 min ago, dont' sleep too long because it
                 # can heat up quickly
                 current_interval_s = min(MAX_DRIVE_STARTUP_SLEEP_INTERVAL_S, interval_s)
@@ -1273,7 +1402,13 @@ def cl_main():  # noqa: C901
         dest="verbosity",
         help="Level of logging output",
     )
-    arg_parser.add_argument("-b", "--background", action="store_true", dest="daemonize", help="Daemonize process")
+    arg_parser.add_argument(
+        "-b",
+        "--background",
+        action="store_true",
+        dest="daemonize",
+        help="Daemonize process",
+    )
     arg_parser.add_argument(
         "-l",
         "--log-file",
@@ -1288,7 +1423,12 @@ def cl_main():  # noqa: C901
         help="Filepath for lock file when using daemon mode",
     )
     arg_parser.add_argument(
-        "-t", "--test", action="store_true", default=False, dest="test_mode", help="Run some tests and exit"
+        "-t",
+        "--test",
+        action="store_true",
+        default=False,
+        dest="test_mode",
+        help="Run some tests and exit",
     )
     arg_parser.add_argument(
         "--hddtemp-daemon",
@@ -1318,14 +1458,20 @@ def cl_main():  # noqa: C901
         help="""Restore fan settings on exit, otherwise the fans are run with full speed on exit""",
     )
     args = arg_parser.parse_args()
-    if ((args.fan_start_value is not None) and (len(args.fan_pwm_filepath) != len(args.fan_start_value))) or (
-        (args.fan_stop_value is not None) and (len(args.fan_pwm_filepath) != len(args.fan_stop_value))
+    if (
+        (args.fan_start_value is not None)
+        and (len(args.fan_pwm_filepath) != len(args.fan_start_value))
+    ) or (
+        (args.fan_stop_value is not None)
+        and (len(args.fan_pwm_filepath) != len(args.fan_stop_value))
     ):
         print("Invalid parameter count")
         exit(os.EX_USAGE)
     if args.interval_s is None:
         args.interval_s = 60 if (args.cpu_probe_filepath is None) else 10
-    if (args.spin_down_time_s is not None) and (args.spin_down_time_s < args.interval_s):
+    if (args.spin_down_time_s is not None) and (
+        args.spin_down_time_s < args.interval_s
+    ):
         print(
             f"Spin down time {args.spin_down_time_s}s is lower than temperature check interval {args.interval_s}s.\n"
             "Please set a higher spin down time, or use hdparm's -S switch "
@@ -1334,7 +1480,11 @@ def cl_main():  # noqa: C901
         exit(os.EX_USAGE)
 
     # setup logger
-    logging_level = {"warning": logging.WARNING, "normal": logging.INFO, "debug": logging.DEBUG}
+    logging_level = {
+        "warning": logging.WARNING,
+        "normal": logging.INFO,
+        "debug": logging.DEBUG,
+    }
     logging.getLogger().setLevel(logging_level[args.verbosity])
     logging_fmt_long = "%(asctime)s %(levelname)s [%(name)s] %(message)s"
     logging_fmt_short = "%(levelname)s [%(name)s] %(message)s"
@@ -1367,12 +1517,20 @@ def cl_main():  # noqa: C901
     # check mandatory deps
     bin_dep.check_bin_dependency(("hdparm",))
 
-    if args.test_mode or (args.fan_start_value is None) or (args.fan_stop_value is None):
+    if (
+        args.test_mode
+        or (args.fan_start_value is None)
+        or (args.fan_stop_value is None)
+    ):
         if (args.fan_start_value is None) or (args.fan_stop_value is None):
             logging.getLogger("Startup").warning(
                 "Missing --pwm-start-value or --pwm-stop-value argument, running hardware test to find values"
             )
-        test(args.drive_filepaths, args.fan_pwm_filepath, args.hddtemp_daemon_port if args.hddtemp_daemon else None)
+        test(
+            args.drive_filepaths,
+            args.fan_pwm_filepath,
+            args.hddtemp_daemon_port if args.hddtemp_daemon else None,
+        )
 
     else:
         # main
@@ -1388,7 +1546,9 @@ def cl_main():  # noqa: C901
                         exit(1)
                 else:
                     pidfile = None
-                daemon_context.enter_context(daemon.DaemonContext(pidfile=pidfile, files_preserve=preserved_fds))
+                daemon_context.enter_context(
+                    daemon.DaemonContext(pidfile=pidfile, files_preserve=preserved_fds)
+                )
             main(
                 args.drive_filepaths,
                 args.cpu_probe_filepath,

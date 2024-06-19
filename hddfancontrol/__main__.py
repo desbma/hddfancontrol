@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-""" Module command line entry point. """
+"""Module command line entry point."""
 
 import hddfancontrol
 

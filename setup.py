@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-""" Module setup. """
+"""Module setup."""
 
 import os
 import re
@@ -9,7 +9,10 @@ import sys
 from setuptools import find_packages, setup
 
 if sys.hexversion < 0x3070000:
-    print("Python version %s is unsupported, >= 3.7.0 is needed" % (".".join(map(str, sys.version_info[:3]))))
+    print(
+        "Python version %s is unsupported, >= 3.7.0 is needed"
+        % (".".join(map(str, sys.version_info[:3])))
+    )
     exit(1)
 
 with open(os.path.join("hddfancontrol", "__init__.py"), "rt") as f:
@@ -35,7 +38,8 @@ setup(
     long_description=readme,
     long_description_content_type="text/markdown",
     url="https://github.com/desbma/hddfancontrol",
-    download_url="https://github.com/desbma/hddfancontrol/archive/%s.tar.gz" % (version),
+    download_url="https://github.com/desbma/hddfancontrol/archive/%s.tar.gz"
+    % (version),
     keywords=["hdd", "drive", "temperature", "fan", "control", "speed"],
     classifiers=[
         "Development Status :: 5 - Production/Stable",

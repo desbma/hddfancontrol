@@ -1,4 +1,4 @@
-""" Check for missing runtime binaries. """
+"""Check for missing runtime binaries."""
 
 import shutil
 
