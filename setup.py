@@ -10,7 +10,7 @@ from setuptools import find_packages, setup
 
 if sys.hexversion < 0x3070000:
     print(
-        "Python version %s is unsupported, >= 3.7.0 is needed"
+        "Python version %s is unsupported, >= 3.8.0 is needed"
         % (".".join(map(str, sys.version_info[:3])))
     )
     exit(1)
@@ -53,11 +53,11 @@ setup(
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3 :: Only",
-        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
         "Topic :: System :: Hardware",
         "Topic :: System :: Monitoring",
         "Topic :: Utilities",
