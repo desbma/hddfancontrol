@@ -64,6 +64,7 @@ HDD Fan control requires [Python](https://www.python.org/downloads/) >= 3.8.
 
 Some Linux distributions have a hddfancontrol package available in their repository:
 
+- Alpine Linux (testing): [hddfancontrol](https://pkgs.alpinelinux.org/package/edge/testing/x86_64/hddfancontrol)
 - Arch Linux (AUR): [hddfancontrol](https://aur.archlinux.org/packages/hddfancontrol/)
 - Fedora: [hddfancontrol](https://apps.fedoraproject.org/packages/hddfancontrol) (thanks to [TC01](https://github.com/TC01))
 
