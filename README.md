@@ -89,8 +89,6 @@ install -Dm 755 -t /usr/local/bin target/release/hddfancontrol
 Also install [hdparm](http://sourceforge.net/projects/hdparm/), [smartctl](https://www.smartmontools.org/) and optionally [hddtemp](http://www.guzu.net/linux/hddtemp.php).
 On recent Ubuntu and other Debian derivatives: `sudo apt-get install hdparm smartmontools`.
 
-To query fan characteristics, you may also need `pwmconfig`. On Ubuntu and other Debian derivatives, it is part of the fancontrol package, that you can install with `sudo apt-get install fancontrol`. HDD fancontrol and fancontrol are unrelated. The fancontrol daemon is **not** needed for HDD fan control to operate. If you use both fancontrol and HDD fancontrol, be careful not to make them control the same fans.
-
 ## Configuration
 
 ### A word of caution
@@ -114,7 +112,7 @@ With version 2, `hddfancontrol` has been completely rewritten in the Rust langua
 
 - `hddfancontrol` is a compiled binary, and does not require a Python interpreter anymore.
 - Command line arguments are slightly changed, and will required to be manually adjusted, either in your `hddfancontrol` invocations, or in the `/etc/conf.d/hddfancontrol` file if you use it through the systemd service. See `hddfancontrol daemon -h` for a reference.
-- The auto drive spin down feature has been removed. If you need it, I recommend using [hd-idle](https://github.com/adelolmo/hd-idle) (beware there are several similarly named projects), with works well alongside `hddfancontrol`.
+- The auto drive spin down feature has been removed. If you need it, I recommend using [hd-idle](https://github.com/adelolmo/hd-idle) (beware there are several similarly named projects), which works well alongside `hddfancontrol`.
 
 ## Command line usage
 
