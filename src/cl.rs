@@ -53,6 +53,7 @@ fn percentage(s: &str) -> Result<u8, String> {
 
 /// Hddfancontrol command line arguments
 #[derive(Parser, Debug)]
+#[command(version, about)]
 pub struct Args {
     /// Level of logging output (TRACE, DEBUG, INFO, WARN, ERROR).
     #[arg(short, default_value_t = log::Level::Info)]

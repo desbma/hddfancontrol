@@ -1,6 +1,7 @@
 [package]
 name = "hddfancontrol"
-version = "0.1.0"
+description = "Regulate fan speed according to hard drive temperature"
+version = "2.0.0"
 edition = "2021"
 
 [profile.release]
