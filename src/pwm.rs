@@ -135,6 +135,7 @@ impl Pwm {
 
     /// Set PWM value
     pub fn set(&self, val: Value) -> anyhow::Result<()> {
+        log::trace!("Set PWM {self} to {val}");
         Self::write_value(&self.val, val)
     }
 
