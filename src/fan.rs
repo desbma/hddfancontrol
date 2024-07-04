@@ -6,22 +6,26 @@ use std::{
     cmp::{max, Ordering},
     fmt,
     ops::Range,
-    path::Path,
     thread::sleep,
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use crate::{
+    cl::PwmSettings,
     probe::Temp,
     pwm::{self, ControlMode, Pwm},
 };
 
+/// Minimum duration to apply fan startup boost
+const STARTUP_DELAY: Duration = Duration::from_secs(20);
+
 /// Fan characteristics
+#[derive(Clone, Debug)]
 pub struct Thresholds {
     /// Minimum value at which the fan starts moving when it was stopped
-    min_start: pwm::Value,
+    pub min_start: pwm::Value,
     /// Maximum value at which the fan stops moving when it was started
-    max_stop: pwm::Value,
+    pub max_stop: pwm::Value,
 }
 
 impl fmt::Display for Thresholds {
@@ -34,8 +38,12 @@ impl fmt::Display for Thresholds {
 pub struct Fan {
     /// Fan pwm
     pwm: Pwm,
+    /// Pwm thresholds
+    thresholds: Thresholds,
     /// Current speed
     speed: Option<Speed>,
+    /// Startup ts
+    startup: Option<Instant>,
 }
 
 impl fmt::Display for Fan {
@@ -44,33 +52,27 @@ impl fmt::Display for Fan {
     }
 }
 
-/// Fan speed as [0-255] value
+/// Fan speed as [0-1000] value
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
-pub struct Speed(pub u8);
+pub struct Speed(u16);
 
 impl Speed {
     /// Maximum speed value
-    pub const MAX: Self = Self(u8::MAX);
+    pub const MAX: Self = Self(1000);
 
     /// Minimum speed value
-    pub const MIN: Self = Self(u8::MIN);
+    pub const MIN: Self = Self(0);
 
     /// Build a speed with the value max * dividend / divisor
-    pub fn from_max_division_f64(dividend: f64, divisor: f64) -> Self {
+    pub fn from_max_division(dividend: f64, divisor: f64) -> Self {
         #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-        Self((f64::from(u8::MAX) * dividend / divisor) as u8)
-    }
-
-    /// Build a speed with the value max * dividend / divisor
-    pub fn from_max_division_u8(dividend: u8, divisor: u8) -> Self {
-        #[allow(clippy::cast_possible_truncation)]
-        Self((u32::from(u8::MAX) * u32::from(dividend) / u32::from(divisor)) as u8)
+        Self((f64::from(Self::MAX.0) * dividend / divisor) as u16)
     }
 }
 
 impl fmt::Display for Speed {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-        write!(f, "{:.2}%", f64::from(self.0) * 100.0 / f64::from(u8::MAX))
+        write!(f, "{:.1}%", f64::from(self.0) / 10.0)
     }
 }
 
@@ -84,10 +86,15 @@ enum SpeedChange {
 }
 
 impl Fan {
-    /// Build a new fan from a PWM path
-    pub fn new(pwm_path: &Path) -> anyhow::Result<Self> {
-        let pwm = Pwm::new(pwm_path)?;
-        Ok(Self { pwm, speed: None })
+    /// Build a new fan from PWM settings
+    pub fn new(pwm_info: &PwmSettings) -> anyhow::Result<Self> {
+        let pwm = Pwm::new(&pwm_info.filepath)?;
+        Ok(Self {
+            pwm,
+            thresholds: pwm_info.thresholds.clone(),
+            speed: None,
+            startup: None,
+        })
     }
 
     /// Set fan speed
@@ -104,7 +111,19 @@ impl Fan {
                     new_mode
                 );
             }
-            let pwm_value = speed.0;
+            let mut pwm_value = self.thresholds.max_stop
+                + (u16::from(pwm::Value::MAX - self.thresholds.max_stop) * speed.0 / Speed::MAX.0)
+                    as u8;
+            if self.speed == Some(Speed::MIN) {
+                log::info!("Fan {} startup", self.pwm);
+                pwm_value = max(pwm_value, self.thresholds.min_start);
+                self.startup = Some(Instant::now());
+            } else if self
+                .startup
+                .is_some_and(|s| Instant::now().duration_since(s) < STARTUP_DELAY)
+            {
+                pwm_value = max(pwm_value, self.thresholds.min_start);
+            }
             self.pwm.set(pwm_value)?;
             log::info!("Fan {} speed set to {}", self.pwm, speed);
             self.speed = Some(speed);
@@ -165,22 +184,26 @@ impl Fan {
         anyhow::ensure!(self.is_moving()?, "Fan is not moving at maximum speed");
 
         let mut max_stop = 0;
-        for speed in (0..=u8::MAX).rev().step_by(5) {
-            self.set_speed(Speed(speed))?;
+        for pwm_val in (0..=pwm::Value::MAX).rev().step_by(5) {
+            self.set_speed(Speed(
+                Speed::MAX.0 * u16::from(pwm_val) / u16::from(pwm::Value::MAX),
+            ))?;
             self.wait_stable(SpeedChange::Decreasing)?;
             if !self.is_moving()? {
-                max_stop = speed;
+                max_stop = pwm_val;
                 break;
             }
         }
         anyhow::ensure!(!self.is_moving()?, "Fan still moves at minimum speed");
 
         let mut min_start = 0;
-        for speed in (0..=u8::MAX).step_by(5) {
-            self.set_speed(Speed(speed))?;
+        for pwm_val in (0..=u8::MAX).step_by(5) {
+            self.set_speed(Speed(
+                Speed::MAX.0 * u16::from(pwm_val) / u16::from(pwm::Value::MAX),
+            ))?;
             self.wait_stable(SpeedChange::Increasing)?;
             if self.is_moving()? {
-                min_start = speed;
+                min_start = pwm_val;
                 break;
             }
         }
@@ -196,10 +219,8 @@ impl Fan {
 /// Compute target fan speed for the given temp and parameters
 pub fn target_speed(temp: Temp, temp_range: &Range<Temp>, min_speed: Speed) -> Speed {
     if temp_range.contains(&temp) {
-        let s = Speed::from_max_division_f64(
-            temp - temp_range.start,
-            temp_range.end - temp_range.start,
-        );
+        let s =
+            Speed::from_max_division(temp - temp_range.start, temp_range.end - temp_range.start);
         max(min_speed, s)
     } else if temp < temp_range.start {
         min_speed
@@ -223,9 +244,9 @@ mod tests {
                     start: 40.0,
                     end: 50.0
                 },
-                Speed::from_max_division_u8(20, 100)
+                Speed::from_max_division(20.0, 100.0)
             ),
-            Speed(127)
+            Speed(500)
         );
         assert_eq!(
             target_speed(
@@ -234,9 +255,9 @@ mod tests {
                     start: 40.0,
                     end: 50.0
                 },
-                Speed::from_max_division_u8(20, 100)
+                Speed::from_max_division(20.0, 100.0)
             ),
-            Speed(51)
+            Speed(200)
         );
         assert_eq!(
             target_speed(
@@ -245,9 +266,9 @@ mod tests {
                     start: 40.0,
                     end: 50.0
                 },
-                Speed::from_max_division_u8(20, 100)
+                Speed::from_max_division(20.0, 100.0)
             ),
-            Speed(51)
+            Speed(200)
         );
         assert_eq!(
             target_speed(
@@ -256,9 +277,9 @@ mod tests {
                     start: 40.0,
                     end: 50.0
                 },
-                Speed::from_max_division_u8(0, 100)
+                Speed::from_max_division(0.0, 100.0)
             ),
-            Speed(0)
+            Speed::MIN
         );
         assert_eq!(
             target_speed(
@@ -267,9 +288,9 @@ mod tests {
                     start: 40.0,
                     end: 50.0
                 },
-                Speed::from_max_division_u8(0, 100)
+                Speed::from_max_division(0.0, 100.0)
             ),
-            Speed(0)
+            Speed::MIN
         );
         assert_eq!(
             target_speed(
@@ -278,7 +299,7 @@ mod tests {
                     start: 40.0,
                     end: 50.0
                 },
-                Speed::from_max_division_u8(20, 100)
+                Speed::from_max_division(20.0, 100.0)
             ),
             Speed::MAX
         );
@@ -289,7 +310,7 @@ mod tests {
                     start: 40.0,
                     end: 50.0
                 },
-                Speed::from_max_division_u8(20, 100)
+                Speed::from_max_division(20.0, 100.0)
             ),
             Speed::MAX
         );

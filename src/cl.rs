@@ -4,7 +4,7 @@ use std::{path::PathBuf, str::FromStr};
 
 use clap::{Parser, Subcommand};
 
-use crate::pwm;
+use crate::fan::Thresholds;
 
 /// Device temperature
 pub type Temperature = u8;
@@ -16,10 +16,8 @@ pub type Percentage = u8;
 pub struct PwmSettings {
     /// Sysfs filepath
     pub filepath: PathBuf,
-    /// Minimum value at which the fans start moving
-    pub start: pwm::Value,
-    /// Maximum value at which the fans stop moving
-    pub stop: pwm::Value,
+    /// Fan characteristics
+    pub thresholds: Thresholds,
 }
 
 impl FromStr for PwmSettings {
@@ -40,8 +38,10 @@ impl FromStr for PwmSettings {
         let filepath = tokens.next().ok_or("Missing filepath")?.into();
         Ok(Self {
             filepath,
-            start,
-            stop,
+            thresholds: Thresholds {
+                min_start: start,
+                max_stop: stop,
+            },
         })
     }
 }

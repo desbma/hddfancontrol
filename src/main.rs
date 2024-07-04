@@ -29,7 +29,14 @@ fn main() -> anyhow::Result<()> {
     match args.command {
         cl::Command::PwmTest { pwm } => {
             for pwm_path in &pwm {
-                let mut fan = Fan::new(pwm_path)?;
+                let mut fan = Fan::new(&cl::PwmSettings {
+                    filepath: pwm_path.to_owned(),
+                    // Unused
+                    thresholds: fan::Thresholds {
+                        min_start: 0,
+                        max_stop: 0,
+                    },
+                })?;
                 log::info!("Testing fan {fan}, this may take a long time");
                 match fan.test() {
                     Ok(t) => {
@@ -94,11 +101,8 @@ fn main() -> anyhow::Result<()> {
                 (None, _) => None,
             };
 
-            let min_fan_speed = Speed::from_max_division_u8(min_fan_speed_prct, 100);
-            let mut fans: Vec<_> = pwm
-                .iter()
-                .map(|p| Fan::new(&p.filepath))
-                .collect::<anyhow::Result<_>>()?;
+            let min_fan_speed = Speed::from_max_division(f64::from(min_fan_speed_prct), 100.0);
+            let mut fans: Vec<_> = pwm.iter().map(Fan::new).collect::<anyhow::Result<_>>()?;
             let _exit_hook = ExitHook::new(
                 pwm.iter()
                     .map(|p| pwm::Pwm::new(&p.filepath))
