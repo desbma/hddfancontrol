@@ -1,6 +1,13 @@
 //! Control fan speed according to drive temperature
 
-use std::{ops::Range, thread::sleep, time::Instant};
+use std::{
+    ops::Range,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        mpsc, Arc,
+    },
+    time::{Duration, Instant},
+};
 
 use anyhow::Context;
 use clap::Parser;
@@ -18,6 +25,11 @@ mod pwm;
 mod tests;
 
 use crate::{device::Drive, fan::Fan, probe::DeviceTempProber};
+
+/// Interruptible sleep
+fn sleep(dur: Duration, exit_rx: &mpsc::Receiver<()>) {
+    let _ = exit_rx.recv_timeout(dur);
+}
 
 fn main() -> anyhow::Result<()> {
     // Parse cl args
@@ -103,14 +115,26 @@ fn main() -> anyhow::Result<()> {
 
             let min_fan_speed = Speed::from_max_division(f64::from(min_fan_speed_prct), 100.0);
             let mut fans: Vec<_> = pwm.iter().map(Fan::new).collect::<anyhow::Result<_>>()?;
+
             let _exit_hook = ExitHook::new(
                 pwm.iter()
                     .map(|p| pwm::Pwm::new(&p.filepath))
                     .collect::<anyhow::Result<_>>()?,
                 restore_fan_settings,
-            );
+            )?;
 
-            loop {
+            // Signal handling
+            let exit_requested = Arc::new(AtomicBool::new(false));
+            let (exit_tx, exit_rx) = mpsc::channel::<()>();
+            {
+                let exit_requested = Arc::clone(&exit_requested);
+                ctrlc::set_handler(move || {
+                    exit_requested.store(true, Ordering::SeqCst);
+                    let _ = exit_tx.send(());
+                })?;
+            }
+
+            while !exit_requested.load(Ordering::SeqCst) {
                 let start = Instant::now();
 
                 let max_drive_temp = drive_probers
@@ -160,7 +184,7 @@ fn main() -> anyhow::Result<()> {
                 let elapsed = Instant::now().duration_since(start);
                 let to_wait = interval.saturating_sub(elapsed);
                 log::debug!("Will sleep at most {to_wait:?}");
-                sleep(to_wait);
+                sleep(to_wait, &exit_rx);
             }
         }
     }
