@@ -16,8 +16,6 @@ PrivateTmp=true
 ProtectHome=true
 SystemCallArchitectures=native
 MemoryDenyWriteExecute=true
-CapabilityBoundingSet=CAP_SYS_RAWIO
-AmbientCapabilities=CAP_SYS_RAWIO
 NoNewPrivileges=true
 
 [Install]
