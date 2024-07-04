@@ -184,7 +184,7 @@ impl fmt::Display for Pwm {
 
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
-mod tests {
+pub mod tests {
     use std::{
         fs::{create_dir, File, OpenOptions},
         io::Read,
@@ -197,20 +197,20 @@ mod tests {
 
     use super::*;
 
-    struct FakePwm {
+    pub struct FakePwm {
         dir: TempDir,
-        pwm_path: PathBuf,
-        val_file_read: File,
+        pub pwm_path: PathBuf,
+        pub val_file_read: File,
         val_file_write: File,
         rpm_file_read: File,
         rpm_file_write: File,
         mode_file_read: File,
-        mode_file_write: File,
+        pub mode_file_write: File,
     }
 
     impl FakePwm {
         /// Setup fake test PWM paths
-        fn new() -> Self {
+        pub fn new() -> Self {
             let dir = TempDir::new().unwrap();
 
             let pwm_path = dir.path().join("pwm2");
@@ -258,7 +258,7 @@ mod tests {
         }
     }
 
-    fn assert_file_content(file: &mut File, content: &str) {
+    pub fn assert_file_content(file: &mut File, content: &str) {
         let mut buf = [0; 16];
         let count = file.read(&mut buf).unwrap();
         let s = str::from_utf8(&buf[..count]).unwrap();

@@ -54,7 +54,7 @@ impl fmt::Display for Fan {
 
 /// Fan speed as [0-1000] value
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
-pub struct Speed(u16);
+pub struct Speed(u32);
 
 impl Speed {
     /// Maximum speed value
@@ -66,7 +66,7 @@ impl Speed {
     /// Build a speed with the value max * dividend / divisor
     pub fn from_max_division(dividend: f64, divisor: f64) -> Self {
         #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-        Self((f64::from(Self::MAX.0) * dividend / divisor) as u16)
+        Self((f64::from(Self::MAX.0) * dividend / divisor) as u32)
     }
 }
 
@@ -111,24 +111,31 @@ impl Fan {
                     new_mode
                 );
             }
-            let mut pwm_value = self.thresholds.max_stop
-                + (u16::from(pwm::Value::MAX - self.thresholds.max_stop) * speed.0 / Speed::MAX.0)
-                    as u8;
-            if self.speed == Some(Speed::MIN) {
-                log::info!("Fan {} startup", self.pwm);
-                pwm_value = max(pwm_value, self.thresholds.min_start);
-                self.startup = Some(Instant::now());
-            } else if self
-                .startup
-                .is_some_and(|s| Instant::now().duration_since(s) < STARTUP_DELAY)
-            {
-                pwm_value = max(pwm_value, self.thresholds.min_start);
-            }
+            let pwm_value = if speed == Speed::MIN {
+                pwm::Value::MIN
+            } else {
+                #[allow(clippy::cast_possible_truncation)]
+                let pwm_value = self.thresholds.max_stop
+                    + (u32::from(pwm::Value::MAX - self.thresholds.max_stop) * speed.0
+                        / Speed::MAX.0) as u8;
+                if self.speed == Some(Speed::MIN) {
+                    log::info!("Fan {self} startup");
+                    self.startup = Some(Instant::now());
+                    max(pwm_value, self.thresholds.min_start)
+                } else if self
+                    .startup
+                    .is_some_and(|s| Instant::now().duration_since(s) < STARTUP_DELAY)
+                {
+                    max(pwm_value, self.thresholds.min_start)
+                } else {
+                    pwm_value
+                }
+            };
             self.pwm.set(pwm_value)?;
-            log::info!("Fan {} speed set to {}", self.pwm, speed);
+            log::info!("Fan {self} speed set to {speed}");
             self.speed = Some(speed);
         } else {
-            log::trace!("Fan {} speed unchanged: {}", self.pwm, speed);
+            log::trace!("Fan {self} speed unchanged: {speed}");
         }
         Ok(())
     }
@@ -186,7 +193,7 @@ impl Fan {
         let mut max_stop = 0;
         for pwm_val in (0..=pwm::Value::MAX).rev().step_by(5) {
             self.set_speed(Speed(
-                Speed::MAX.0 * u16::from(pwm_val) / u16::from(pwm::Value::MAX),
+                Speed::MAX.0 * u32::from(pwm_val) / u32::from(pwm::Value::MAX),
             ))?;
             self.wait_stable(SpeedChange::Decreasing)?;
             if !self.is_moving()? {
@@ -199,7 +206,7 @@ impl Fan {
         let mut min_start = 0;
         for pwm_val in (0..=u8::MAX).step_by(5) {
             self.set_speed(Speed(
-                Speed::MAX.0 * u16::from(pwm_val) / u16::from(pwm::Value::MAX),
+                Speed::MAX.0 * u32::from(pwm_val) / u32::from(pwm::Value::MAX),
             ))?;
             self.wait_stable(SpeedChange::Increasing)?;
             if self.is_moving()? {
@@ -232,6 +239,10 @@ pub fn target_speed(temp: Temp, temp_range: &Range<Temp>, min_speed: Speed) -> S
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
+
+    use std::io::Write as _;
+
+    use self::pwm::tests::{assert_file_content, FakePwm};
 
     use super::*;
 
@@ -314,5 +325,65 @@ mod tests {
             ),
             Speed::MAX
         );
+    }
+
+    #[test]
+    fn test_set_speed() {
+        let mut fake_pwm = FakePwm::new();
+        let mut fan = Fan::new(&PwmSettings {
+            filepath: fake_pwm.pwm_path.clone(),
+            thresholds: Thresholds {
+                min_start: 200,
+                max_stop: 100,
+            },
+        })
+        .unwrap();
+
+        fake_pwm.mode_file_write.write_all(b"1\n").unwrap();
+        fan.set_speed(Speed::MIN).unwrap();
+        assert_eq!(fan.startup, None);
+        assert_file_content(&mut fake_pwm.val_file_read, "0\n");
+
+        fake_pwm.mode_file_write.write_all(b"1\n").unwrap();
+        fan.set_speed(Speed(10)).unwrap();
+        assert!(fan.startup.is_some());
+        assert_file_content(&mut fake_pwm.val_file_read, "200\n");
+
+        fake_pwm.mode_file_write.write_all(b"1\n").unwrap();
+        fan.set_speed(Speed(500)).unwrap();
+        assert!(fan.startup.is_some());
+        assert_file_content(&mut fake_pwm.val_file_read, "200\n");
+
+        fake_pwm.mode_file_write.write_all(b"1\n").unwrap();
+        fan.set_speed(Speed(900)).unwrap();
+        assert!(fan.startup.is_some());
+        assert_file_content(&mut fake_pwm.val_file_read, "239\n");
+
+        fake_pwm.mode_file_write.write_all(b"1\n").unwrap();
+        fan.set_speed(Speed::MAX).unwrap();
+        assert!(fan.startup.is_some());
+        assert_file_content(&mut fake_pwm.val_file_read, "255\n");
+
+        fan.startup = None;
+
+        fake_pwm.mode_file_write.write_all(b"1\n").unwrap();
+        fan.set_speed(Speed(500)).unwrap();
+        assert_eq!(fan.startup, None);
+        assert_file_content(&mut fake_pwm.val_file_read, "177\n");
+
+        fake_pwm.mode_file_write.write_all(b"1\n").unwrap();
+        fan.set_speed(Speed(10)).unwrap();
+        assert_eq!(fan.startup, None);
+        assert_file_content(&mut fake_pwm.val_file_read, "101\n");
+
+        fake_pwm.mode_file_write.write_all(b"1\n").unwrap();
+        fan.set_speed(Speed::MIN).unwrap();
+        assert_eq!(fan.startup, None);
+        assert_file_content(&mut fake_pwm.val_file_read, "0\n");
+
+        fake_pwm.mode_file_write.write_all(b"1\n").unwrap();
+        fan.set_speed(Speed(10)).unwrap();
+        assert!(fan.startup.is_some());
+        assert_file_content(&mut fake_pwm.val_file_read, "200\n");
     }
 }
