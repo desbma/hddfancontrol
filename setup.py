@@ -8,7 +8,7 @@ import sys
 
 from setuptools import find_packages, setup
 
-if sys.hexversion < 0x3070000:
+if sys.hexversion < 0x3080000:
     print(
         "Python version %s is unsupported, >= 3.8.0 is needed"
         % (".".join(map(str, sys.version_info[:3])))
