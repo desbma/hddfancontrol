@@ -8,13 +8,14 @@ use std::{
     error::Error,
     fmt,
     fs::File,
-    io::{Read, Write},
+    io::{self, ErrorKind, Read, Write},
     os::linux::fs::MetadataExt,
     path::{Path, PathBuf},
-    str,
-    str::FromStr,
+    str::{self, FromStr},
+    time::Duration,
 };
 
+use backoff::ExponentialBackoffBuilder;
 use nix::sys::stat;
 
 /// PWM sysfs value
@@ -56,7 +57,34 @@ pub struct State {
 impl Pwm {
     /// Build a PWM driver
     pub fn new(path: &Path) -> anyhow::Result<Self> {
-        let path = Self::ensure_sysfs_file(path)?;
+        // At boot sometimes the PWM is not immediately available, so retry a few times if not found,
+        // with increasing delay
+        let retrier = ExponentialBackoffBuilder::new()
+            .with_initial_interval(Duration::from_millis(10))
+            .with_randomization_factor(0.0)
+            .with_multiplier(1.5)
+            .with_max_interval(Duration::from_secs(1))
+            .with_max_elapsed_time(Some(Duration::from_secs(10)))
+            .build();
+        let path = backoff::retry_notify(
+            retrier,
+            || match Self::ensure_sysfs_file(path) {
+                Ok(p) => Ok(p),
+                Err(e)
+                    if e.downcast_ref::<io::Error>()
+                        .is_some_and(|ioe| ioe.kind() == ErrorKind::NotFound) =>
+                {
+                    Err(backoff::Error::transient(e))
+                }
+                Err(e) => Err(backoff::Error::permanent(e)),
+            },
+            |_e, d| log::warn!("{path:?} does not exist, retrying in {d:?}"),
+        )
+        .map_err(|e| match e {
+            backoff::Error::Permanent(e) => e,
+            backoff::Error::Transient { err, .. } => err,
+        })?;
+
         let val_path_fname = path
             .file_name()
             .ok_or_else(|| anyhow::anyhow!("Invalid path: {path:?}"))?
