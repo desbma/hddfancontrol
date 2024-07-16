@@ -75,12 +75,13 @@ pub enum Command {
 
         /// PWM filepath(s) with values at which the fan start and stop moving.
         /// Use the 'pwm-test' command to find these values.
-        /// (ie. /sys/class/hwmon/hwmonX/device/pwmY:200:75).
+        /// Format is `PWM_PATH:STAT_VAL:STOP_VAL`
+        /// (ie. `/sys/class/hwmon/hwmonX/device/pwmY:200:75`)
         #[arg(short, long, num_args = 1.., required = true)]
         pwm: Vec<PwmSettings>,
 
         /// Temperatures in Celcius at which the fan(s) will be set to minimum/maximum speed.
-        #[arg(short = 't', long, num_args = 2, default_values_t = vec![30, 50])]
+        #[arg(short = 't', long, value_name = "TEMP", num_args = 2, default_values_t = vec![30, 50])]
         drive_temp_range: Vec<Temperature>,
 
         /// Minimum percentage of full fan speed to set the fan to.
@@ -102,7 +103,7 @@ pub enum Command {
 
         /// CPU temperature range, if CPU temp monitoring is enabled.
         /// If missing, will be autodetected or use a default value.
-        #[arg(long, num_args = 2)]
+        #[arg(long, value_name = "TEMP", num_args = 2)]
         cpu_temp_range: Option<Vec<Temperature>>,
 
         /// hddtemp daemon TCP port.
@@ -116,7 +117,7 @@ pub enum Command {
 
     /// Test PWM to find start/stop fan values
     PwmTest {
-        /// PWM filepath(s) (ie. /sys/class/hwmon/hwmonX/device/pwmY).
+        /// PWM filepath(s) (ie. `/sys/class/hwmon/hwmonX/device/pwmY`).
         #[arg(short, long, num_args = 1.., required = true)]
         pwm: Vec<PathBuf>,
     },
