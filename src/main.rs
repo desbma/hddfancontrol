@@ -22,6 +22,7 @@ mod exit;
 mod fan;
 mod probe;
 mod pwm;
+mod sysfs;
 #[cfg(test)]
 mod tests;
 
@@ -93,7 +94,7 @@ fn main() -> anyhow::Result<()> {
             let mut hwmon_and_range: Vec<(Hwmon, Range<Temp>)> = hwmons
                 .iter()
                 .map(|h| {
-                    let hwm = Hwmon::new(&h.filepath);
+                    let hwm = Hwmon::new(&h.filepath)?;
                     let range = h.temp.as_ref().map_or_else(
                         || -> anyhow::Result<_> {
                             // Default range

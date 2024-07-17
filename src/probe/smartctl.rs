@@ -180,7 +180,6 @@ mod tests {
     use float_cmp::approx_eq;
 
     use super::*;
-
     use crate::tests::BinaryMock;
 
     #[serial_test::serial]

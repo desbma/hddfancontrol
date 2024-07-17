@@ -8,27 +8,52 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::probe::{DeviceTempProber, Temp};
+use crate::{
+    probe::{DeviceTempProber, Temp},
+    sysfs::{ensure_sysfs_dir, ensure_sysfs_file},
+};
 
 /// A linux whmon temp probe
 pub struct Hwmon {
     /// Sysfs temperature probe path
     input_path: PathBuf,
+    /// Kernel device name
+    device: String,
+    /// Probe index
+    num: usize,
 }
 
 impl fmt::Display for Hwmon {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // TODO something more concise?
-        write!(f, "{}", self.input_path.to_string_lossy())
+        write!(f, "{}/{}", self.device, self.num)
     }
 }
 
 impl Hwmon {
     /// Build a new prober
-    pub fn new(input_path: &Path) -> Self {
-        Self {
+    pub fn new(input_path: &Path) -> anyhow::Result<Self> {
+        let device = ensure_sysfs_dir(&input_path.with_file_name("device"))
+            .or_else(|_| ensure_sysfs_dir(&input_path.with_file_name("driver")))?
+            .file_name()
+            .ok_or_else(|| anyhow::anyhow!("Invalid device path for {input_path:?}"))?
+            .to_str()
+            .ok_or_else(|| anyhow::anyhow!("Invalid device name {input_path:?}"))?
+            .to_owned();
+        #[allow(clippy::unwrap_used)]
+        let num = ensure_sysfs_file(input_path)?
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .chars()
+            .filter(char::is_ascii_digit)
+            .collect::<String>()
+            .parse::<usize>()?;
+        Ok(Self {
             input_path: input_path.to_owned(),
-        }
+            device,
+            num,
+        })
     }
 
     /// Get default temperature range

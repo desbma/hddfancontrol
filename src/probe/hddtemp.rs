@@ -143,7 +143,6 @@ mod tests {
     use float_cmp::approx_eq;
 
     use super::*;
-
     use crate::tests::BinaryMock;
 
     fn start_hddtemp_server() -> anyhow::Result<(SocketAddrV4, mpsc::Sender<Vec<u8>>)> {

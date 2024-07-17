@@ -5,18 +5,15 @@
 #![allow(dead_code)]
 
 use std::{
-    error::Error,
     fmt,
-    fs::File,
-    io::{self, ErrorKind, Read, Write},
-    os::linux::fs::MetadataExt,
+    io::{self, ErrorKind},
     path::{Path, PathBuf},
-    str::{self, FromStr},
     time::Duration,
 };
 
 use backoff::ExponentialBackoffBuilder;
-use nix::sys::stat;
+
+use crate::sysfs::{ensure_sysfs_dir, ensure_sysfs_file, read_value, write_value};
 
 /// PWM sysfs value
 pub type Value = u8;
@@ -68,7 +65,7 @@ impl Pwm {
             .build();
         let path = backoff::retry_notify(
             retrier,
-            || match Self::ensure_sysfs_file(path) {
+            || match ensure_sysfs_file(path) {
                 Ok(p) => Ok(p),
                 Err(e)
                     if e.downcast_ref::<io::Error>()
@@ -95,11 +92,11 @@ impl Pwm {
             .skip_while(|c| !c.is_ascii_digit())
             .collect::<String>()
             .parse::<usize>()?;
-        let rpm_path = Self::ensure_sysfs_file(&path.with_file_name(format!("fan{num}_input")))?;
+        let rpm_path = ensure_sysfs_file(&path.with_file_name(format!("fan{num}_input")))?;
         let mode_path =
-            Self::ensure_sysfs_file(&path.with_file_name(format!("{val_path_fname}_enable")))?;
-        let device = Self::ensure_sysfs_dir(&path.with_file_name("device"))
-            .or_else(|_| Self::ensure_sysfs_dir(&path.with_file_name("driver")))?
+            ensure_sysfs_file(&path.with_file_name(format!("{val_path_fname}_enable")))?;
+        let device = ensure_sysfs_dir(&path.with_file_name("device"))
+            .or_else(|_| ensure_sysfs_dir(&path.with_file_name("driver")))?
             .file_name()
             .ok_or_else(|| anyhow::anyhow!("Invalid device path for {path:?}"))?
             .to_str()
@@ -114,79 +111,32 @@ impl Pwm {
         })
     }
 
-    /// Ensure path is a valid sysfs file path, and normalizes it
-    fn ensure_sysfs_file(path: &Path) -> anyhow::Result<PathBuf> {
-        let path = path.canonicalize()?;
-        anyhow::ensure!(
-            if cfg!(test) {
-                path.is_file()
-                    || (path.exists()
-                        && (path.metadata()?.st_mode() & stat::SFlag::S_IFIFO.bits()) != 0)
-            } else {
-                path.is_file()
-            },
-            "{path:?} missing or not a file"
-        );
-        Ok(path)
-    }
-
-    /// Ensure path is a valid sysfs dir path, and normalizes it
-    fn ensure_sysfs_dir(path: &Path) -> anyhow::Result<PathBuf> {
-        let path = path.canonicalize()?;
-        anyhow::ensure!(path.is_dir(), "{path:?} missing or not a directory");
-        Ok(path)
-    }
-
-    /// Write integer value to path
-    fn write_value<T>(path: &Path, val: T) -> anyhow::Result<()>
-    where
-        T: fmt::Display,
-    {
-        let mut f = File::create(path)?;
-        f.write_all(format!("{val}\n").as_bytes())?;
-        Ok(())
-    }
-
-    /// Read integer value from path
-    fn read_value<T>(path: &Path) -> anyhow::Result<T>
-    where
-        T: FromStr + PartialEq + Copy,
-        <T as FromStr>::Err: Error + Send + Sync,
-        <T as FromStr>::Err: 'static,
-    {
-        let mut file = File::open(path)?;
-        let mut buf = [0; 16];
-        let count = file.read(&mut buf)?;
-        let s = str::from_utf8(&buf[..count])?.trim_end();
-        Ok(s.parse::<T>()?)
-    }
-
     /// Set PWM value
     pub fn set(&self, val: Value) -> anyhow::Result<()> {
         log::trace!("Set PWM {self} to {val}");
-        Self::write_value(&self.val, val)
+        write_value(&self.val, val)
     }
 
     /// Get PWM value
     pub fn get(&self) -> anyhow::Result<Value> {
-        Self::read_value(&self.val)
+        read_value(&self.val)
     }
 
     /// Get fan RPM value
     pub fn get_rpm(&self) -> anyhow::Result<u32> {
-        Self::read_value(&self.rpm)
+        read_value(&self.rpm)
     }
 
     /// Get PWM control mode
     pub fn get_mode(&self) -> anyhow::Result<ControlMode> {
-        Self::read_value::<u8>(&self.mode)?
+        read_value::<u8>(&self.mode)?
             .try_into()
             .map_err(|v| anyhow::anyhow!("Unexpected mode: {v}"))
     }
 
     /// Set PWM control mode
     pub fn set_mode(&self, mode: ControlMode) -> anyhow::Result<()> {
-        Self::write_value(&self.mode, mode as u8)
+        write_value(&self.mode, mode as u8)
     }
 
     /// Get current state
@@ -221,6 +171,7 @@ pub mod tests {
         str,
     };
 
+    use io::Write as _;
     use nix::{libc::O_NONBLOCK, sys::stat, unistd::mkfifo};
     use tempfile::TempDir;
 

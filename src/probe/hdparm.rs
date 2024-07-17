@@ -7,9 +7,8 @@ use std::{
     process::{Command, Stdio},
 };
 
-use crate::device::Drive;
-
 use super::{DeviceTempProber, DriveTempProbeMethod, ProberError, Temp};
+use crate::device::Drive;
 
 /// Hdparm Hitachi/HGST temperature probing method
 pub struct Method;
@@ -79,7 +78,6 @@ mod tests {
     use float_cmp::approx_eq;
 
     use super::*;
-
     use crate::tests::BinaryMock;
 
     #[serial_test::serial]

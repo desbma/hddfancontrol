@@ -243,7 +243,6 @@ mod tests {
     use std::io::Write as _;
 
     use self::pwm::tests::{assert_file_content, FakePwm};
-
     use super::*;
 
     #[test]

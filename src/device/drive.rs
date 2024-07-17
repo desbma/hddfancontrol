@@ -132,7 +132,6 @@ impl Drive {
 #[allow(clippy::unwrap_used, clippy::shadow_unrelated)]
 mod tests {
     use super::*;
-
     use crate::tests::BinaryMock;
 
     #[serial_test::serial]
