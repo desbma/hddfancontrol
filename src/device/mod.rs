@@ -1,7 +1,7 @@
-//! Device that generates heat
+//! Device that generates heat and its sensor
 
-mod cpu;
 mod drive;
+mod hwmon;
 
-pub use cpu::Cpu;
 pub use drive::Drive;
+pub use hwmon::Hwmon;

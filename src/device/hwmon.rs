@@ -1,5 +1,6 @@
-//! CPU device
+//! Hwmon probe
 
+use core::fmt;
 use std::{
     cmp::{max, min},
     fs,
@@ -9,13 +10,20 @@ use std::{
 
 use crate::probe::{DeviceTempProber, Temp};
 
-/// A linux CPU temp probe
-pub struct Cpu {
+/// A linux whmon temp probe
+pub struct Hwmon {
     /// Sysfs temperature probe path
     input_path: PathBuf,
 }
 
-impl Cpu {
+impl fmt::Display for Hwmon {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // TODO something more concise?
+        write!(f, "{}", self.input_path.to_string_lossy())
+    }
+}
+
+impl Hwmon {
     /// Build a new prober
     pub fn new(input_path: &Path) -> Self {
         Self {
@@ -52,7 +60,7 @@ impl Cpu {
         let max_temp = f64::from(min(max_temp_milli, crit_temp_milli)) / 1000.0;
         let crit_temp = f64::from(max(max_temp_milli, crit_temp_milli)) / 1000.0;
         // Set range max as max minus a security margin, which is the difference between max and crit
-        // The rationale is that this gap will be larger for CPU with a large operating range, and vice versa
+        // The rationale is that this gap will be larger for devices with a large operating range, and vice versa
         Ok(Range {
             start: 30.0,
             end: max_temp - (crit_temp - max_temp),
@@ -70,7 +78,7 @@ impl Cpu {
     }
 }
 
-impl DeviceTempProber for Cpu {
+impl DeviceTempProber for Hwmon {
     fn probe_temp(&mut self) -> anyhow::Result<Temp> {
         Self::read_sysfs_temp(&self.input_path)
     }

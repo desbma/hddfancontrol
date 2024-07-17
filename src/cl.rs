@@ -1,13 +1,11 @@
 //! Command line interface
 
-use std::{path::PathBuf, str::FromStr};
+use std::{ops::Range, path::PathBuf, str::FromStr};
 
 use clap::{Parser, Subcommand};
 
-use crate::fan::Thresholds;
+use crate::{fan::Thresholds, probe::Temp};
 
-/// Device temperature
-pub type Temperature = u8;
 /// Speed percentage
 pub type Percentage = u8;
 
@@ -41,6 +39,42 @@ impl FromStr for PwmSettings {
             thresholds: Thresholds {
                 min_start: start,
                 max_stop: stop,
+            },
+        })
+    }
+}
+
+/// Hwmon path and temperature range
+#[derive(Clone, Debug)]
+pub struct HwmonSettings {
+    /// Sysfs filepath
+    pub filepath: PathBuf,
+    /// Temperature range
+    pub temp: Option<Range<Temp>>,
+}
+
+impl FromStr for HwmonSettings {
+    type Err = &'static str;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut tokens = s.splitn(3, ':');
+        let filepath = tokens.next().ok_or("Missing filepath")?.into();
+        let start = tokens
+            .next()
+            .map(str::parse)
+            .map_or(Ok(None), |v| v.map(Some))
+            .map_err(|_| "Invalid min speed temp value")?;
+        let end = tokens
+            .next()
+            .map(str::parse)
+            .map_or(Ok(None), |v| v.map(Some))
+            .map_err(|_| "Invalid max speed temp value")?;
+        Ok(Self {
+            filepath,
+            temp: if let (Some(start), Some(end)) = (start, end) {
+                Some(Range { start, end })
+            } else {
+                None
             },
         })
     }
@@ -81,8 +115,8 @@ pub enum Command {
         pwm: Vec<PwmSettings>,
 
         /// Temperatures in Celcius at which the fan(s) will be set to minimum/maximum speed.
-        #[arg(short = 't', long, value_name = "TEMP", num_args = 2, default_values_t = vec![30, 50])]
-        drive_temp_range: Vec<Temperature>,
+        #[arg(short = 't', long, value_name = "TEMP", num_args = 2, default_values_t = vec![30.0, 50.0])]
+        drive_temp_range: Vec<Temp>,
 
         /// Minimum percentage of full fan speed to set the fan to.
         /// Never set to 0 unless you have other fans to cool down your system,
@@ -94,17 +128,14 @@ pub enum Command {
         #[arg(short, long)]
         interval: humantime::Duration,
 
-        /// Also control fan speed according to this CPU temperature probe.
-        /// (ie. `/sys/devices/platform/coretemp.0/hwmon/hwmonX/tempY_input`).
-        /// WARNING: Only use for low TDP CPUs. You may need to set
-        /// a low value for -i/--interval parameter to react quickly to sudden CPU temperature increase.
-        #[arg(short, long)]
-        cpu_sensor: Option<PathBuf>,
-
-        /// CPU temperature range, if CPU temp monitoring is enabled.
-        /// If missing, will be autodetected or use a default value.
-        #[arg(long, value_name = "TEMP", num_args = 2)]
-        cpu_temp_range: Option<Vec<Temperature>>,
+        /// Also control fan speed according to these additional hwmon temperature probes.
+        /// Format is `HWMON_PATH[:TEMP_MIN_SPEED:TEMP_MAX_SPEED]`
+        /// (ie. `/sys/devices/platform/coretemp.0/hwmon/hwmonX/tempY_input:45:75`).
+        /// If missing, target temperature range will be autodetected or use a default value.
+        /// WARNING: Don't use for CPU sensors, unless you have low TDP CPU. You may also need to set
+        /// a low value for -i/--interval parameter to react quickly to sudden temperature increase.
+        #[arg(short = 'w', long)]
+        hwmons: Vec<HwmonSettings>,
 
         /// hddtemp daemon TCP port.
         #[arg(long, default_value_t = 7634)]

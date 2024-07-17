@@ -11,9 +11,10 @@ use std::{
 
 use anyhow::Context;
 use clap::Parser;
-use device::Cpu;
+use device::Hwmon;
 use exit::ExitHook;
 use fan::Speed;
+use probe::Temp;
 
 mod cl;
 mod device;
@@ -67,14 +68,13 @@ fn main() -> anyhow::Result<()> {
             drive_temp_range,
             min_fan_speed_prct,
             interval,
-            cpu_sensor,
-            cpu_temp_range,
+            hwmons,
             restore_fan_settings,
             ..
         } => {
             let drive_temp_range = Range {
-                start: f64::from(drive_temp_range[0]),
-                end: f64::from(drive_temp_range[1]),
+                start: drive_temp_range[0],
+                end: drive_temp_range[1],
             };
             let drives: Vec<Drive> = drive_paths
                 .iter()
@@ -90,28 +90,26 @@ fn main() -> anyhow::Result<()> {
                 })
                 .collect::<anyhow::Result<_>>()?;
 
-            let mut cpu_range = match (cpu_sensor.map(|s| Cpu::new(&s)), cpu_temp_range) {
-                // Default range
-                (Some(cpu), None) => {
-                    let range = cpu.default_range()?;
-                    log::info!(
-                        "CPU temperature range set to {}-{}°C",
-                        range.start,
-                        range.end
-                    );
-                    Some((cpu, range))
-                }
-                // Range set by user
-                (Some(cpu), Some(range)) => Some((
-                    cpu,
-                    Range {
-                        start: f64::from(range[0]),
-                        end: f64::from(range[1]),
-                    },
-                )),
-                // No CPU
-                (None, _) => None,
-            };
+            let mut hwmon_and_range: Vec<(Hwmon, Range<Temp>)> = hwmons
+                .iter()
+                .map(|h| {
+                    let hwm = Hwmon::new(&h.filepath);
+                    let range = h.temp.as_ref().map_or_else(
+                        || -> anyhow::Result<_> {
+                            // Default range
+                            let range = hwm.default_range()?;
+                            log::info!(
+                                "Device temperature range set to {}-{}°C",
+                                range.start,
+                                range.end
+                            );
+                            Ok(range)
+                        },
+                        |r| Ok(r.clone()),
+                    )?;
+                    Ok((hwm, range))
+                })
+                .collect::<anyhow::Result<_>>()?;
 
             let min_fan_speed = Speed::from_max_division(f64::from(min_fan_speed_prct), 100.0);
             let mut fans: Vec<_> = pwm.iter().map(Fan::new).collect::<anyhow::Result<_>>()?;
@@ -158,14 +156,14 @@ fn main() -> anyhow::Result<()> {
                     .flatten()
                     .reduce(f64::max);
 
-                let cpu_temp = cpu_range
-                    .as_mut()
-                    .map(|(cpu, _range)| -> anyhow::Result<_> {
-                        let temp = cpu.probe_temp()?;
-                        log::info!("CPU temperature: {temp}°C");
+                let hwmon_temps: Vec<Temp> = hwmon_and_range
+                    .iter_mut()
+                    .map(|(hwm, _range)| {
+                        let temp = hwm.probe_temp()?;
+                        log::info!("Hwmon {hwm} temperature: {temp}°C");
                         Ok(temp)
                     })
-                    .map_or(Ok(None), |v| v.map(Some))?;
+                    .collect::<anyhow::Result<_>>()?;
 
                 let mut speed = min_fan_speed;
                 if let Some(max_drive_temp) = max_drive_temp {
@@ -174,8 +172,10 @@ fn main() -> anyhow::Result<()> {
                 } else {
                     log::info!("All drives are spun down");
                 }
-                if let (Some(cpu_temp), Some((_, temp_range))) = (cpu_temp, cpu_range.as_ref()) {
-                    speed = fan::target_speed(cpu_temp, temp_range, speed);
+                for (hwmon_temp, (_hwmon, hwmon_range)) in
+                    hwmon_temps.into_iter().zip(hwmon_and_range.iter())
+                {
+                    speed = fan::target_speed(hwmon_temp, hwmon_range, speed);
                 }
                 for fan in &mut fans {
                     fan.set_speed(speed)?;
