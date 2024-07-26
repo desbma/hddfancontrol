@@ -33,6 +33,7 @@ fn sleep(dur: Duration, exit_rx: &mpsc::Receiver<()>) {
     let _ = exit_rx.recv_timeout(dur);
 }
 
+#[allow(clippy::too_many_lines)]
 fn main() -> anyhow::Result<()> {
     // Parse cl args
     let args = cl::Args::parse();

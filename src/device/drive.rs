@@ -1,7 +1,5 @@
 //! Block device drive
 
-#![allow(dead_code)]
-
 use std::{
     fmt,
     io::BufRead,

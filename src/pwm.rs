@@ -2,8 +2,6 @@
 
 // See https://docs.kernel.org/hwmon/pwm-fan.html
 
-#![allow(dead_code)]
-
 use std::{
     fmt,
     io::{self, ErrorKind},
@@ -162,7 +160,6 @@ impl fmt::Display for Pwm {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
 pub mod tests {
     use std::{
         fs::{create_dir, File, OpenOptions},
@@ -178,11 +175,11 @@ pub mod tests {
     use super::*;
 
     pub struct FakePwm {
-        dir: TempDir,
+        _dir: TempDir,
         pub pwm_path: PathBuf,
         pub val_file_read: File,
         val_file_write: File,
-        rpm_file_read: File,
+        _rpm_file_read: File,
         rpm_file_write: File,
         mode_file_read: File,
         pub mode_file_write: File,
@@ -226,11 +223,11 @@ pub mod tests {
             symlink(device_path, device_link).unwrap();
 
             Self {
-                dir,
+                _dir: dir,
                 pwm_path,
                 val_file_read,
                 val_file_write,
-                rpm_file_read,
+                _rpm_file_read: rpm_file_read,
                 rpm_file_write,
                 mode_file_read,
                 mode_file_write,

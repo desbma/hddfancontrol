@@ -187,7 +187,7 @@ mod tests {
     fn test_sct_probe_temp() {
         let _smartctl = BinaryMock::new(
             "smartctl",
-            r"smartctl 7.0 2018-12-30 r4883 [x86_64-linux-4.19.36-1-lts] (local build)
+            "smartctl 7.0 2018-12-30 r4883 [x86_64-linux-4.19.36-1-lts] (local build)
 Copyright (C) 2002-18, Bruce Allen, Christian Franke, www.smartmontools.org
 
 === START OF READ SMART DATA SECTION ===
@@ -218,7 +218,7 @@ Vendor specific:
     fn test_attrib_probe_temp() {
         let _smartctl = BinaryMock::new(
             "smartctl",
-            r"smartctl 7.0 2018-12-30 r4883 [x86_64-linux-4.19.36-1-lts] (local build)
+            "smartctl 7.0 2018-12-30 r4883 [x86_64-linux-4.19.36-1-lts] (local build)
 Copyright (C) 2002-18, Bruce Allen, Christian Franke, www.smartmontools.org
 
 === START OF READ SMART DATA SECTION ===

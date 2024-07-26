@@ -30,31 +30,54 @@ serial_test = { version = "3.0.0", default-features = false }
 tempfile = { version = "3.9.0", default-features = false }
 
 [lints.rust]
+# https://doc.rust-lang.org/rustc/lints/listing/allowed-by-default.html
+explicit_outlives_requirements = "warn"
 missing_docs = "warn"
-# unreachable_pub = "warn"
-unsafe_code = "forbid"
+non_ascii_idents = "deny"
+redundant-lifetimes = "warn"
+single-use-lifetimes = "warn"
+unit-bindings = "warn"
 unused_crate_dependencies = "warn"
+unused-lifetimes = "warn"
+unused-qualifications = "warn"
 
 [lints.clippy]
 pedantic = { level = "warn", priority = -1 }
-too_many_lines = "allow"
-# from clippy::restrictions
+# below lints are from clippy::restriction, and assume clippy >= 1.80
+# https://rust-lang.github.io/rust-clippy/master/index.html#/?levels=allow&groups=restriction
 clone_on_ref_ptr = "warn"
 dbg_macro = "warn"
+empty_enum_variants_with_brackets = "warn"
 expect_used = "warn"
+fn_to_numeric_cast_any = "warn"
 format_push_string = "warn"
 if_then_some_else_none = "warn"
+impl_trait_in_params = "warn"
+infinite_loop = "warn"
+lossy_float_literal = "warn"
 missing_docs_in_private_items = "warn"
+mixed_read_write_in_expression = "warn"
 multiple_inherent_impl = "warn"
+needless_raw_strings = "warn"
 panic = "warn"
+pub_without_shorthand = "warn"
 redundant_type_annotations = "warn"
 ref_patterns = "warn"
+renamed_function_params = "warn"
+rest_pat_in_fully_bound_structs = "warn"
 same_name_method = "warn"
 self_named_module_files = "warn"
 semicolon_inside_block = "warn"
 shadow_unrelated = "warn"
 str_to_string = "warn"
+string_slice = "warn"
 string_to_string = "warn"
+tests_outside_test_module = "warn"
+try_err = "warn"
+undocumented_unsafe_blocks = "warn"
+unnecessary_safety_comment = "warn"
+unnecessary_safety_doc = "warn"
 unneeded_field_pattern = "warn"
+unseparated_literal_suffix = "warn"
 unwrap_used = "warn"
 verbose_file_reads = "warn"
