@@ -20,10 +20,6 @@ jobs:
         with:
           python-version: ${{matrix.python-version}}
       - run: |
-          pip install -U pip
-          pip install coveralls
+          pip install -U pip setuptools
           pip install -r requirements.txt
-      - run: coverage run --source=hddfancontrol setup.py test
-      - run: coveralls --service=github
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: python -m unittest discover -v .
