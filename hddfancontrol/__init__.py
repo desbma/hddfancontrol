@@ -292,6 +292,7 @@ class Drive(HotDevice):
         """Return True if drive can be probed while asleep, without waking up, False instead."""
         return self.temp_query_method in (
             Drive.TempProbingMethod.HDPARM_INVOCATION,
+            Drive.TempProbingMethod.SMARTCTL_SCT_INVOCATION,
             Drive.TempProbingMethod.DRIVETEMP,
         )
 
