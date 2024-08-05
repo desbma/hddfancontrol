@@ -72,7 +72,6 @@ fn main() -> anyhow::Result<()> {
             interval,
             hwmons,
             restore_fan_settings,
-            ..
         } => {
             let drive_temp_range = Range {
                 start: drive_temp_range[0],
