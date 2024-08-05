@@ -25,7 +25,7 @@ impl DriveTempProbeMethod for SctMethod {
     }
 
     fn supports_probing_sleeping(&self) -> bool {
-        false
+        true
     }
 }
 
