@@ -11,7 +11,7 @@ use super::{DeviceTempProber, DriveTempProbeMethod, ProberError, Temp};
 use crate::device::Drive;
 
 /// Hdparm Hitachi/HGST temperature probing method
-pub struct Method;
+pub(crate) struct Method;
 
 impl DriveTempProbeMethod for Method {
     fn prober(&self, drive: &Drive) -> Result<Box<dyn DeviceTempProber>, ProberError> {
@@ -36,7 +36,7 @@ impl fmt::Display for Method {
 }
 
 /// Hdparm Hitachi/HGST temperature prober
-pub struct Prober {
+pub(crate) struct Prober {
     /// Device path in /dev/
     device: PathBuf,
 }
@@ -73,7 +73,6 @@ impl DeviceTempProber for Prober {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
 mod tests {
     use float_cmp::approx_eq;
 

@@ -5,7 +5,7 @@
 use std::{env, fs::OpenOptions, io::Write, os::unix::prelude::OpenOptionsExt};
 
 /// A mocked binary added in PATH env var
-pub struct BinaryMock {
+pub(crate) struct BinaryMock {
     bin_dir: tempfile::TempDir,
     _stdout: tempfile::NamedTempFile,
     _stderr: tempfile::NamedTempFile,
@@ -15,7 +15,12 @@ const PATH_KEY: &str = "PATH";
 
 impl BinaryMock {
     /// Create a mock binary available in PATH
-    pub fn new(name: &str, stdout_data: &[u8], stderr_data: &[u8], rc: u8) -> anyhow::Result<Self> {
+    pub(crate) fn new(
+        name: &str,
+        stdout_data: &[u8],
+        stderr_data: &[u8],
+        rc: u8,
+    ) -> anyhow::Result<Self> {
         // Create temporary files
         let bin_dir = tempfile::tempdir()?;
         let stdout = tempfile::NamedTempFile::new()?;

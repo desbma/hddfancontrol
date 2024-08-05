@@ -14,7 +14,7 @@ use crate::device::Drive;
 
 /// Error returned when
 #[derive(thiserror::Error, Debug)]
-pub enum ProberError {
+pub(crate) enum ProberError {
     /// Probing method is not supported by this drive on this system
     #[error("Temperature probing method unsupported: {0}")]
     Unsupported(String),
@@ -24,10 +24,10 @@ pub enum ProberError {
 }
 
 /// Temperature in Celcius
-pub type Temp = f64;
+pub(crate) type Temp = f64;
 
 /// A way to probe drive temperature
-pub trait DriveTempProbeMethod: fmt::Display {
+pub(crate) trait DriveTempProbeMethod: fmt::Display {
     /// Build a new prober if supported for this device
     fn prober(&self, drive: &Drive) -> Result<Box<dyn DeviceTempProber>, ProberError>;
 
@@ -36,13 +36,13 @@ pub trait DriveTempProbeMethod: fmt::Display {
 }
 
 /// Device temperature prober
-pub trait DeviceTempProber {
+pub(crate) trait DeviceTempProber {
     /// Get current drive temperature
     fn probe_temp(&mut self) -> anyhow::Result<Temp>;
 }
 
 /// Find first supported prober for a drive
-pub fn prober(
+pub(crate) fn prober(
     drive: &Drive,
     hddtemp_daemon_port: u16,
 ) -> anyhow::Result<Option<(Box<dyn DeviceTempProber>, bool)>> {

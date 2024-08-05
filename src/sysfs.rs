@@ -13,7 +13,7 @@ use std::{
 use nix::sys::stat;
 
 /// Ensure path is a valid sysfs file path, and normalizes it
-pub fn ensure_sysfs_file(path: &Path) -> anyhow::Result<PathBuf> {
+pub(crate) fn ensure_sysfs_file(path: &Path) -> anyhow::Result<PathBuf> {
     let path = path.canonicalize()?;
     anyhow::ensure!(
         if cfg!(test) {
@@ -29,14 +29,14 @@ pub fn ensure_sysfs_file(path: &Path) -> anyhow::Result<PathBuf> {
 }
 
 /// Ensure path is a valid sysfs dir path, and normalizes it
-pub fn ensure_sysfs_dir(path: &Path) -> anyhow::Result<PathBuf> {
+pub(crate) fn ensure_sysfs_dir(path: &Path) -> anyhow::Result<PathBuf> {
     let path = path.canonicalize()?;
     anyhow::ensure!(path.is_dir(), "{path:?} missing or not a directory");
     Ok(path)
 }
 
 /// Write integer value to path
-pub fn write_value<T>(path: &Path, val: T) -> anyhow::Result<()>
+pub(crate) fn write_value<T>(path: &Path, val: T) -> anyhow::Result<()>
 where
     T: fmt::Display,
 {
@@ -46,7 +46,7 @@ where
 }
 
 /// Read integer value from path
-pub fn read_value<T>(path: &Path) -> anyhow::Result<T>
+pub(crate) fn read_value<T>(path: &Path) -> anyhow::Result<T>
 where
     T: FromStr + PartialEq + Copy,
     <T as FromStr>::Err: Error + Send + Sync,

@@ -9,11 +9,11 @@ use std::{
 use super::{DeviceTempProber, Drive, DriveTempProbeMethod, ProberError, Temp};
 
 /// Drivetemp native kernel temperature probing method
-pub struct Method;
+pub(crate) struct Method;
 
 impl DriveTempProbeMethod for Method {
     fn prober(&self, drive: &Drive) -> Result<Box<dyn DeviceTempProber>, ProberError> {
-        #[allow(clippy::unwrap_used)] // At this point we already checked it is a valid device
+        #[expect(clippy::unwrap_used)] // At this point we already checked it is a valid device
         let drive_name = drive.dev_path.file_name().unwrap();
         let hwmon_dir = Path::new("/sys/block/")
             .join(drive_name)
@@ -61,7 +61,7 @@ impl fmt::Display for Method {
 }
 
 /// Drivetemp kernel temperature prober
-pub struct Prober {
+pub(crate) struct Prober {
     /// Sysfs file, ie `temp1_input`
     input_path: PathBuf,
 }
@@ -77,7 +77,6 @@ impl DeviceTempProber for Prober {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
 mod tests {
     use std::io::Write;
 

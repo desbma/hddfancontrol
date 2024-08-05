@@ -14,7 +14,7 @@ use crate::{
 };
 
 /// A linux whmon temp probe
-pub struct Hwmon {
+pub(crate) struct Hwmon {
     /// Sysfs temperature probe path
     input_path: PathBuf,
     /// Kernel device name
@@ -31,7 +31,7 @@ impl fmt::Display for Hwmon {
 
 impl Hwmon {
     /// Build a new prober
-    pub fn new(input_path: &Path) -> anyhow::Result<Self> {
+    pub(crate) fn new(input_path: &Path) -> anyhow::Result<Self> {
         let device = ensure_sysfs_dir(&input_path.with_file_name("device"))
             .or_else(|_| ensure_sysfs_dir(&input_path.with_file_name("driver")))?
             .file_name()
@@ -39,7 +39,7 @@ impl Hwmon {
             .to_str()
             .ok_or_else(|| anyhow::anyhow!("Invalid device name {input_path:?}"))?
             .to_owned();
-        #[allow(clippy::unwrap_used)]
+        #[expect(clippy::unwrap_used)]
         let num = ensure_sysfs_file(input_path)?
             .file_name()
             .unwrap()
@@ -57,7 +57,7 @@ impl Hwmon {
     }
 
     /// Get default temperature range
-    pub fn default_range(&self) -> anyhow::Result<Range<Temp>> {
+    pub(crate) fn default_range(&self) -> anyhow::Result<Range<Temp>> {
         let sysfs_dir = self
             .input_path
             .parent()

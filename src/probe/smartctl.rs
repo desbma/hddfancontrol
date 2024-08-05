@@ -11,7 +11,7 @@ use std::{
 use super::{DeviceTempProber, Drive, DriveTempProbeMethod, ProberError, Temp};
 
 /// Smartctl SCT temperature probing method
-pub struct SctMethod;
+pub(crate) struct SctMethod;
 
 impl DriveTempProbeMethod for SctMethod {
     fn prober(&self, drive: &Drive) -> Result<Box<dyn DeviceTempProber>, ProberError> {
@@ -36,7 +36,7 @@ impl fmt::Display for SctMethod {
 }
 
 /// Smartctl SCT temperature prober
-pub struct SctProber {
+pub(crate) struct SctProber {
     /// Device path in /dev/
     device: PathBuf,
 }
@@ -72,7 +72,7 @@ impl DeviceTempProber for SctProber {
 }
 
 /// Smartctl SMART attribute temperature probing method
-pub struct AttribMethod;
+pub(crate) struct AttribMethod;
 
 impl DriveTempProbeMethod for AttribMethod {
     fn prober(&self, drive: &Drive) -> Result<Box<dyn DeviceTempProber>, ProberError> {
@@ -97,7 +97,7 @@ impl fmt::Display for AttribMethod {
 }
 
 /// Smartctl SMART attribute temperature prober
-pub struct AttribProber {
+pub(crate) struct AttribProber {
     /// Device path in /dev/
     device: PathBuf,
 }
@@ -175,7 +175,6 @@ impl DeviceTempProber for AttribProber {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
 mod tests {
     use float_cmp::approx_eq;
 

@@ -1,7 +1,5 @@
 //! Fan control
 
-#![allow(dead_code)]
-
 use std::{
     cmp::{max, Ordering},
     fmt,
@@ -21,7 +19,7 @@ const STARTUP_DELAY: Duration = Duration::from_secs(20);
 
 /// Fan characteristics
 #[derive(Clone, Debug)]
-pub struct Thresholds {
+pub(crate) struct Thresholds {
     /// Minimum value at which the fan starts moving when it was stopped
     pub min_start: pwm::Value,
     /// Maximum value at which the fan stops moving when it was started
@@ -35,7 +33,7 @@ impl fmt::Display for Thresholds {
 }
 
 /// Stateful fan
-pub struct Fan {
+pub(crate) struct Fan {
     /// Fan pwm
     pwm: Pwm,
     /// Pwm thresholds
@@ -54,18 +52,18 @@ impl fmt::Display for Fan {
 
 /// Fan speed as [0-1000] value
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
-pub struct Speed(u32);
+pub(crate) struct Speed(u32);
 
 impl Speed {
     /// Maximum speed value
-    pub const MAX: Self = Self(1000);
+    pub(crate) const MAX: Self = Self(1000);
 
     /// Minimum speed value
-    pub const MIN: Self = Self(0);
+    pub(crate) const MIN: Self = Self(0);
 
     /// Build a speed with the value max * dividend / divisor
-    pub fn from_max_division(dividend: f64, divisor: f64) -> Self {
-        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    pub(crate) fn from_max_division(dividend: f64, divisor: f64) -> Self {
+        #[expect(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
         Self((f64::from(Self::MAX.0) * dividend / divisor) as u32)
     }
 }
@@ -87,7 +85,7 @@ enum SpeedChange {
 
 impl Fan {
     /// Build a new fan from PWM settings
-    pub fn new(pwm_info: &PwmSettings) -> anyhow::Result<Self> {
+    pub(crate) fn new(pwm_info: &PwmSettings) -> anyhow::Result<Self> {
         let pwm = Pwm::new(&pwm_info.filepath)?;
         Ok(Self {
             pwm,
@@ -98,7 +96,7 @@ impl Fan {
     }
 
     /// Set fan speed
-    pub fn set_speed(&mut self, speed: Speed) -> anyhow::Result<()> {
+    pub(crate) fn set_speed(&mut self, speed: Speed) -> anyhow::Result<()> {
         if self.speed.map_or(true, |c| c != speed) {
             let prev_mode = self.pwm.get_mode()?;
             let new_mode = ControlMode::Software;
@@ -114,7 +112,7 @@ impl Fan {
             let pwm_value = if speed == Speed::MIN {
                 pwm::Value::MIN
             } else {
-                #[allow(clippy::cast_possible_truncation)]
+                #[expect(clippy::cast_possible_truncation)]
                 let pwm_value = self.thresholds.max_stop
                     + (u32::from(pwm::Value::MAX - self.thresholds.max_stop) * speed.0
                         / Speed::MAX.0) as u8;
@@ -160,7 +158,7 @@ impl Fan {
             // We consider the fan speed stable if it changed less than 10% (if the value is significant),
             // and if the direction changed
             if (cur_rpm < 100) || (cur_rpm.abs_diff(prev_rpm) < (cur_rpm / 10)) {
-                #[allow(clippy::match_same_arms)]
+                #[expect(clippy::match_same_arms)]
                 match (cur_rpm.cmp(&prev_rpm), change) {
                     (Ordering::Equal, _) => break,
                     (Ordering::Greater, SpeedChange::Decreasing) => break,
@@ -185,7 +183,7 @@ impl Fan {
     }
 
     /// Dynamically test fan to find its thresholds
-    pub fn test(&mut self) -> anyhow::Result<Thresholds> {
+    pub(crate) fn test(&mut self) -> anyhow::Result<Thresholds> {
         self.set_speed(Speed::MAX)?;
         self.wait_stable(SpeedChange::Increasing)?;
         anyhow::ensure!(self.is_moving()?, "Fan is not moving at maximum speed");
@@ -224,7 +222,7 @@ impl Fan {
 }
 
 /// Compute target fan speed for the given temp and parameters
-pub fn target_speed(temp: Temp, temp_range: &Range<Temp>, min_speed: Speed) -> Speed {
+pub(crate) fn target_speed(temp: Temp, temp_range: &Range<Temp>, min_speed: Speed) -> Speed {
     if temp_range.contains(&temp) {
         let s =
             Speed::from_max_division(temp - temp_range.start, temp_range.end - temp_range.start);
@@ -237,7 +235,6 @@ pub fn target_speed(temp: Temp, temp_range: &Range<Temp>, min_speed: Speed) -> S
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
 mod tests {
 
     use std::io::Write as _;

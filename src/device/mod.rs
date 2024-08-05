@@ -3,5 +3,5 @@
 mod drive;
 mod hwmon;
 
-pub use drive::Drive;
-pub use hwmon::Hwmon;
+pub(crate) use drive::Drive;
+pub(crate) use hwmon::Hwmon;

@@ -3,15 +3,14 @@
 use crate::pwm;
 
 /// Restore PWM config when dropped
-#[allow(clippy::module_name_repetitions)]
-pub struct ExitHook {
+pub(crate) struct ExitHook {
     /// Pwm and their config to restore
     pwms: Vec<(pwm::Pwm, pwm::State)>,
 }
 
 impl ExitHook {
     /// Build hook to restore current state on drop, or set max value
-    pub fn new(pwms: Vec<pwm::Pwm>, restore: bool) -> anyhow::Result<Self> {
+    pub(crate) fn new(pwms: Vec<pwm::Pwm>, restore: bool) -> anyhow::Result<Self> {
         Ok(Self {
             pwms: pwms
                 .into_iter()

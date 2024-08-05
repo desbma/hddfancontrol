@@ -11,7 +11,7 @@ use std::{
 /// Drive runtime state
 #[derive(strum::EnumString, strum::Display)]
 #[strum(serialize_all = "lowercase")]
-pub enum State {
+pub(crate) enum State {
     /// Active/idle
     #[strum(serialize = "active/idle")]
     ActiveIdle,
@@ -25,7 +25,7 @@ pub enum State {
 
 impl State {
     /// Is drive currently spun down
-    pub fn is_spun_down(&self) -> bool {
+    pub(crate) fn is_spun_down(&self) -> bool {
         match self {
             State::Standby | State::Sleeping => true,
             State::ActiveIdle | State::Unknown => false,
@@ -34,7 +34,7 @@ impl State {
 }
 
 /// Block device drive
-pub struct Drive {
+pub(crate) struct Drive {
     /// Normalized (under /dev) device filepath
     pub dev_path: PathBuf,
     /// Pretty name for display
@@ -49,7 +49,7 @@ impl fmt::Display for Drive {
 
 impl Drive {
     /// Build a drive from its device path
-    pub fn new(path: &Path) -> anyhow::Result<Self> {
+    pub(crate) fn new(path: &Path) -> anyhow::Result<Self> {
         let dev_path = path.canonicalize()?;
         anyhow::ensure!(
             dev_path.metadata()?.file_type().is_block_device(),
@@ -85,7 +85,7 @@ impl Drive {
                 let l = l.trim_start();
                 l.starts_with("Model Number:") || l.starts_with("Product:")
             }) {
-                #[allow(clippy::unwrap_used)] // We know string contains ':'
+                #[expect(clippy::unwrap_used)] // We know string contains ':'
                 return Ok(line.split_once(':').unwrap().1.trim().to_owned());
             }
         }
@@ -121,13 +121,13 @@ impl Drive {
     }
 
     /// Get drive runtime state
-    pub fn state(&self) -> anyhow::Result<State> {
+    pub(crate) fn state(&self) -> anyhow::Result<State> {
         Self::state_(&self.dev_path)
     }
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used, clippy::shadow_unrelated)]
+#[expect(clippy::shadow_unrelated)]
 mod tests {
     use super::*;
     use crate::tests::BinaryMock;

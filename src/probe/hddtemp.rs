@@ -14,7 +14,7 @@ use itertools::Itertools;
 use super::{DeviceTempProber, Drive, DriveTempProbeMethod, ProberError, Temp};
 
 /// Hddtemp daemon probing method
-pub struct DaemonMethod {
+pub(crate) struct DaemonMethod {
     /// Daemon address
     pub addr: SocketAddrV4,
 }
@@ -43,7 +43,7 @@ impl fmt::Display for DaemonMethod {
 }
 
 /// Hddtemp daemon temperature prober
-pub struct DaemonProber {
+pub(crate) struct DaemonProber {
     /// Daemon address
     addr: SocketAddrV4,
     /// Device path in /dev/
@@ -62,7 +62,7 @@ impl DeviceTempProber for DaemonProber {
             }
             let dev = tokens[1];
             // At this point we have already converted the device path to string
-            #[allow(clippy::unwrap_used)]
+            #[expect(clippy::unwrap_used)]
             if dev != self.device.to_str().unwrap() {
                 continue;
             }
@@ -80,7 +80,7 @@ impl DeviceTempProber for DaemonProber {
 }
 
 /// Hddtemp invocation probing method
-pub struct InvocationMethod;
+pub(crate) struct InvocationMethod;
 
 impl DriveTempProbeMethod for InvocationMethod {
     fn prober(&self, drive: &Drive) -> Result<Box<dyn DeviceTempProber>, ProberError> {
@@ -105,7 +105,7 @@ impl fmt::Display for InvocationMethod {
 }
 
 /// Hddtemp invocation temperature prober
-pub struct InvocationProber {
+pub(crate) struct InvocationProber {
     /// Device path in /dev/
     device: PathBuf,
 }
@@ -131,7 +131,6 @@ impl DeviceTempProber for InvocationProber {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
 mod tests {
     use std::{
         io::{ErrorKind, Write},

@@ -14,10 +14,10 @@ use backoff::ExponentialBackoffBuilder;
 use crate::sysfs::{ensure_sysfs_dir, ensure_sysfs_file, read_value, write_value};
 
 /// PWM sysfs value
-pub type Value = u8;
+pub(crate) type Value = u8;
 
 /// Stateless PWM control
-pub struct Pwm {
+pub(crate) struct Pwm {
     /// pwmX sysfs filepath
     val: PathBuf,
     /// `fanX_input` sysfs filepath
@@ -42,7 +42,7 @@ pub enum ControlMode {
 }
 
 /// Pwm state used to restore initial state
-pub struct State {
+pub(crate) struct State {
     /// Original PWM value
     pub value: Value,
     /// Original PWM control mode
@@ -51,7 +51,7 @@ pub struct State {
 
 impl Pwm {
     /// Build a PWM driver
-    pub fn new(path: &Path) -> anyhow::Result<Self> {
+    pub(crate) fn new(path: &Path) -> anyhow::Result<Self> {
         // At boot sometimes the PWM is not immediately available, so retry a few times if not found,
         // with increasing delay
         let retrier = ExponentialBackoffBuilder::new()
@@ -110,35 +110,35 @@ impl Pwm {
     }
 
     /// Set PWM value
-    pub fn set(&self, val: Value) -> anyhow::Result<()> {
+    pub(crate) fn set(&self, val: Value) -> anyhow::Result<()> {
         log::trace!("Set PWM {self} to {val}");
         write_value(&self.val, val)
     }
 
     /// Get PWM value
-    pub fn get(&self) -> anyhow::Result<Value> {
+    pub(crate) fn get(&self) -> anyhow::Result<Value> {
         read_value(&self.val)
     }
 
     /// Get fan RPM value
-    pub fn get_rpm(&self) -> anyhow::Result<u32> {
+    pub(crate) fn get_rpm(&self) -> anyhow::Result<u32> {
         read_value(&self.rpm)
     }
 
     /// Get PWM control mode
-    pub fn get_mode(&self) -> anyhow::Result<ControlMode> {
+    pub(crate) fn get_mode(&self) -> anyhow::Result<ControlMode> {
         read_value::<u8>(&self.mode)?
             .try_into()
             .map_err(|v| anyhow::anyhow!("Unexpected mode: {v}"))
     }
 
     /// Set PWM control mode
-    pub fn set_mode(&self, mode: ControlMode) -> anyhow::Result<()> {
+    pub(crate) fn set_mode(&self, mode: ControlMode) -> anyhow::Result<()> {
         write_value(&self.mode, mode as u8)
     }
 
     /// Get current state
-    pub fn get_state(&self) -> anyhow::Result<State> {
+    pub(crate) fn get_state(&self) -> anyhow::Result<State> {
         Ok(State {
             value: self.get()?,
             mode: self.get_mode()?,
@@ -146,7 +146,7 @@ impl Pwm {
     }
 
     /// Set state
-    pub fn set_state(&self, state: &State) -> anyhow::Result<()> {
+    pub(crate) fn set_state(&self, state: &State) -> anyhow::Result<()> {
         self.set(state.value)?;
         self.set_mode(state.mode)?;
         Ok(())
@@ -160,7 +160,7 @@ impl fmt::Display for Pwm {
 }
 
 #[cfg(test)]
-pub mod tests {
+pub(crate) mod tests {
     use std::{
         fs::{create_dir, File, OpenOptions},
         io::Read,
@@ -174,7 +174,7 @@ pub mod tests {
 
     use super::*;
 
-    pub struct FakePwm {
+    pub(crate) struct FakePwm {
         _dir: TempDir,
         pub pwm_path: PathBuf,
         pub val_file_read: File,
@@ -187,7 +187,7 @@ pub mod tests {
 
     impl FakePwm {
         /// Setup fake test PWM paths
-        pub fn new() -> Self {
+        pub(crate) fn new() -> Self {
             let dir = TempDir::new().unwrap();
 
             let pwm_path = dir.path().join("pwm2");
@@ -235,7 +235,7 @@ pub mod tests {
         }
     }
 
-    pub fn assert_file_content(file: &mut File, content: &str) {
+    pub(crate) fn assert_file_content(file: &mut File, content: &str) {
         let mut buf = [0; 16];
         let count = file.read(&mut buf).unwrap();
         let s = str::from_utf8(&buf[..count]).unwrap();

@@ -7,11 +7,11 @@ use clap::{Parser, Subcommand};
 use crate::{fan::Thresholds, probe::Temp};
 
 /// Speed percentage
-pub type Percentage = u8;
+pub(crate) type Percentage = u8;
 
 /// PWM operation settings
 #[derive(Clone, Debug)]
-pub struct PwmSettings {
+pub(crate) struct PwmSettings {
     /// Sysfs filepath
     pub filepath: PathBuf,
     /// Fan characteristics
@@ -46,7 +46,7 @@ impl FromStr for PwmSettings {
 
 /// Hwmon path and temperature range
 #[derive(Clone, Debug)]
-pub struct HwmonSettings {
+pub(crate) struct HwmonSettings {
     /// Sysfs filepath
     pub filepath: PathBuf,
     /// Temperature range
@@ -88,7 +88,7 @@ fn percentage(s: &str) -> Result<u8, String> {
 /// Hddfancontrol command line arguments
 #[derive(Parser, Debug)]
 #[command(version, about)]
-pub struct Args {
+pub(crate) struct Args {
     /// Level of logging output (TRACE, DEBUG, INFO, WARN, ERROR).
     #[arg(short, default_value_t = log::Level::Info)]
     pub verbosity: log::Level,
@@ -100,7 +100,7 @@ pub struct Args {
 
 /// Main command
 #[derive(Subcommand, Debug)]
-pub enum Command {
+pub(crate) enum Command {
     /// Start fan control daemon
     Daemon {
         /// Drive(s) to get temperature from (ie. /dev/sdX).
