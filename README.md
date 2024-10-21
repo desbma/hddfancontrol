@@ -35,7 +35,7 @@ Because fans will slow down or stop when not needed:
   - [Fan configuration](#fan-configuration)
 - [Migrating from v1.x](#migrating-from-v1x)
 - [Command line usage](#command-line-usage)
-- [Systemd service](#systemd-service)
+- [systemd service](#systemd-service)
 - [License](#license)
 
 ## When is this useful?
@@ -88,13 +88,23 @@ Some Linux distributions have a hddfancontrol package available in their reposit
 
 You need a Rust build environment for example from [rustup](https://rustup.rs/).
 
+Run in the current repository:
+
 ```
 cargo build --release
 install -Dm 755 -t /usr/local/bin target/release/hddfancontrol
 ```
 
+or from `crates.io`:
+
+```
+sudo cargo install --root /usr/local
+```
+
 Also install [hdparm](http://sourceforge.net/projects/hdparm/), [smartctl](https://www.smartmontools.org/) and optionally [hddtemp](http://www.guzu.net/linux/hddtemp.php).
 On recent Ubuntu and other Debian derivatives: `sudo apt-get install hdparm smartmontools`.
+
+See [systemd service](#systemd-service) to easily manage the daemon.
 
 ## Configuration
 
@@ -136,7 +146,7 @@ As an example, the command line below will instruct HDD Fan control to:
 
 `hddfancontrol daemon -d /dev/sda /dev/sdb -p /sys/class/hwmon/hwmon1/device/pwm2:200:75 /sys/class/hwmon/hwmon1/device/pwm3:200:75 --min-fan-speed-prct 10 -i 1min`
 
-## Systemd service
+## systemd service
 
 A systemd service file is provided to control the daemon easily.
 If you installed hddfancontrol from a distribution package, you likely already have it installed, otherwise you can install it from the sources of this repository with:
