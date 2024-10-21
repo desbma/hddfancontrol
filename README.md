@@ -7,9 +7,7 @@
 
 ---
 
-This tool has been rewritten in Rust.
-
-The previous Python version is in the [v1 branch](https://github.com/desbma/hddfancontrol/tree/v1).
+This tool has been rewritten in Rust. The previous Python version is in the [v1 branch](https://github.com/desbma/hddfancontrol/tree/v1). See [Migrating from v1.x](#migrating-from-v1x) for migration.
 
 ---
 
