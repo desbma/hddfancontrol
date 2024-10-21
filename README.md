@@ -82,7 +82,7 @@ Some Linux distributions have a hddfancontrol package available in their reposit
 
 - Alpine Linux (testing): [hddfancontrol](https://pkgs.alpinelinux.org/package/edge/testing/x86_64/hddfancontrol)
 - Arch Linux (AUR): [hddfancontrol](https://aur.archlinux.org/packages/hddfancontrol/)
-- Fedora: [hddfancontrol](https://apps.fedoraproject.org/packages/hddfancontrol) (thanks to [TC01](https://github.com/TC01))
+- Fedora: [hddfancontrol](https://packages.fedoraproject.org/pkgs/hddfancontrol/hddfancontrol/)
 
 ### From source
 
