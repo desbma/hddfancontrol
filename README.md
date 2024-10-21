@@ -1,5 +1,6 @@
 # HDD Fan control
 
+[![crates.io version](https://img.shields.io/crates/v/hddfancontrol)](https://crates.io/crates/hddfancontrol)
 [![AUR version](https://img.shields.io/aur/version/hddfancontrol.svg?style=flat)](https://aur.archlinux.org/packages/hddfancontrol/)
 [![CI status](https://img.shields.io/github/actions/workflow/status/desbma/hddfancontrol/ci.yml)](https://github.com/desbma/hddfancontrol/actions)
 [![License](https://img.shields.io/github/license/desbma/hddfancontrol.svg?style=flat)](https://github.com/desbma/hddfancontrol/blob/master/LICENSE)
