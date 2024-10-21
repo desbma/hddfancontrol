@@ -4,6 +4,14 @@
 [![CI status](https://img.shields.io/github/actions/workflow/status/desbma/hddfancontrol/ci.yml)](https://github.com/desbma/hddfancontrol/actions)
 [![License](https://img.shields.io/github/license/desbma/hddfancontrol.svg?style=flat)](https://github.com/desbma/hddfancontrol/blob/master/LICENSE)
 
+---
+
+This tool has been rewritten in Rust.
+
+The previous Python version is in the [v1 branch](https://github.com/desbma/hddfancontrol/tree/v1).
+
+---
+
 HDD Fan control is a command line tool to dynamically control fan speed according to hard drive temperature on Linux.
 
 This has 3 benefits:
