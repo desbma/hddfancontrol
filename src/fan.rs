@@ -50,27 +50,44 @@ impl fmt::Display for Fan {
     }
 }
 
-/// Fan speed as [0-1000] value
+/// Fan speed as [0-1] value
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
-pub(crate) struct Speed(u32);
+pub(crate) struct Speed(typed_floats::PositiveFinite<f64>);
 
 impl Speed {
-    /// Maximum speed value
-    pub(crate) const MAX: Self = Self(1000);
+    /// Test if speed is null
+    pub(crate) fn is_zero(self) -> bool {
+        self.0.is_positive_zero()
+    }
+}
 
-    /// Minimum speed value
-    pub(crate) const MIN: Self = Self(0);
+#[expect(clippy::missing_docs_in_private_items)]
+#[derive(thiserror::Error, Debug)]
+pub(crate) enum SpeedConversionError {
+    #[error("Value not in range [0.0; 1.0]")]
+    Range,
+    #[error("Invalid value: {0}")]
+    InvalidNumber(typed_floats::InvalidNumber),
+}
 
-    /// Build a speed with the value max * dividend / divisor
-    pub(crate) fn from_max_division(dividend: f64, divisor: f64) -> Self {
-        #[expect(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-        Self((f64::from(Self::MAX.0) * dividend / divisor) as u32)
+impl TryFrom<f64> for Speed {
+    type Error = SpeedConversionError;
+
+    fn try_from(value: f64) -> Result<Self, Self::Error> {
+        if (0.0..=1.0).contains(&value) {
+            Ok(Speed(
+                typed_floats::PositiveFinite::<f64>::new(value)
+                    .map_err(SpeedConversionError::InvalidNumber)?,
+            ))
+        } else {
+            Err(SpeedConversionError::Range)
+        }
     }
 }
 
 impl fmt::Display for Speed {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-        write!(f, "{:.1}%", f64::from(self.0) / 10.0)
+        write!(f, "{:.1}%", self.0.get() * 100.0)
     }
 }
 
@@ -95,6 +112,18 @@ impl Fan {
         })
     }
 
+    /// Compute PWM target value from speed and fan thresholds
+    #[expect(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    fn speed_to_pwm_val(&self, speed: Speed) -> pwm::Value {
+        if speed.is_zero() {
+            pwm::Value::MIN
+        } else {
+            self.thresholds.max_stop
+                + (f64::from(pwm::Value::MAX - self.thresholds.max_stop) * speed.0.get())
+                    as pwm::Value
+        }
+    }
+
     /// Set fan speed
     pub(crate) fn set_speed(&mut self, speed: Speed) -> anyhow::Result<()> {
         if self.speed.map_or(true, |c| c != speed) {
@@ -109,25 +138,18 @@ impl Fan {
                     new_mode
                 );
             }
-            let pwm_value = if speed == Speed::MIN {
-                pwm::Value::MIN
+            let pwm_value = self.speed_to_pwm_val(speed);
+            let pwm_value = if self.speed.is_some_and(Speed::is_zero) {
+                log::info!("Fan {self} startup");
+                self.startup = Some(Instant::now());
+                max(pwm_value, self.thresholds.min_start)
+            } else if self
+                .startup
+                .is_some_and(|s| Instant::now().duration_since(s) < STARTUP_DELAY)
+            {
+                max(pwm_value, self.thresholds.min_start)
             } else {
-                #[expect(clippy::cast_possible_truncation)]
-                let pwm_value = self.thresholds.max_stop
-                    + (u32::from(pwm::Value::MAX - self.thresholds.max_stop) * speed.0
-                        / Speed::MAX.0) as u8;
-                if self.speed == Some(Speed::MIN) {
-                    log::info!("Fan {self} startup");
-                    self.startup = Some(Instant::now());
-                    max(pwm_value, self.thresholds.min_start)
-                } else if self
-                    .startup
-                    .is_some_and(|s| Instant::now().duration_since(s) < STARTUP_DELAY)
-                {
-                    max(pwm_value, self.thresholds.min_start)
-                } else {
-                    pwm_value
-                }
+                pwm_value
             };
             self.pwm.set(pwm_value)?;
             log::info!("Fan {self} speed set to {speed}");
@@ -184,15 +206,13 @@ impl Fan {
 
     /// Dynamically test fan to find its thresholds
     pub(crate) fn test(&mut self) -> anyhow::Result<Thresholds> {
-        self.set_speed(Speed::MAX)?;
+        self.set_speed(1.0.try_into()?)?;
         self.wait_stable(SpeedChange::Increasing)?;
         anyhow::ensure!(self.is_moving()?, "Fan is not moving at maximum speed");
 
         let mut max_stop = 0;
         for pwm_val in (0..=pwm::Value::MAX).rev().step_by(5) {
-            self.set_speed(Speed(
-                Speed::MAX.0 * u32::from(pwm_val) / u32::from(pwm::Value::MAX),
-            ))?;
+            self.set_speed((f64::from(pwm_val) / f64::from(pwm::Value::MAX)).try_into()?)?;
             self.wait_stable(SpeedChange::Decreasing)?;
             if !self.is_moving()? {
                 max_stop = pwm_val;
@@ -203,9 +223,7 @@ impl Fan {
 
         let mut min_start = 0;
         for pwm_val in (0..=u8::MAX).step_by(5) {
-            self.set_speed(Speed(
-                Speed::MAX.0 * u32::from(pwm_val) / u32::from(pwm::Value::MAX),
-            ))?;
+            self.set_speed((f64::from(pwm_val) / f64::from(pwm::Value::MAX)).try_into()?)?;
             self.wait_stable(SpeedChange::Increasing)?;
             if self.is_moving()? {
                 min_start = pwm_val;
@@ -224,13 +242,15 @@ impl Fan {
 /// Compute target fan speed for the given temp and parameters
 pub(crate) fn target_speed(temp: Temp, temp_range: &Range<Temp>, min_speed: Speed) -> Speed {
     if temp_range.contains(&temp) {
-        let s =
-            Speed::from_max_division(temp - temp_range.start, temp_range.end - temp_range.start);
+        #[expect(clippy::unwrap_used)]
+        let s = Speed::try_from((temp - temp_range.start) / (temp_range.end - temp_range.start))
+            .unwrap();
         max(min_speed, s)
     } else if temp < temp_range.start {
         min_speed
     } else {
-        Speed::MAX
+        #[expect(clippy::unwrap_used)]
+        1.0.try_into().unwrap()
     }
 }
 
@@ -251,9 +271,9 @@ mod tests {
                     start: 40.0,
                     end: 50.0
                 },
-                Speed::from_max_division(20.0, 100.0)
+                Speed::try_from(0.2).unwrap()
             ),
-            Speed(500)
+            Speed::try_from(0.5).unwrap()
         );
         assert_eq!(
             target_speed(
@@ -262,9 +282,9 @@ mod tests {
                     start: 40.0,
                     end: 50.0
                 },
-                Speed::from_max_division(20.0, 100.0)
+                Speed::try_from(0.2).unwrap()
             ),
-            Speed(200)
+            Speed::try_from(0.2).unwrap()
         );
         assert_eq!(
             target_speed(
@@ -273,9 +293,9 @@ mod tests {
                     start: 40.0,
                     end: 50.0
                 },
-                Speed::from_max_division(20.0, 100.0)
+                Speed::try_from(0.2).unwrap()
             ),
-            Speed(200)
+            Speed::try_from(0.2).unwrap()
         );
         assert_eq!(
             target_speed(
@@ -284,9 +304,9 @@ mod tests {
                     start: 40.0,
                     end: 50.0
                 },
-                Speed::from_max_division(0.0, 100.0)
+                Speed::try_from(0.0).unwrap()
             ),
-            Speed::MIN
+            Speed::try_from(0.0).unwrap()
         );
         assert_eq!(
             target_speed(
@@ -295,9 +315,9 @@ mod tests {
                     start: 40.0,
                     end: 50.0
                 },
-                Speed::from_max_division(0.0, 100.0)
+                Speed::try_from(0.0).unwrap()
             ),
-            Speed::MIN
+            Speed::try_from(0.0).unwrap()
         );
         assert_eq!(
             target_speed(
@@ -306,9 +326,9 @@ mod tests {
                     start: 40.0,
                     end: 50.0
                 },
-                Speed::from_max_division(20.0, 100.0)
+                Speed::try_from(0.2).unwrap()
             ),
-            Speed::MAX
+            Speed::try_from(1.0).unwrap()
         );
         assert_eq!(
             target_speed(
@@ -317,9 +337,9 @@ mod tests {
                     start: 40.0,
                     end: 50.0
                 },
-                Speed::from_max_division(20.0, 100.0)
+                Speed::try_from(0.2).unwrap()
             ),
-            Speed::MAX
+            Speed::try_from(1.0).unwrap()
         );
     }
 
@@ -336,49 +356,49 @@ mod tests {
         .unwrap();
 
         fake_pwm.mode_file_write.write_all(b"1\n").unwrap();
-        fan.set_speed(Speed::MIN).unwrap();
+        fan.set_speed(0.0.try_into().unwrap()).unwrap();
         assert_eq!(fan.startup, None);
         assert_file_content(&mut fake_pwm.val_file_read, "0\n");
 
         fake_pwm.mode_file_write.write_all(b"1\n").unwrap();
-        fan.set_speed(Speed(10)).unwrap();
+        fan.set_speed(0.01.try_into().unwrap()).unwrap();
         assert!(fan.startup.is_some());
         assert_file_content(&mut fake_pwm.val_file_read, "200\n");
 
         fake_pwm.mode_file_write.write_all(b"1\n").unwrap();
-        fan.set_speed(Speed(500)).unwrap();
+        fan.set_speed(0.5.try_into().unwrap()).unwrap();
         assert!(fan.startup.is_some());
         assert_file_content(&mut fake_pwm.val_file_read, "200\n");
 
         fake_pwm.mode_file_write.write_all(b"1\n").unwrap();
-        fan.set_speed(Speed(900)).unwrap();
+        fan.set_speed(0.9.try_into().unwrap()).unwrap();
         assert!(fan.startup.is_some());
         assert_file_content(&mut fake_pwm.val_file_read, "239\n");
 
         fake_pwm.mode_file_write.write_all(b"1\n").unwrap();
-        fan.set_speed(Speed::MAX).unwrap();
+        fan.set_speed(1.0.try_into().unwrap()).unwrap();
         assert!(fan.startup.is_some());
         assert_file_content(&mut fake_pwm.val_file_read, "255\n");
 
         fan.startup = None;
 
         fake_pwm.mode_file_write.write_all(b"1\n").unwrap();
-        fan.set_speed(Speed(500)).unwrap();
+        fan.set_speed(0.5.try_into().unwrap()).unwrap();
         assert_eq!(fan.startup, None);
         assert_file_content(&mut fake_pwm.val_file_read, "177\n");
 
         fake_pwm.mode_file_write.write_all(b"1\n").unwrap();
-        fan.set_speed(Speed(10)).unwrap();
+        fan.set_speed(0.01.try_into().unwrap()).unwrap();
         assert_eq!(fan.startup, None);
         assert_file_content(&mut fake_pwm.val_file_read, "101\n");
 
         fake_pwm.mode_file_write.write_all(b"1\n").unwrap();
-        fan.set_speed(Speed::MIN).unwrap();
+        fan.set_speed(0.0.try_into().unwrap()).unwrap();
         assert_eq!(fan.startup, None);
         assert_file_content(&mut fake_pwm.val_file_read, "0\n");
 
         fake_pwm.mode_file_write.write_all(b"1\n").unwrap();
-        fan.set_speed(Speed(10)).unwrap();
+        fan.set_speed(0.01.try_into().unwrap()).unwrap();
         assert!(fan.startup.is_some());
         assert_file_content(&mut fake_pwm.val_file_read, "200\n");
     }

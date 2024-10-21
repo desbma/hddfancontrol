@@ -112,7 +112,7 @@ fn main() -> anyhow::Result<()> {
                 })
                 .collect::<anyhow::Result<_>>()?;
 
-            let min_fan_speed = Speed::from_max_division(f64::from(min_fan_speed_prct), 100.0);
+            let min_fan_speed = Speed::try_from(f64::from(min_fan_speed_prct) / 100.0)?;
             let mut fans: Vec<_> = pwm.iter().map(Fan::new).collect::<anyhow::Result<_>>()?;
 
             let _exit_hook = ExitHook::new(

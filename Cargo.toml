@@ -23,6 +23,7 @@ nix = { version = "0.27.1", default-features = false, features = ["fs"] }
 simple_logger = { version = "4.3.3", default-features = false, features = ["colors", "stderr"] }
 strum = { version = "0.26.1", default-features = false, features = ["std", "derive"] }
 thiserror = { version = "1.0.56", default-features = false }
+typed_floats = { version = "1.0.2", default-features = false, features = ["std", "compiler_hints", "ensure_no_undefined_behavior"] }
 
 [dev-dependencies]
 float-cmp = { version = "0.9.0", default-features = false, features = ["std"] }

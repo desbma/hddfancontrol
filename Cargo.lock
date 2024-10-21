@@ -298,6 +298,7 @@ dependencies = [
  "strum",
  "tempfile",
  "thiserror",
+ "typed_floats",
 ]
 
 [[package]]
@@ -675,6 +676,26 @@ name = "thiserror-impl"
 version = "1.0.56"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fa0faa943b50f3db30a20aa7e265dbc66076993efed8463e8de414e5d06d3471"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "typed_floats"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0175e2d0df9474eb6a9847583d8b2c8108ba6120b847bcdbd8ab87e33002ba37"
+dependencies = [
+ "typed_floats_macros",
+]
+
+[[package]]
+name = "typed_floats_macros"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c407bfc1557478e1a29cb3bf89b10064da1080488519c26a163a01725e56612e"
 dependencies = [
  "proc-macro2",
  "quote",
