@@ -39,6 +39,7 @@ pub enum ControlMode {
     Off = 0,
     Software = 1,
     Hardware = 2,
+    FullSpeed = 5,  // NCT6796D with nct6775 module - "Full Speed" BIOS Mode
 }
 
 /// Pwm state used to restore initial state
