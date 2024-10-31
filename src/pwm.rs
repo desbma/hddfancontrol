@@ -33,12 +33,33 @@ pub(crate) struct Pwm {
 /// PWM control modes
 /// See <https://elixir.bootlin.com/linux/v6.7.2/source/drivers/hwmon/pwm-fan.c#L31>
 #[repr(u8)]
-#[derive(Debug, Copy, Clone, PartialEq, int_enum::IntEnum, strum::Display)]
+#[derive(Debug, Copy, Clone, PartialEq, strum::Display)]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
-pub enum ControlMode {
+pub(crate) enum ControlMode {
     Off = 0,
     Software = 1,
-    Hardware = 2,
+    /// Other value, may be driver-specific, so don't assume any meaning
+    Other(u8),
+}
+
+impl From<u8> for ControlMode {
+    fn from(value: u8) -> Self {
+        match value {
+            0 => Self::Off,
+            1 => Self::Software,
+            v => Self::Other(v),
+        }
+    }
+}
+
+impl From<ControlMode> for u8 {
+    fn from(val: ControlMode) -> Self {
+        match val {
+            ControlMode::Off => 0,
+            ControlMode::Software => 1,
+            ControlMode::Other(v) => v,
+        }
+    }
 }
 
 /// Pwm state used to restore initial state
@@ -127,14 +148,12 @@ impl Pwm {
 
     /// Get PWM control mode
     pub(crate) fn get_mode(&self) -> anyhow::Result<ControlMode> {
-        read_value::<u8>(&self.mode)?
-            .try_into()
-            .map_err(|v| anyhow::anyhow!("Unexpected mode: {v}"))
+        Ok(read_value::<u8>(&self.mode)?.into())
     }
 
     /// Set PWM control mode
     pub(crate) fn set_mode(&self, mode: ControlMode) -> anyhow::Result<()> {
-        write_value(&self.mode, mode as u8)
+        write_value::<u8>(&self.mode, mode.into())
     }
 
     /// Get current state
@@ -275,9 +294,9 @@ pub(crate) mod tests {
         fake_pwm.mode_file_write.write_all(b"1\n").unwrap();
         assert_eq!(pwm.get_mode().unwrap(), ControlMode::Software);
         fake_pwm.mode_file_write.write_all(b"2\n").unwrap();
-        assert_eq!(pwm.get_mode().unwrap(), ControlMode::Hardware);
+        assert_eq!(pwm.get_mode().unwrap(), ControlMode::Other(2));
         fake_pwm.mode_file_write.write_all(b"3\n").unwrap();
-        assert!(pwm.get_mode().is_err());
+        assert_eq!(pwm.get_mode().unwrap(), ControlMode::Other(3));
     }
 
     #[test]
@@ -288,7 +307,7 @@ pub(crate) mod tests {
         assert_file_content(&mut fake_pwm.mode_file_read, "0\n");
         pwm.set_mode(ControlMode::Software).unwrap();
         assert_file_content(&mut fake_pwm.mode_file_read, "1\n");
-        pwm.set_mode(ControlMode::Hardware).unwrap();
+        pwm.set_mode(ControlMode::Other(2)).unwrap();
         assert_file_content(&mut fake_pwm.mode_file_read, "2\n");
     }
 
