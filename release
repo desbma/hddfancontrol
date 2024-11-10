@@ -6,7 +6,7 @@ readonly VERSION="${1:?}"
 
 cd "$(git rev-parse --show-toplevel)"
 
-cargo set-version "${VERSION}"
+cargo set-version "${VERSION//.b/-beta.}"
 
 cargo upgrade
 cargo update
