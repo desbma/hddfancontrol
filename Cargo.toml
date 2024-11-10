@@ -93,3 +93,12 @@ unseparated_literal_suffix = "warn"
 unused_result_ok = "warn"
 unwrap_used = "warn"
 verbose_file_reads = "warn"
+
+[package.metadata.deb]
+depends = "$auto, hdparm, smartmontools"
+maintainer-scripts = "debian/"
+systemd-units = { enable = false, start = false, unit-scripts = "systemd/" }
+assets = [
+  ["target/release/hddfancontrol", "usr/bin/", "755"],
+  ["systemd/hddfancontrol.conf", "etc/conf.d/hddfancontrol", "644"]
+]

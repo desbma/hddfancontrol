@@ -1,0 +1,34 @@
+name: Release
+
+permissions:
+  contents: write
+
+on:
+  push:
+    tags:
+      - "*.*.**"
+      - "*.*.*.**"
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  deb-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          target: x86_64-unknown-linux-gnu
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deb
+      - run: cargo deb --target x86_64-unknown-linux-gnu
+        env:
+          RUSTFLAGS: "-C target-feature=+crt-static"
+      - uses: softprops/action-gh-release@v1
+        with:
+          files: target/x86_64-unknown-linux-gnu/debian/hddfancontrol_*.deb
+          token: ${{ secrets.GITHUB_TOKEN }}
