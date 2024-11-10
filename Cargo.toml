@@ -7,7 +7,7 @@ repository = "https://github.com/desbma/hddfancontrol"
 keywords = ["hdd", "drive", "temperature", "fan", "control"]
 categories = ["command-line-utilities"]
 license = "GPL-3.0-only"
-version = "2.0.0-beta.0"
+version = "2.0.0-beta.1"
 rust-version = "1.82"
 edition = "2021"
 
@@ -17,7 +17,7 @@ codegen-units = 1
 strip = true
 
 [dependencies]
-anyhow = { version = "1.0.90", default-features = false, features = ["std", "backtrace"] }
+anyhow = { version = "1.0.93", default-features = false, features = ["std", "backtrace"] }
 backoff = { version = "0.4.0", default-features = false }
 clap = { version = "4.5.20", default-features = false, features = ["std", "color", "help", "usage", "error-context", "suggestions", "derive"] }
 clap-num = { version = "1.1.1", default-features = false }
@@ -28,13 +28,13 @@ log = { version = "0.4.22", default-features = false, features = ["max_level_tra
 nix = { version = "0.29.0", default-features = false, features = ["fs"] }
 simple_logger = { version = "5.0.0", default-features = false, features = ["colors", "stderr"] }
 strum = { version = "0.26.3", default-features = false, features = ["std", "derive"] }
-thiserror = { version = "1.0.64", default-features = false }
+thiserror = { version = "1.0.69", default-features = false }
 typed_floats = { version = "1.0.2", default-features = false, features = ["std", "compiler_hints", "ensure_no_undefined_behavior"] }
 
 [dev-dependencies]
 float-cmp = { version = "0.10.0", default-features = false, features = ["std"] }
-serial_test = { version = "3.1.1", default-features = false }
-tempfile = { version = "3.13.0", default-features = false }
+serial_test = { version = "3.2.0", default-features = false }
+tempfile = { version = "3.14.0", default-features = false }
 
 [lints.rust]
 # https://doc.rust-lang.org/rustc/lints/listing/allowed-by-default.html
