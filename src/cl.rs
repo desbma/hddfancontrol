@@ -62,12 +62,12 @@ impl FromStr for HwmonSettings {
         let start = tokens
             .next()
             .map(str::parse)
-            .map_or(Ok(None), |v| v.map(Some))
+            .transpose()
             .map_err(|_| "Invalid min speed temp value")?;
         let end = tokens
             .next()
             .map(str::parse)
-            .map_or(Ok(None), |v| v.map(Some))
+            .transpose()
             .map_err(|_| "Invalid max speed temp value")?;
         Ok(Self {
             filepath,
