@@ -59,6 +59,7 @@ pub(crate) fn prober(
     for method in methods {
         match method.prober(drive) {
             Ok(p) => {
+                log::info!("Using probing method '{method}' for drive '{drive}'");
                 let sqa = method.supports_probing_sleeping();
                 return Ok(Some((p, sqa)));
             }
