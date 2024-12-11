@@ -4,6 +4,7 @@ use std::{
     cmp::{max, Ordering},
     fmt,
     ops::Range,
+    path::{Path, PathBuf},
     thread::sleep,
     time::{Duration, Instant},
 };
@@ -18,7 +19,7 @@ use crate::{
 const STARTUP_DELAY: Duration = Duration::from_secs(20);
 
 /// Fan characteristics
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub(crate) struct Thresholds {
     /// Minimum value at which the fan starts moving when it was stopped
     pub min_start: pwm::Value,
@@ -33,9 +34,9 @@ impl fmt::Display for Thresholds {
 }
 
 /// Stateful fan
-pub(crate) struct Fan {
+pub(crate) struct Fan<T> {
     /// Fan pwm
-    pwm: Pwm,
+    pwm: Pwm<T>,
     /// Pwm thresholds
     thresholds: Thresholds,
     /// Current speed
@@ -44,7 +45,7 @@ pub(crate) struct Fan {
     startup: Option<Instant>,
 }
 
-impl fmt::Display for Fan {
+impl<T> fmt::Display for Fan<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         self.pwm.fmt(f)
     }
@@ -100,7 +101,7 @@ enum SpeedChange {
     Decreasing,
 }
 
-impl Fan {
+impl Fan<()> {
     /// Build a new fan from PWM settings
     pub(crate) fn new(pwm_info: &PwmSettings) -> anyhow::Result<Self> {
         let pwm = Pwm::new(&pwm_info.filepath)?;
@@ -112,6 +113,23 @@ impl Fan {
         })
     }
 
+    /// Find RPM filepath for the current fan
+    pub(crate) fn resolve_rpm_path(&self) -> anyhow::Result<PathBuf> {
+        todo!();
+    }
+
+    /// Build a new instance with PWM RPM file set
+    pub(crate) fn with_rpm_file(self, path: &Path) -> anyhow::Result<Fan<PathBuf>> {
+        Ok(Fan {
+            pwm: self.pwm.with_rpm_file(path)?,
+            thresholds: self.thresholds,
+            speed: self.speed,
+            startup: self.startup,
+        })
+    }
+}
+
+impl<T> Fan<T> {
     /// Compute PWM target value from speed and fan thresholds
     #[expect(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     fn speed_to_pwm_val(&self, speed: Speed) -> pwm::Value {
@@ -159,7 +177,9 @@ impl Fan {
         }
         Ok(())
     }
+}
 
+impl Fan<PathBuf> {
     /// Wait until fan speed stop increasing or decreasing
     fn wait_stable(&self, change: SpeedChange) -> anyhow::Result<()> {
         /// Maximum duration to wait for the fan to be stabilized

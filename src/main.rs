@@ -44,14 +44,12 @@ fn main() -> anyhow::Result<()> {
     match args.command {
         cl::Command::PwmTest { pwm } => {
             for pwm_path in &pwm {
-                let mut fan = Fan::new(&cl::PwmSettings {
+                let fan = Fan::new(&cl::PwmSettings {
                     filepath: pwm_path.to_owned(),
-                    // Unused
-                    thresholds: fan::Thresholds {
-                        min_start: 0,
-                        max_stop: 0,
-                    },
+                    thresholds: fan::Thresholds::default(),
                 })?;
+                let rpm_path = fan.resolve_rpm_path()?;
+                let mut fan = fan.with_rpm_file(&rpm_path)?;
                 log::info!("Testing fan {fan}, this may take a long time");
                 match fan.test() {
                     Ok(t) => {

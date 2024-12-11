@@ -17,11 +17,12 @@ use crate::sysfs::{ensure_sysfs_dir, ensure_sysfs_file, read_value, write_value}
 pub(crate) type Value = u8;
 
 /// Stateless PWM control
-pub(crate) struct Pwm {
+/// T is the type of RPM file path
+pub(crate) struct Pwm<T> {
     /// pwmX sysfs filepath
     val: PathBuf,
     /// `fanX_input` sysfs filepath
-    rpm: PathBuf,
+    rpm: T,
     /// `pwmX_enable` sysfs filepath
     mode: PathBuf,
     /// Kernel device name (different from PWM name)
@@ -70,7 +71,7 @@ pub(crate) struct State {
     pub mode: ControlMode,
 }
 
-impl Pwm {
+impl Pwm<()> {
     /// Build a PWM driver
     pub(crate) fn new(path: &Path) -> anyhow::Result<Self> {
         // At boot sometimes the PWM is not immediately available, so retry a few times if not found,
@@ -111,7 +112,6 @@ impl Pwm {
             .skip_while(|c| !c.is_ascii_digit())
             .collect::<String>()
             .parse::<usize>()?;
-        let rpm_path = ensure_sysfs_file(&path.with_file_name(format!("fan{num}_input")))?;
         let mode_path =
             ensure_sysfs_file(&path.with_file_name(format!("{val_path_fname}_enable")))?;
         let device = ensure_sysfs_dir(&path.with_file_name("device"))
@@ -123,13 +123,26 @@ impl Pwm {
             .to_owned();
         Ok(Self {
             val: path.clone(),
-            rpm: rpm_path,
+            rpm: (),
             mode: mode_path,
             device,
             num,
         })
     }
 
+    /// Build a new PWM with RPM file path set
+    pub(crate) fn with_rpm_file(self, rpm_path: &Path) -> anyhow::Result<Pwm<PathBuf>> {
+        Ok(Pwm {
+            val: self.val,
+            rpm: ensure_sysfs_file(rpm_path)?,
+            mode: self.mode,
+            device: self.device,
+            num: self.num,
+        })
+    }
+}
+
+impl<T> Pwm<T> {
     /// Set PWM value
     pub(crate) fn set(&self, val: Value) -> anyhow::Result<()> {
         log::trace!("Set PWM {self} to {val}");
@@ -139,11 +152,6 @@ impl Pwm {
     /// Get PWM value
     pub(crate) fn get(&self) -> anyhow::Result<Value> {
         read_value(&self.val)
-    }
-
-    /// Get fan RPM value
-    pub(crate) fn get_rpm(&self) -> anyhow::Result<u32> {
-        read_value(&self.rpm)
     }
 
     /// Get PWM control mode
@@ -172,7 +180,14 @@ impl Pwm {
     }
 }
 
-impl fmt::Display for Pwm {
+impl Pwm<PathBuf> {
+    /// Get fan RPM value
+    pub(crate) fn get_rpm(&self) -> anyhow::Result<u32> {
+        read_value(&self.rpm)
+    }
+}
+
+impl<T> fmt::Display for Pwm<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(f, "{}/{}", self.device, self.num)
     }
@@ -198,6 +213,7 @@ pub(crate) mod tests {
         pub pwm_path: PathBuf,
         pub val_file_read: File,
         val_file_write: File,
+        pub rpm_path: PathBuf,
         _rpm_file_read: File,
         rpm_file_write: File,
         mode_file_read: File,
@@ -246,6 +262,7 @@ pub(crate) mod tests {
                 pwm_path,
                 val_file_read,
                 val_file_write,
+                rpm_path,
                 _rpm_file_read: rpm_file_read,
                 rpm_file_write,
                 mode_file_read,
@@ -280,7 +297,10 @@ pub(crate) mod tests {
     #[test]
     fn test_get_rpm() {
         let mut fake_pwm = FakePwm::new();
-        let pwm = Pwm::new(&fake_pwm.pwm_path).unwrap();
+        let pwm = Pwm::new(&fake_pwm.pwm_path)
+            .unwrap()
+            .with_rpm_file(&fake_pwm.rpm_path)
+            .unwrap();
         fake_pwm.rpm_file_write.write_all(b"1234\n").unwrap();
         assert_eq!(pwm.get_rpm().unwrap(), 1234);
     }
