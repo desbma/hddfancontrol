@@ -84,7 +84,7 @@ Some Linux distributions have a hddfancontrol package available in their reposit
 - Arch Linux (AUR): [hddfancontrol](https://aur.archlinux.org/packages/hddfancontrol/)
 - Fedora: [hddfancontrol](https://packages.fedoraproject.org/pkgs/hddfancontrol/hddfancontrol/)
 
-See [GitHub releases](https://github.com/desbma/hddfancontrol/releases) for Debian packages built for each tagged version.
+See [GitHub releases](https://github.com/desbma/hddfancontrol/releases) for other packages/binaries built for each tagged version.
 
 ### From source
 
