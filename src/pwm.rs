@@ -18,6 +18,7 @@ pub(crate) type Value = u8;
 
 /// Stateless PWM control
 /// T is the type of RPM file path
+#[derive(Clone)]
 pub(crate) struct Pwm<T> {
     /// pwmX sysfs filepath
     val: PathBuf,
@@ -139,6 +140,12 @@ impl Pwm<()> {
             device: self.device,
             num: self.num,
         })
+    }
+
+    /// Get sysfs directory
+    pub(crate) fn sysfs_dir(&self) -> &Path {
+        #[expect(clippy::unwrap_used)]
+        self.val.parent().unwrap()
     }
 }
 

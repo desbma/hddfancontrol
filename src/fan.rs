@@ -115,7 +115,69 @@ impl Fan<()> {
 
     /// Find RPM filepath for the current fan
     pub(crate) fn resolve_rpm_path(&self) -> anyhow::Result<PathBuf> {
-        todo!();
+        /// Delay to wait for between PWM speed control, and RPM feedback to ensure both are correlated
+        const RPM_CORRELATION_DELAY: Duration = Duration::from_secs(3);
+
+        let dir = self.pwm.sysfs_dir();
+        let candidates: Vec<_> = dir
+            .read_dir()?
+            .flatten()
+            .filter(|e| {
+                e.file_name()
+                    .to_str()
+                    .is_some_and(|f| f.starts_with("fan") && f.ends_with("_input"))
+            })
+            .map(|e| e.path())
+            .collect();
+        log::debug!("RPM file candidates for {}: {:?}", self.pwm, candidates);
+
+        match candidates.len() {
+            0 => Err(anyhow::anyhow!("Unable to find any fan RPM sysfs path")),
+            1 =>
+            {
+                #[expect(clippy::unwrap_used)]
+                Ok(candidates.into_iter().next().unwrap())
+            }
+            c => {
+                log::info!(
+                    "Running tests for {} candidates to find RPM file correlated with PWM {}, this may take some time",
+                    c, self.pwm
+                );
+
+                for candidate in candidates {
+                    let pwm = self.pwm.clone().with_rpm_file(&candidate)?;
+
+                    let mut skip = false;
+                    for _ in 0..3 {
+                        pwm.set(pwm::Value::MIN)?;
+                        sleep(RPM_CORRELATION_DELAY);
+                        if pwm.get_rpm()? > 0 {
+                            log::debug!("RPM file {candidate:?} has positive value with PWM at minimum value, excluding");
+                            skip = true;
+                            break;
+                        }
+
+                        pwm.set(pwm::Value::MAX)?;
+                        sleep(RPM_CORRELATION_DELAY);
+                        if pwm.get_rpm()? == 0 {
+                            log::debug!(
+                                "RPM file {candidate:?} has null value with PWM at maximum value, excluding"
+                            );
+                            skip = true;
+                            break;
+                        }
+                    }
+
+                    if skip {
+                        continue;
+                    }
+
+                    log::info!("RPM file for {} resolved to {:?}", self.pwm, candidate);
+                    return Ok(candidate);
+                }
+                Err(anyhow::anyhow!("Unable to resolve fan RPM sysfs path"))
+            }
+        }
     }
 
     /// Build a new instance with PWM RPM file set
