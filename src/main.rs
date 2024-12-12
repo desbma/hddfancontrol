@@ -9,8 +9,8 @@ use std::{
     time::{Duration, Instant},
 };
 
-use anyhow::Context;
-use clap::Parser;
+use anyhow::Context as _;
+use clap::Parser as _;
 use device::Hwmon;
 use exit::ExitHook;
 use fan::Speed;

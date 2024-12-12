@@ -204,8 +204,8 @@ impl<T> fmt::Display for Pwm<T> {
 pub(crate) mod tests {
     use std::{
         fs::{create_dir, File, OpenOptions},
-        io::Read,
-        os::unix::{fs::symlink, prelude::OpenOptionsExt},
+        io::Read as _,
+        os::unix::{fs::symlink, prelude::OpenOptionsExt as _},
         str,
     };
 

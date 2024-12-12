@@ -8,7 +8,7 @@ keywords = ["hdd", "drive", "temperature", "fan", "control"]
 categories = ["command-line-utilities"]
 license = "GPL-3.0-only"
 version = "2.0.0-beta.2"
-rust-version = "1.82"
+rust-version = "1.83"
 edition = "2021"
 
 [profile.release]
@@ -51,7 +51,7 @@ unused-qualifications = "warn"
 
 [lints.clippy]
 pedantic = { level = "warn", priority = -1 }
-# below lints are from clippy::restriction, and assume clippy >= 1.82
+# below lints are from clippy::restriction, and assume clippy >= 1.83
 # https://rust-lang.github.io/rust-clippy/master/index.html#/?levels=allow&groups=restriction
 allow_attributes = "warn"
 clone_on_ref_ptr = "warn"
@@ -69,6 +69,7 @@ missing_docs_in_private_items = "warn"
 mixed_read_write_in_expression = "warn"
 multiple_inherent_impl = "warn"
 needless_raw_strings = "warn"
+non_zero_suggestions = "warn"
 panic = "warn"
 pathbuf_init_then_push = "warn"
 pub_without_shorthand = "warn"
@@ -91,6 +92,7 @@ unnecessary_safety_doc = "warn"
 unneeded_field_pattern = "warn"
 unseparated_literal_suffix = "warn"
 unused_result_ok = "warn"
+unused_trait_names = "warn"
 unwrap_used = "warn"
 verbose_file_reads = "warn"
 

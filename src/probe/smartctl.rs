@@ -2,7 +2,7 @@
 
 use std::{
     fmt,
-    io::BufRead,
+    io::BufRead as _,
     path::PathBuf,
     process::{Command, Stdio},
     str::FromStr,

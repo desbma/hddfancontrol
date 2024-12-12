@@ -2,8 +2,8 @@
 
 use std::{
     fmt,
-    io::BufRead,
-    os::unix::prelude::FileTypeExt,
+    io::BufRead as _,
+    os::unix::prelude::FileTypeExt as _,
     path::{Path, PathBuf},
     process::{Command, Stdio},
 };

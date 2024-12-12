@@ -78,7 +78,7 @@ impl DeviceTempProber for Prober {
 
 #[cfg(test)]
 mod tests {
-    use std::io::Write;
+    use std::io::Write as _;
 
     use float_cmp::approx_eq;
 

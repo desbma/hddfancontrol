@@ -2,7 +2,7 @@
 
 #![allow(clippy::unwrap_used)]
 
-use std::{env, fs::OpenOptions, io::Write, os::unix::prelude::OpenOptionsExt};
+use std::{env, fs::OpenOptions, io::Write as _, os::unix::prelude::OpenOptionsExt as _};
 
 /// A mocked binary added in PATH env var
 pub(crate) struct BinaryMock {

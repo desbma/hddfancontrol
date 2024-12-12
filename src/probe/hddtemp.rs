@@ -2,14 +2,14 @@
 
 use std::{
     fmt,
-    io::Read,
+    io::Read as _,
     net::{SocketAddrV4, TcpStream},
     path::PathBuf,
     process::{Command, Stdio},
     str,
 };
 
-use itertools::Itertools;
+use itertools::Itertools as _;
 
 use super::{DeviceTempProber, Drive, DriveTempProbeMethod, ProberError, Temp};
 
@@ -133,7 +133,7 @@ impl DeviceTempProber for InvocationProber {
 #[cfg(test)]
 mod tests {
     use std::{
-        io::{ErrorKind, Write},
+        io::{ErrorKind, Write as _},
         net::{Ipv4Addr, TcpListener},
         sync::mpsc,
         thread,
