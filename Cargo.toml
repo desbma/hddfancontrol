@@ -20,6 +20,7 @@ strip = true
 anyhow = { version = "1.0.94", default-features = false, features = ["std", "backtrace"] }
 backoff = { version = "0.4.0", default-features = false }
 clap = { version = "4.5.23", default-features = false, features = ["std", "color", "help", "usage", "error-context", "suggestions", "derive"] }
+clap_mangen = { version = "0.2.24", default-features = false, optional = true }
 clap-num = { version = "1.1.1", default-features = false }
 ctrlc = { version = "3.4.5", default-features = false, features = ["termination"] }
 humantime = { version = "2.1.0", default-features = false }
@@ -35,6 +36,10 @@ typed_floats = { version = "1.0.2", default-features = false, features = ["std",
 float-cmp = { version = "0.10.0", default-features = false, features = ["std"] }
 serial_test = { version = "3.2.0", default-features = false }
 tempfile = { version = "3.14.0", default-features = false }
+
+[features]
+default = []
+gen-man-pages = ["dep:clap_mangen"]
 
 [lints.rust]
 # https://doc.rust-lang.org/rustc/lints/listing/allowed-by-default.html

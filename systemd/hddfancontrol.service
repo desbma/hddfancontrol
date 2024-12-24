@@ -1,5 +1,6 @@
 [Unit]
 Description=HDD fan control
+Documentation=man:hddfancontrol(1)
 After=hddtemp.service
 
 [Service]

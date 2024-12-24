@@ -1,5 +1,10 @@
 //! Control fan speed according to drive temperature
 
+#![cfg_attr(
+    feature = "gen-man-pages",
+    expect(dead_code, unused_crate_dependencies, unused_imports)
+)]
+
 use std::{
     ops::Range,
     sync::{
@@ -33,6 +38,18 @@ fn sleep(dur: Duration, exit_rx: &mpsc::Receiver<()>) {
     let _ = exit_rx.recv_timeout(dur);
 }
 
+#[cfg(feature = "gen-man-pages")]
+fn main() -> anyhow::Result<()> {
+    use clap::CommandFactory as _;
+    let cmd = cl::Args::command();
+    let output = std::env::args_os()
+        .nth(1)
+        .ok_or_else(|| anyhow::anyhow!("Missing output dir argument"))?;
+    clap_mangen::generate_to(cmd, output)?;
+    Ok(())
+}
+
+#[cfg(not(feature = "gen-man-pages"))]
 #[expect(clippy::too_many_lines)]
 fn main() -> anyhow::Result<()> {
     // Parse cl args
