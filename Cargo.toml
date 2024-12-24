@@ -7,7 +7,7 @@ repository = "https://github.com/desbma/hddfancontrol"
 keywords = ["hdd", "drive", "temperature", "fan", "control"]
 categories = ["command-line-utilities"]
 license = "GPL-3.0-only"
-version = "2.0.0-beta.2"
+version = "2.0.0-beta.3"
 rust-version = "1.83"
 edition = "2021"
 
@@ -17,7 +17,7 @@ codegen-units = 1
 strip = true
 
 [dependencies]
-anyhow = { version = "1.0.94", default-features = false, features = ["std", "backtrace"] }
+anyhow = { version = "1.0.95", default-features = false, features = ["std", "backtrace"] }
 backoff = { version = "0.4.0", default-features = false }
 clap = { version = "4.5.23", default-features = false, features = ["std", "color", "help", "usage", "error-context", "suggestions", "derive"] }
 clap_mangen = { version = "0.2.24", default-features = false, optional = true }
