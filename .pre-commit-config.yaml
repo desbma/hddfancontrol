@@ -1,7 +1,7 @@
 # https://pre-commit.com
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v5.0.0
     hooks:
       - id: check-added-large-files
       - id: check-case-conflict
@@ -30,7 +30,7 @@ repos:
       - id: fmt
 
   - repo: https://github.com/shellcheck-py/shellcheck-py
-    rev: v0.9.0.6
+    rev: v0.10.0.1
     hooks:
       - id: shellcheck
 
@@ -41,11 +41,10 @@ repos:
         args:
           - --print-width=120
           - --write
-        stages: [commit]
+        stages: [pre-commit]
 
   - repo: https://github.com/compilerla/conventional-pre-commit
-    rev: v3.1.0
+    rev: v4.0.0
     hooks:
       - id: conventional-pre-commit
         stages: [commit-msg]
-        args: [chore, config, doc, test]
