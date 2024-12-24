@@ -120,7 +120,7 @@ pub(crate) enum Command {
 
         /// Minimum percentage of full fan speed to set the fan to.
         /// Never set to 0 unless you have other fans to cool down your system,
-        /// or a case specially designed for passive cooling..
+        /// or a case specially designed for passive cooling.
         #[arg(short, long, default_value_t = 20, value_parser=percentage)]
         min_fan_speed_prct: Percentage,
 
