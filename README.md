@@ -33,7 +33,8 @@ Because fans will slow down or stop when not needed:
 - [Configuration](#configuration)
   - [A word of caution](#a-word-of-caution)
   - [Fan configuration](#fan-configuration)
-- [Migrating from v1.x](#migrating-from-v1x)
+- [Changelog](#changelog)
+  - [Migrating from v1.x](#migrating-from-v1x)
 - [Command line usage](#command-line-usage)
 - [systemd service](#systemd-service)
 - [License](#license)
@@ -125,7 +126,11 @@ To get the start/stop values for the `--pwm` parameter, you can either:
 - Use the `pwm-test` command (`hddfancontrol pwm-test ...`), which will run some tests and detect the values at which the fans start and stop. However you need to have previously identified the PWM file (the `--pwm` parameter)
 - use the [pwmconfig tool](http://www.lm-sensors.org/wiki/man/pwmconfig).
 
-## Migrating from v1.x
+## Changelog
+
+See [detailed changelog](./CHANGELOG.md) for all changes since initial version 2.
+
+### Migrating from v1.x
 
 With version 2, `hddfancontrol` has been completely rewritten in the Rust language. The main changes coming from version 1 are:
 
