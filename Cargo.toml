@@ -107,5 +107,6 @@ maintainer-scripts = "debian/"
 systemd-units = { enable = false, start = false, unit-scripts = "systemd/" }
 assets = [
   ["target/release/hddfancontrol", "usr/bin/", "755"],
-  ["systemd/hddfancontrol.conf", "etc/conf.d/hddfancontrol", "644"]
+  ["systemd/hddfancontrol.conf", "etc/conf.d/hddfancontrol", "644"],
+  ["target/man/*.1", "usr/share/man/man1/", "644"]
 ]

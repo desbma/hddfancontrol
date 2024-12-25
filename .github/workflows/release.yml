@@ -58,6 +58,9 @@ jobs:
           profile: minimal
           toolchain: stable
           target: x86_64-unknown-linux-gnu
+      - run: |
+          mkdir target/man
+          cargo run --features gen-man-pages -- target/man
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-deb
