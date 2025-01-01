@@ -80,6 +80,10 @@ impl Drive {
                 .stdout(Stdio::piped())
                 .stderr(Stdio::null())
                 .output()?;
+            if !output.status.success() {
+                log::trace!("{}", output.status);
+                continue;
+            }
             // log::trace!("{}", std::str::from_utf8(&output.stdout).unwrap());
             if let Some(line) = output.stdout.lines().map_while(Result::ok).find(|l| {
                 let l = l.trim_start();
@@ -104,6 +108,11 @@ impl Drive {
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
             .output()?;
+        anyhow::ensure!(
+            output.status.success(),
+            "hdparm failed with code {}",
+            output.status
+        );
         let state = output
             .stdout
             .lines()

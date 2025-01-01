@@ -54,6 +54,11 @@ impl DeviceTempProber for SctProber {
             .stderr(Stdio::null())
             .env("LANG", "C")
             .output()?;
+        anyhow::ensure!(
+            output.status.success(),
+            "smartctl failed with code {}",
+            output.status
+        );
         let temp = output
             .stdout
             .lines()
@@ -162,6 +167,11 @@ impl DeviceTempProber for AttribProber {
             .stderr(Stdio::null())
             .env("LANG", "C")
             .output()?;
+        anyhow::ensure!(
+            output.status.success(),
+            "smartctl failed with code {}",
+            output.status
+        );
         let temp = output
             .stdout
             .lines()

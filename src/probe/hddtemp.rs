@@ -124,6 +124,11 @@ impl DeviceTempProber for InvocationProber {
             .stderr(Stdio::null())
             .env("LANG", "C")
             .output()?;
+        anyhow::ensure!(
+            output.status.success(),
+            "hddtemp failed with code {}",
+            output.status
+        );
         // TODO handle "drive is sleeping" case
         let temp = str::from_utf8(&output.stdout)?.trim_end().parse()?;
         Ok(temp)
