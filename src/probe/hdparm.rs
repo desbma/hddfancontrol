@@ -50,6 +50,7 @@ impl DeviceTempProber for Prober {
                     .to_str()
                     .ok_or_else(|| anyhow::anyhow!("Invalid device path"))?,
             ])
+            .stdin(Stdio::null())
             .stderr(Stdio::null())
             .env("LANG", "C")
             .output()?;

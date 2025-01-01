@@ -51,6 +51,7 @@ impl DeviceTempProber for SctProber {
                     .to_str()
                     .ok_or_else(|| anyhow::anyhow!("Invalid device path"))?,
             ])
+            .stdin(Stdio::null())
             .stderr(Stdio::null())
             .env("LANG", "C")
             .output()?;
@@ -164,6 +165,7 @@ impl DeviceTempProber for AttribProber {
                     .to_str()
                     .ok_or_else(|| anyhow::anyhow!("Invalid device path"))?,
             ])
+            .stdin(Stdio::null())
             .stderr(Stdio::null())
             .env("LANG", "C")
             .output()?;

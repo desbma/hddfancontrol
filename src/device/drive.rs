@@ -77,8 +77,8 @@ impl Drive {
             let output = Command::new(cmd[0])
                 .args(&cmd[1..])
                 .stdin(Stdio::null())
-                .stdout(Stdio::piped())
                 .stderr(Stdio::null())
+                .env("LANG", "C")
                 .output()?;
             if !output.status.success() {
                 log::trace!("{}", output.status);
@@ -105,8 +105,8 @@ impl Drive {
                     .ok_or_else(|| anyhow::anyhow!("Invalid device path"))?,
             ])
             .stdin(Stdio::null())
-            .stdout(Stdio::piped())
             .stderr(Stdio::null())
+            .env("LANG", "C")
             .output()?;
         anyhow::ensure!(
             output.status.success(),
