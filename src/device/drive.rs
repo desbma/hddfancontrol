@@ -222,5 +222,14 @@ mod tests {
             Drive::state_(Path::new("/dev/_sdX")).unwrap(),
             State::Unknown
         ));
+
+        let _hdparm_mock = BinaryMock::new(
+            "hdparm",
+            "\n/dev/_sdz: No such file or directory\n".as_bytes(),
+            &[],
+            0,
+        )
+        .unwrap();
+        assert!(Drive::state_(Path::new("/dev/_sdX")).is_err());
     }
 }
