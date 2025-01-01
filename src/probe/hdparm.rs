@@ -51,7 +51,6 @@ impl DeviceTempProber for Prober {
                     .ok_or_else(|| anyhow::anyhow!("Invalid device path"))?,
             ])
             .stdin(Stdio::null())
-            .stderr(Stdio::null())
             .env("LANG", "C")
             .output()?;
         anyhow::ensure!(
@@ -59,7 +58,13 @@ impl DeviceTempProber for Prober {
             "hdparm failed with code {}",
             output.status
         );
-        let lines: Vec<_> = output.stdout.lines().collect::<Result<_, _>>()?;
+        let lines: Vec<_> = output
+            .stdout
+            .lines()
+            .chain(output.stderr.lines())
+            .collect::<Result<_, _>>()?;
+        // See https://github.com/Distrotech/hdparm/blob/4517550db29a91420fb2b020349523b1b4512df2/sgio.c#L308-L315
+        // for some soft errors
         anyhow::ensure!(
             !lines
                 .iter()
@@ -90,6 +95,7 @@ mod tests {
     use super::*;
     use crate::tests::BinaryMock;
 
+    #[expect(clippy::shadow_unrelated)]
     #[serial_test::serial]
     #[test]
     fn test_hdparm_probe_temp() {
@@ -99,7 +105,7 @@ mod tests {
 
         let _hdparm = BinaryMock::new(
             "hdparm",
-            "\n/dev/_sdX:\n  drive temperature (celsius) is:  30\n  drive temperature in range:  yes\n"
+            "\n/dev/_sdX:\n drive temperature (celsius) is:  30\n drive temperature in range:  yes\n"
             .as_bytes(),
             &[],
             0,
@@ -108,27 +114,24 @@ mod tests {
 
         let _hdparm = BinaryMock::new(
             "hdparm",
-            "\n/dev/_sdX:\nSG_IO: questionable sense data, results may be incorrect\n drive temperature (celsius) is: -18\n drive temperature in range: yes\n"
-            .as_bytes(),
-            &[],
+            "\n/dev/_sdX:\n drive temperature (celsius) is: -18\n drive temperature in range: yes\n".as_bytes(),
+            "SG_IO: questionable sense data, results may be incorrect\n".as_bytes(),
             0,
         );
         assert!(prober.probe_temp().is_err());
 
         let _hdparm = BinaryMock::new(
             "hdparm",
-            "\n/dev/_sdX:\nSG_IO: missing sense data, results may be incorrect\n drive temperature (celsius) is: -18\n drive temperature in range: yes\n"
-            .as_bytes(),
-            &[],
+            "\n/dev/_sdX:\n drive temperature (celsius) is: -18\n drive temperature in range: yes\n".as_bytes(),
+            "SG_IO: missing sense data, results may be incorrect\n".as_bytes(),
             0,
         );
         assert!(prober.probe_temp().is_err());
 
         let _hdparm = BinaryMock::new(
             "hdparm",
-            "\n/dev/_sdz:\nSG_IO: bad/missing sense data, sb[]: 70 00 05 00 00 00 00 0a 04 51 40 00 21 04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n drive temperature (celsius) is: -18\n drive temperature in range: yes\n"
-            .as_bytes(),
-            &[],
+            "\n/dev/_sdz:\n drive temperature (celsius) is: -18\n drive temperature in range: yes\n".as_bytes(),
+            "SG_IO: bad/missing sense data, sb[]: 70 00 05 00 00 00 00 0a 04 51 40 00 21 04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n".as_bytes(),
             0,
         );
         assert!(prober.probe_temp().is_err());
