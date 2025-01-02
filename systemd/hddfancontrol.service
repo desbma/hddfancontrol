@@ -5,7 +5,7 @@ After=hddtemp.service
 
 [Service]
 EnvironmentFile=/etc/conf.d/hddfancontrol
-ExecStart=/usr/bin/hddfancontrol daemon $HDDFANCONTROL_DAEMON_ARGS
+ExecStart=/usr/bin/hddfancontrol -v $HDDFANCONTROL_LOG_LEVEL daemon $HDDFANCONTROL_DAEMON_ARGS
 
 # Scheduler priority
 CPUSchedulingPolicy=rr
