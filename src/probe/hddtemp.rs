@@ -136,6 +136,7 @@ impl DeviceTempProber for InvocationProber {
     }
 }
 
+#[expect(clippy::shadow_unrelated)]
 #[cfg(test)]
 mod tests {
     use std::{
@@ -219,10 +220,19 @@ mod tests {
     #[serial_test::serial]
     #[test]
     fn test_invocation_probe_temp() {
-        let _hddtemp = BinaryMock::new("hddtemp", "35\n".as_bytes(), &[], 0);
         let mut prober = InvocationProber {
             device: PathBuf::from("/dev/_sdX"),
         };
+
+        let _hddtemp = BinaryMock::new("hddtemp", "35\n".as_bytes(), &[], 0);
         assert!(approx_eq!(f64, prober.probe_temp().unwrap(), 35.0));
+
+        let _hddtemp = BinaryMock::new(
+            "hddtemp",
+            "/dev/_sdX: drive_name: drive is sleeping\n".as_bytes(),
+            &[],
+            0,
+        );
+        assert!(prober.probe_temp().is_err());
     }
 }

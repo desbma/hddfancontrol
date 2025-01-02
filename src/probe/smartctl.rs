@@ -186,6 +186,7 @@ impl DeviceTempProber for AttribProber {
     }
 }
 
+#[expect(clippy::shadow_unrelated)]
 #[cfg(test)]
 mod tests {
     use float_cmp::approx_eq;
@@ -224,7 +225,6 @@ Vendor specific:
         assert!(approx_eq!(f64, prober.probe_temp().unwrap(), 30.0));
     }
 
-    #[expect(clippy::shadow_unrelated)]
     #[serial_test::serial]
     #[test]
     fn test_attrib_probe_temp() {

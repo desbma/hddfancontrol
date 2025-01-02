@@ -88,6 +88,7 @@ impl DeviceTempProber for Prober {
     }
 }
 
+#[expect(clippy::shadow_unrelated)]
 #[cfg(test)]
 mod tests {
     use float_cmp::approx_eq;
@@ -95,7 +96,6 @@ mod tests {
     use super::*;
     use crate::tests::BinaryMock;
 
-    #[expect(clippy::shadow_unrelated)]
     #[serial_test::serial]
     #[test]
     fn test_hdparm_probe_temp() {
