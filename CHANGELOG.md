@@ -1,5 +1,38 @@
 # Changelog
 
+## 2.0.0.b4 - 2025-01-02
+
+### <!-- 1 -->🚀 Features
+
+- deb: Compress man pages ([a8b0462](https://github.com/desbma/hddfancontrol/commit/a8b0462fcc903f14db8faf07d041f34a601be779) by desbma)
+- Allow changing log level from configuration file ([a847e9d](https://github.com/desbma/hddfancontrol/commit/a847e9d039637f756cd4e34782aa37abe0fb6aac) by desbma)
+
+### <!-- 2 -->🐛 Bug fixes
+
+- Hdparm prober error handling (fix #64) ([9a73731](https://github.com/desbma/hddfancontrol/commit/9a73731953ad85175e91e2e30facdfded5db409a) by desbma)
+- Always check subprocess return codes ([376291a](https://github.com/desbma/hddfancontrol/commit/376291afda1ececccd32fd67c53c02e4b6b9e3b7) by desbma)
+- Hdparm stderr soft errors ([d1fbe90](https://github.com/desbma/hddfancontrol/commit/d1fbe9090aa95748a2dde2f1ea933a5dd6d1ad50) by desbma)
+- Smartctl attribute 190 parsing ([e13a510](https://github.com/desbma/hddfancontrol/commit/e13a510c81903008d4011218960f8f4d2c2b6348) by desbma)
+
+### <!-- 4 -->📚 Documentation
+
+- Minor comment typo ([3f447a3](https://github.com/desbma/hddfancontrol/commit/3f447a3aba84eb453f99bd1a96b6bc319086a541) by desbma)
+
+### <!-- 5 -->🧪 Testing
+
+- Check hdparm prober errors if drive is missing ([8d287d1](https://github.com/desbma/hddfancontrol/commit/8d287d1ecb29e3aca57272fd0686a7d62c24367a) by desbma)
+- Add hddtemp prober test for sleeping drive ([ccb44b5](https://github.com/desbma/hddfancontrol/commit/ccb44b5f4de45515ac709654daee4553aa4cd61d) by desbma)
+
+### <!-- 6 -->🚜 Refactor
+
+- Homogeneize Command::output usage ([a29b542](https://github.com/desbma/hddfancontrol/commit/a29b542d36b57c79598ae836fefacc097b41606b) by desbma)
+
+### <!-- 8 -->⚙️ Continuous integration
+
+- Build debian package with man pages ([77bac80](https://github.com/desbma/hddfancontrol/commit/77bac80e8cfb3ab992c5675188858c5186a25090) by desbma)
+
+---
+
 ## 2.0.0.b3 - 2024-12-24
 
 ### <!-- 1 -->🚀 Features
