@@ -130,7 +130,7 @@ mod tests {
 
         let _hdparm = BinaryMock::new(
             "hdparm",
-            "\n/dev/_sdz:\n drive temperature (celsius) is: -18\n drive temperature in range: yes\n".as_bytes(),
+            "\n/dev/_sdX:\n drive temperature (celsius) is: -18\n drive temperature in range: yes\n".as_bytes(),
             "SG_IO: bad/missing sense data, sb[]: 70 00 05 00 00 00 00 0a 04 51 40 00 21 04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n".as_bytes(),
             0,
         );

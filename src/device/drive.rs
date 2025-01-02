@@ -186,7 +186,7 @@ mod tests {
 
         let _hdparm_mock = BinaryMock::new(
             "hdparm",
-            "\n/dev/_sdz:\n drive state is:  standby\n".as_bytes(),
+            "\n/dev/_sdX:\n drive state is:  standby\n".as_bytes(),
             &[],
             0,
         )
@@ -198,7 +198,7 @@ mod tests {
 
         let _hdparm_mock = BinaryMock::new(
             "hdparm",
-            "\n/dev/_sdz:\n drive state is:  sleeping\n".as_bytes(),
+            "\n/dev/_sdX:\n drive state is:  sleeping\n".as_bytes(),
             &[],
             0,
         )
@@ -210,7 +210,7 @@ mod tests {
 
         let _hdparm_mock = BinaryMock::new(
             "hdparm",
-            "\n/dev/_sdz:\n drive state is:  NVcache_spindown\n".as_bytes(),
+            "\n/dev/_sdX:\n drive state is:  NVcache_spindown\n".as_bytes(),
             &[],
             0,
         )
@@ -222,7 +222,7 @@ mod tests {
 
         let _hdparm_mock = BinaryMock::new(
             "hdparm",
-            "\n/dev/_sdz:\n drive state is:  unknown\n".as_bytes(),
+            "\n/dev/_sdX:\n drive state is:  unknown\n".as_bytes(),
             &[],
             0,
         )
@@ -234,7 +234,7 @@ mod tests {
 
         let _hdparm_mock = BinaryMock::new(
             "hdparm",
-            "\n/dev/_sdz: No such file or directory\n".as_bytes(),
+            "\n/dev/_sdX: No such file or directory\n".as_bytes(),
             &[],
             0,
         )
