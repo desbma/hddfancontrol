@@ -8,7 +8,7 @@ keywords = ["hdd", "drive", "temperature", "fan", "control"]
 categories = ["command-line-utilities"]
 license = "GPL-3.0-only"
 version = "2.0.0-beta.4"
-rust-version = "1.83"
+rust-version = "1.81"
 edition = "2021"
 
 [profile.release]
