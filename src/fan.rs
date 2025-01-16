@@ -206,7 +206,9 @@ impl<T> Fan<T> {
 
     /// Set fan speed
     pub(crate) fn set_speed(&mut self, speed: Speed) -> anyhow::Result<()> {
-        if self.speed.map_or(true, |c| c != speed) {
+        if self.speed == Some(speed) {
+            log::trace!("Fan {self} speed unchanged: {speed}");
+        } else {
             let prev_mode = self.pwm.get_mode()?;
             let new_mode = ControlMode::Software;
             if prev_mode != new_mode {
@@ -234,8 +236,6 @@ impl<T> Fan<T> {
             self.pwm.set(pwm_value)?;
             log::info!("Fan {self} speed set to {speed}");
             self.speed = Some(speed);
-        } else {
-            log::trace!("Fan {self} speed unchanged: {speed}");
         }
         Ok(())
     }
