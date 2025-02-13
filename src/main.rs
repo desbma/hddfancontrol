@@ -64,9 +64,14 @@ fn main() -> anyhow::Result<()> {
                 let fan = Fan::new(&cl::PwmSettings {
                     filepath: pwm_path.to_owned(),
                     thresholds: fan::Thresholds::default(),
-                })?;
-                let rpm_path = fan.resolve_rpm_path()?;
-                let mut fan = fan.with_rpm_file(&rpm_path)?;
+                })
+                .context("Failed to setup fan")?;
+                let rpm_path = fan
+                    .resolve_rpm_path()
+                    .context("Failed to resolve fan rpm filepath")?;
+                let mut fan = fan
+                    .with_rpm_file(&rpm_path)
+                    .context("Failed to setup fan with rpm filepath")?;
                 log::info!("Testing fan {fan}, this may take a long time");
                 match fan.test() {
                     Ok(t) => {
@@ -95,25 +100,34 @@ fn main() -> anyhow::Result<()> {
             let drives: Vec<Drive> = drive_paths
                 .iter()
                 .map(|path| Drive::new(path))
-                .collect::<anyhow::Result<_>>()?;
+                .collect::<anyhow::Result<_>>()
+                .context("Failed to setup drives")?;
             let mut drive_probers: Vec<(Box<dyn DeviceTempProber>, bool)> = drives
                 .iter()
                 .zip(drive_paths.iter())
                 .map(|(drive, path)| {
-                    probe::prober(drive, hddtemp_daemon_port)?.ok_or_else(|| {
-                        anyhow::anyhow!("No probing method found for drive {path:?}")
-                    })
+                    probe::prober(drive, hddtemp_daemon_port)
+                        .with_context(|| format!("Failed to setup prober for drive {drive}"))?
+                        .ok_or_else(|| {
+                            anyhow::anyhow!("No probing method found for drive {path:?}")
+                        })
                 })
-                .collect::<anyhow::Result<_>>()?;
+                .collect::<anyhow::Result<_>>()
+                .context("Failed to setup drive probers")?;
 
             let mut hwmon_and_range: Vec<(Hwmon, Range<Temp>)> = hwmons
                 .iter()
                 .map(|h| {
-                    let hwm = Hwmon::new(&h.filepath)?;
+                    let hwm = Hwmon::new(&h.filepath)
+                        .with_context(|| format!("Failed to setup hwmon {:?}", h.filepath))?;
                     let range = h.temp.as_ref().map_or_else(
                         || -> anyhow::Result<_> {
                             // Default range
-                            let range = hwm.default_range()?;
+                            let range = hwm.default_range().with_context(|| {
+                                format!(
+                                    "Failed to compute default temperature range for hwmon {hwm}"
+                                )
+                            })?;
                             log::info!(
                                 "Device temperature range set to {}-{}°C",
                                 range.start,
@@ -127,13 +141,19 @@ fn main() -> anyhow::Result<()> {
                 })
                 .collect::<anyhow::Result<_>>()?;
 
-            let min_fan_speed = Speed::try_from(f64::from(min_fan_speed_prct) / 100.0)?;
-            let mut fans: Vec<_> = pwm.iter().map(Fan::new).collect::<anyhow::Result<_>>()?;
+            let min_fan_speed = Speed::try_from(f64::from(min_fan_speed_prct) / 100.0)
+                .with_context(|| format!("Invalid speed {min_fan_speed_prct}%"))?;
+            let mut fans: Vec<_> = pwm
+                .iter()
+                .map(Fan::new)
+                .collect::<anyhow::Result<_>>()
+                .context("Failed to setup fans")?;
 
             let _exit_hook = ExitHook::new(
                 pwm.iter()
                     .map(|p| pwm::Pwm::new(&p.filepath))
-                    .collect::<anyhow::Result<_>>()?,
+                    .collect::<anyhow::Result<_>>()
+                    .context("Failed to setup PWMs for exit hook")?,
                 restore_fan_settings,
             )?;
 
@@ -145,7 +165,8 @@ fn main() -> anyhow::Result<()> {
                 ctrlc::set_handler(move || {
                     exit_requested.store(true, Ordering::SeqCst);
                     let _ = exit_tx.send(());
-                })?;
+                })
+                .context("Failed to setup SIGINT handler")?;
             }
 
             while !exit_requested.load(Ordering::SeqCst) {
@@ -155,19 +176,24 @@ fn main() -> anyhow::Result<()> {
                     .iter_mut()
                     .zip(drives.iter())
                     .map(|((prober, supports_probing_sleeping), drive)| {
-                        let state = drive.state()?;
+                        let state = drive
+                            .state()
+                            .with_context(|| format!("Failed to get drive {drive} state"))?;
                         log::debug!("Drive {drive} state: {state}");
                         let temp = if state.is_spun_down() && !*supports_probing_sleeping {
                             log::debug!("Drive {drive} is sleeping");
                             None
                         } else {
-                            let temp = prober.probe_temp()?;
+                            let temp = prober
+                                .probe_temp()
+                                .with_context(|| format!("Failed to get drive {drive} temp"))?;
                             log::debug!("Drive {drive}: {temp}°C");
                             Some(temp)
                         };
                         Ok(temp)
                     })
-                    .collect::<anyhow::Result<Vec<_>>>()?
+                    .collect::<anyhow::Result<Vec<_>>>()
+                    .context("Failed to get maximum drive temperature")?
                     .into_iter()
                     .flatten()
                     .reduce(f64::max);
@@ -175,7 +201,9 @@ fn main() -> anyhow::Result<()> {
                 let hwmon_temps: Vec<Temp> = hwmon_and_range
                     .iter_mut()
                     .map(|(hwm, _range)| {
-                        let temp = hwm.probe_temp()?;
+                        let temp = hwm
+                            .probe_temp()
+                            .with_context(|| format!("Failed to get hwmon {hwm} temp"))?;
                         log::info!("Hwmon {hwm} temperature: {temp}°C");
                         Ok(temp)
                     })
@@ -194,7 +222,8 @@ fn main() -> anyhow::Result<()> {
                     speed = fan::target_speed(hwmon_temp, hwmon_range, speed);
                 }
                 for fan in &mut fans {
-                    fan.set_speed(speed)?;
+                    fan.set_speed(speed)
+                        .with_context(|| format!("Failed to set fan {fan} speed"))?;
                 }
 
                 let elapsed = Instant::now().duration_since(start);
