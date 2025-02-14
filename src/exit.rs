@@ -20,7 +20,7 @@ impl<T> ExitHook<T> {
                     } else {
                         pwm::State {
                             value: pwm::Value::MAX,
-                            mode: pwm::ControlMode::Software,
+                            mode: p.get_mode()?.map(|_| pwm::ControlMode::Software),
                         }
                     };
                     Ok((p, state))

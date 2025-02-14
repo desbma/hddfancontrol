@@ -26,7 +26,7 @@ pub(crate) struct Pwm<T> {
     /// `fanX_input` sysfs filepath
     rpm: T,
     /// `pwmX_enable` sysfs filepath
-    mode: PathBuf,
+    mode: Option<PathBuf>,
     /// Kernel device name (different from PWM name)
     device: String,
     /// Index among driver
@@ -70,7 +70,7 @@ pub(crate) struct State {
     /// Original PWM value
     pub value: Value,
     /// Original PWM control mode
-    pub mode: ControlMode,
+    pub mode: Option<ControlMode>,
 }
 
 impl Pwm<()> {
@@ -116,8 +116,8 @@ impl Pwm<()> {
             .with_context(|| {
                 format!("Unable to extract pwm number from file name {val_path_fname:?}")
             })?;
-        let mode_path = ensure_sysfs_file(&path.with_file_name(format!("{val_path_fname}_enable")))
-            .context("Failed to get path for 'enable' file")?;
+        let mode_path =
+            ensure_sysfs_file(&path.with_file_name(format!("{val_path_fname}_enable"))).ok();
         let device = ensure_sysfs_dir(&path.with_file_name("device"))
             .or_else(|_| ensure_sysfs_dir(&path.with_file_name("driver")))
             .context("Failed to get path for device/driver")?
@@ -165,16 +165,26 @@ impl<T> Pwm<T> {
     }
 
     /// Get PWM control mode
-    pub(crate) fn get_mode(&self) -> anyhow::Result<ControlMode> {
-        Ok(read_value::<u8>(&self.mode)
-            .with_context(|| format!("Failed to read from {:?}", self.mode))?
-            .into())
+    pub(crate) fn get_mode(&self) -> anyhow::Result<Option<ControlMode>> {
+        if let Some(mode) = self.mode.as_ref() {
+            Ok(Some(
+                read_value::<u8>(mode)
+                    .with_context(|| format!("Failed to read from {mode:?}"))?
+                    .into(),
+            ))
+        } else {
+            Ok(None)
+        }
     }
 
     /// Set PWM control mode
     pub(crate) fn set_mode(&self, mode: ControlMode) -> anyhow::Result<()> {
-        write_value::<u8>(&self.mode, mode.into())
-            .with_context(|| format!("Failed to write to {:?}", self.mode))
+        if let Some(mode_path) = self.mode.as_ref() {
+            write_value::<u8>(mode_path, mode.into())
+                .with_context(|| format!("Failed to write to {mode_path:?}"))
+        } else {
+            Ok(())
+        }
     }
 
     /// Get current state
@@ -188,7 +198,9 @@ impl<T> Pwm<T> {
     /// Set state
     pub(crate) fn set_state(&self, state: &State) -> anyhow::Result<()> {
         self.set(state.value)?;
-        self.set_mode(state.mode)?;
+        if let Some(mode) = state.mode {
+            self.set_mode(mode)?;
+        }
         Ok(())
     }
 }
@@ -323,13 +335,13 @@ pub(crate) mod tests {
         let mut fake_pwm = FakePwm::new();
         let pwm = Pwm::new(&fake_pwm.pwm_path).unwrap();
         fake_pwm.mode_file_write.write_all(b"0\n").unwrap();
-        assert_eq!(pwm.get_mode().unwrap(), ControlMode::Off);
+        assert_eq!(pwm.get_mode().unwrap().unwrap(), ControlMode::Off);
         fake_pwm.mode_file_write.write_all(b"1\n").unwrap();
-        assert_eq!(pwm.get_mode().unwrap(), ControlMode::Software);
+        assert_eq!(pwm.get_mode().unwrap().unwrap(), ControlMode::Software);
         fake_pwm.mode_file_write.write_all(b"2\n").unwrap();
-        assert_eq!(pwm.get_mode().unwrap(), ControlMode::Other(2));
+        assert_eq!(pwm.get_mode().unwrap().unwrap(), ControlMode::Other(2));
         fake_pwm.mode_file_write.write_all(b"3\n").unwrap();
-        assert_eq!(pwm.get_mode().unwrap(), ControlMode::Other(3));
+        assert_eq!(pwm.get_mode().unwrap().unwrap(), ControlMode::Other(3));
     }
 
     #[test]

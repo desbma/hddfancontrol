@@ -212,16 +212,17 @@ impl<T> Fan<T> {
         if self.speed == Some(speed) {
             log::trace!("Fan {self} speed unchanged: {speed}");
         } else {
-            let prev_mode = self.pwm.get_mode()?;
-            let new_mode = ControlMode::Software;
-            if prev_mode != new_mode {
-                self.pwm.set_mode(new_mode)?;
-                log::info!(
-                    "PWM {} mode set from {} to {}",
-                    self.pwm,
-                    prev_mode,
-                    new_mode
-                );
+            if let Some(prev_mode) = self.pwm.get_mode()? {
+                let new_mode = ControlMode::Software;
+                if prev_mode != new_mode {
+                    self.pwm.set_mode(new_mode)?;
+                    log::info!(
+                        "PWM {} mode set from {} to {}",
+                        self.pwm,
+                        prev_mode,
+                        new_mode
+                    );
+                }
             }
             let pwm_value = self.speed_to_pwm_val(speed);
             let pwm_value = if self.speed.is_some_and(Speed::is_zero) {
