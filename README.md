@@ -98,16 +98,16 @@ cargo build --release
 install -Dm 755 -t /usr/local/bin target/release/hddfancontrol
 ```
 
-or from `crates.io`:
-
-```
-sudo cargo install --root /usr/local
-```
-
 Also install [hdparm](http://sourceforge.net/projects/hdparm/), [smartctl](https://www.smartmontools.org/) and optionally [hddtemp](http://www.guzu.net/linux/hddtemp.php).
 On recent Ubuntu and other Debian derivatives: `sudo apt-get install hdparm smartmontools`.
 
 See [systemd service](#systemd-service) to easily manage the daemon.
+
+### From [`crates.io`](https://crates.io/)
+
+```
+sudo cargo install --root /usr/local
+```
 
 ## Configuration
 
