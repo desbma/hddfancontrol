@@ -9,6 +9,7 @@ use std::{
     time::Duration,
 };
 
+use anyhow::Context as _;
 use backoff::ExponentialBackoffBuilder;
 
 use crate::sysfs::{ensure_sysfs_dir, ensure_sysfs_file, read_value, write_value};
@@ -105,22 +106,24 @@ impl Pwm<()> {
 
         let val_path_fname = path
             .file_name()
-            .ok_or_else(|| anyhow::anyhow!("Invalid path: {path:?}"))?
-            .to_str()
+            .and_then(|f| f.to_str())
             .ok_or_else(|| anyhow::anyhow!("Invalid path: {path:?}"))?;
         let num = val_path_fname
             .chars()
             .skip_while(|c| !c.is_ascii_digit())
             .collect::<String>()
-            .parse::<usize>()?;
-        let mode_path =
-            ensure_sysfs_file(&path.with_file_name(format!("{val_path_fname}_enable")))?;
+            .parse::<usize>()
+            .with_context(|| {
+                format!("Unable to extract pwm number from file name {val_path_fname:?}")
+            })?;
+        let mode_path = ensure_sysfs_file(&path.with_file_name(format!("{val_path_fname}_enable")))
+            .context("Failed to get path for 'enable' file")?;
         let device = ensure_sysfs_dir(&path.with_file_name("device"))
-            .or_else(|_| ensure_sysfs_dir(&path.with_file_name("driver")))?
+            .or_else(|_| ensure_sysfs_dir(&path.with_file_name("driver")))
+            .context("Failed to get path for device/driver")?
             .file_name()
+            .and_then(|f| f.to_str())
             .ok_or_else(|| anyhow::anyhow!("Invalid device path for {path:?}"))?
-            .to_str()
-            .ok_or_else(|| anyhow::anyhow!("Invalid device name {path:?}"))?
             .to_owned();
         Ok(Self {
             val: path.clone(),
@@ -153,22 +156,25 @@ impl<T> Pwm<T> {
     /// Set PWM value
     pub(crate) fn set(&self, val: Value) -> anyhow::Result<()> {
         log::trace!("Set PWM {self} to {val}");
-        write_value(&self.val, val)
+        write_value(&self.val, val).with_context(|| format!("Failed to write to {:?}", self.val))
     }
 
     /// Get PWM value
     pub(crate) fn get(&self) -> anyhow::Result<Value> {
-        read_value(&self.val)
+        read_value(&self.val).with_context(|| format!("Failed to read from {:?}", self.val))
     }
 
     /// Get PWM control mode
     pub(crate) fn get_mode(&self) -> anyhow::Result<ControlMode> {
-        Ok(read_value::<u8>(&self.mode)?.into())
+        Ok(read_value::<u8>(&self.mode)
+            .with_context(|| format!("Failed to read from {:?}", self.mode))?
+            .into())
     }
 
     /// Set PWM control mode
     pub(crate) fn set_mode(&self, mode: ControlMode) -> anyhow::Result<()> {
         write_value::<u8>(&self.mode, mode.into())
+            .with_context(|| format!("Failed to write to {:?}", self.mode))
     }
 
     /// Get current state
@@ -190,7 +196,7 @@ impl<T> Pwm<T> {
 impl Pwm<PathBuf> {
     /// Get fan RPM value
     pub(crate) fn get_rpm(&self) -> anyhow::Result<u32> {
-        read_value(&self.rpm)
+        read_value(&self.rpm).with_context(|| format!("Failed to read from {:?}", self.rpm))
     }
 }
 

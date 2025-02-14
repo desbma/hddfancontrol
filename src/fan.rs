@@ -9,6 +9,8 @@ use std::{
     time::{Duration, Instant},
 };
 
+use anyhow::Context as _;
+
 use crate::{
     cl::PwmSettings,
     probe::Temp,
@@ -120,7 +122,8 @@ impl Fan<()> {
 
         let dir = self.pwm.sysfs_dir();
         let candidates: Vec<_> = dir
-            .read_dir()?
+            .read_dir()
+            .with_context(|| format!("Failed to read directory {dir:?}"))?
             .flatten()
             .filter(|e| {
                 e.file_name()

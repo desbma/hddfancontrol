@@ -8,6 +8,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use anyhow::Context as _;
+
 use crate::{
     probe::{DeviceTempProber, Temp},
     sysfs::{ensure_sysfs_dir, ensure_sysfs_file},
@@ -33,22 +35,21 @@ impl Hwmon {
     /// Build a new prober
     pub(crate) fn new(input_path: &Path) -> anyhow::Result<Self> {
         let device = ensure_sysfs_dir(&input_path.with_file_name("device"))
-            .or_else(|_| ensure_sysfs_dir(&input_path.with_file_name("driver")))?
+            .or_else(|_| ensure_sysfs_dir(&input_path.with_file_name("driver")))
+            .context("Failed to get path for device/driver")?
             .file_name()
+            .and_then(|f| f.to_str())
             .ok_or_else(|| anyhow::anyhow!("Invalid device path for {input_path:?}"))?
-            .to_str()
-            .ok_or_else(|| anyhow::anyhow!("Invalid device name {input_path:?}"))?
             .to_owned();
-        #[expect(clippy::unwrap_used)]
         let num = ensure_sysfs_file(input_path)?
             .file_name()
-            .unwrap()
-            .to_str()
-            .unwrap()
+            .and_then(|f| f.to_str())
+            .ok_or_else(|| anyhow::anyhow!("Invalid device path for {input_path:?}"))?
             .chars()
             .filter(char::is_ascii_digit)
             .collect::<String>()
-            .parse::<usize>()?;
+            .parse::<usize>()
+            .with_context(|| format!("Failed to extract number from {input_path:?}"))?;
         Ok(Self {
             input_path: input_path.to_owned(),
             device,
@@ -65,8 +66,7 @@ impl Hwmon {
         let sensor_num: u32 = self
             .input_path
             .file_name()
-            .ok_or_else(|| anyhow::anyhow!("Invalid probe path {:?}", self.input_path))?
-            .to_str()
+            .and_then(|f| f.to_str())
             .ok_or_else(|| anyhow::anyhow!("Invalid probe path {:?}", self.input_path))?
             .chars()
             .skip_while(|c| !c.is_ascii_digit())
