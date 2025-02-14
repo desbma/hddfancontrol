@@ -20,7 +20,9 @@ pub(crate) struct DaemonMethod {
 }
 
 impl DriveTempProbeMethod for DaemonMethod {
-    fn prober(&self, drive: &Drive) -> Result<Box<dyn DeviceTempProber>, ProberError> {
+    type Prober = DaemonProber;
+
+    fn prober(&self, drive: &Drive) -> Result<DaemonProber, ProberError> {
         let mut prober = DaemonProber {
             addr: self.addr,
             device: drive.dev_path.clone(),
@@ -28,7 +30,7 @@ impl DriveTempProbeMethod for DaemonMethod {
         prober
             .probe_temp()
             .map_err(|e| ProberError::Unsupported(e.to_string()))?;
-        Ok(Box::new(prober))
+        Ok(prober)
     }
 
     fn supports_probing_sleeping(&self) -> bool {
@@ -83,14 +85,16 @@ impl DeviceTempProber for DaemonProber {
 pub(crate) struct InvocationMethod;
 
 impl DriveTempProbeMethod for InvocationMethod {
-    fn prober(&self, drive: &Drive) -> Result<Box<dyn DeviceTempProber>, ProberError> {
+    type Prober = InvocationProber;
+
+    fn prober(&self, drive: &Drive) -> Result<InvocationProber, ProberError> {
         let mut prober = InvocationProber {
             device: drive.dev_path.clone(),
         };
         prober
             .probe_temp()
             .map_err(|e| ProberError::Unsupported(e.to_string()))?;
-        Ok(Box::new(prober))
+        Ok(prober)
     }
 
     fn supports_probing_sleeping(&self) -> bool {

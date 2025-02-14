@@ -12,7 +12,9 @@ use super::{DeviceTempProber, Drive, DriveTempProbeMethod, ProberError, Temp};
 pub(crate) struct Method;
 
 impl DriveTempProbeMethod for Method {
-    fn prober(&self, drive: &Drive) -> Result<Box<dyn DeviceTempProber>, ProberError> {
+    type Prober = Prober;
+
+    fn prober(&self, drive: &Drive) -> Result<Prober, ProberError> {
         #[expect(clippy::unwrap_used)] // At this point we already checked it is a valid device
         let drive_name = drive.dev_path.file_name().unwrap();
         let hwmon_dir = Path::new("/sys/block/")
@@ -41,7 +43,7 @@ impl DriveTempProbeMethod for Method {
                         "{input_path:?} does not exist"
                     )));
                 }
-                return Ok(Box::new(Prober { input_path }));
+                return Ok(Prober { input_path });
             }
         }
         Err(ProberError::Unsupported(format!(

@@ -14,14 +14,16 @@ use super::{DeviceTempProber, Drive, DriveTempProbeMethod, ProberError, Temp};
 pub(crate) struct SctMethod;
 
 impl DriveTempProbeMethod for SctMethod {
-    fn prober(&self, drive: &Drive) -> Result<Box<dyn DeviceTempProber>, ProberError> {
+    type Prober = SctProber;
+
+    fn prober(&self, drive: &Drive) -> Result<SctProber, ProberError> {
         let mut prober = SctProber {
             device: drive.dev_path.clone(),
         };
         prober
             .probe_temp()
             .map_err(|e| ProberError::Unsupported(e.to_string()))?;
-        Ok(Box::new(prober))
+        Ok(prober)
     }
 
     fn supports_probing_sleeping(&self) -> bool {
@@ -81,14 +83,16 @@ impl DeviceTempProber for SctProber {
 pub(crate) struct AttribMethod;
 
 impl DriveTempProbeMethod for AttribMethod {
-    fn prober(&self, drive: &Drive) -> Result<Box<dyn DeviceTempProber>, ProberError> {
+    type Prober = AttribProber;
+
+    fn prober(&self, drive: &Drive) -> Result<AttribProber, ProberError> {
         let mut prober = AttribProber {
             device: drive.dev_path.clone(),
         };
         prober
             .probe_temp()
             .map_err(|e| ProberError::Unsupported(e.to_string()))?;
-        Ok(Box::new(prober))
+        Ok(prober)
     }
 
     fn supports_probing_sleeping(&self) -> bool {

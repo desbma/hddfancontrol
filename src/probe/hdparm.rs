@@ -14,14 +14,16 @@ use crate::device::Drive;
 pub(crate) struct Method;
 
 impl DriveTempProbeMethod for Method {
-    fn prober(&self, drive: &Drive) -> Result<Box<dyn DeviceTempProber>, ProberError> {
+    type Prober = Prober;
+
+    fn prober(&self, drive: &Drive) -> Result<Prober, ProberError> {
         let mut prober = Prober {
             device: drive.dev_path.clone(),
         };
         prober
             .probe_temp()
             .map_err(|e| ProberError::Unsupported(e.to_string()))?;
-        Ok(Box::new(prober))
+        Ok(prober)
     }
 
     fn supports_probing_sleeping(&self) -> bool {
