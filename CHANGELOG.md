@@ -1,5 +1,24 @@
 # Changelog
 
+## 2.0.1 - 2025-02-15
+
+### <!-- 01 -->💡 Features
+
+- Add error reporting contexts ([aeb47ed](https://github.com/desbma/hddfancontrol/commit/aeb47ed55cb39c8e1849c5c1d8321ab6445af641) by desbma)
+- Add more error reporting contexts ([60d533e](https://github.com/desbma/hddfancontrol/commit/60d533e23feb8c2d487b84678f66690d3d3ef9fd) by desbma)
+- Support drivers with missing 'pwmX_enable' file ([1879b70](https://github.com/desbma/hddfancontrol/commit/1879b7070d62785e3dda8aaf78a9e208abed3acc) by desbma)
+
+### <!-- 04 -->📗 Documentation
+
+- README: Split crates.io installation instructions ([4bed6bd](https://github.com/desbma/hddfancontrol/commit/4bed6bd183fe4c16e73f743f1367859ac1d5c577) by desbma)
+
+### <!-- 10 -->🧰 Miscellaneous tasks
+
+- Update lints for rust 1.84 ([e061ec7](https://github.com/desbma/hddfancontrol/commit/e061ec7e59314119f6e28055302b50ad8ec1d994) by desbma)
+- Update dependencies ([0b4630f](https://github.com/desbma/hddfancontrol/commit/0b4630ff236002e568f844f055b1ef8d530fbe27) by desbma)
+
+---
+
 ## 2.0.0 - 2025-01-18
 
 ### <!-- 02 -->🐛 Bug fixes
