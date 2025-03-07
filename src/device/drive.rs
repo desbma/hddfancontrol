@@ -105,7 +105,6 @@ impl Drive {
                     .ok_or_else(|| anyhow::anyhow!("Invalid device path"))?,
             ])
             .stdin(Stdio::null())
-            .stderr(Stdio::null())
             .env("LANG", "C")
             .output()?;
         anyhow::ensure!(
@@ -113,10 +112,19 @@ impl Drive {
             "hdparm failed with code {}",
             output.status
         );
-        let state = output
+        let lines: Vec<_> = output
             .stdout
             .lines()
-            .map_while(Result::ok)
+            .chain(output.stderr.lines())
+            .collect::<Result<_, _>>()?;
+        anyhow::ensure!(
+            !lines
+                .iter()
+                .any(|l| l.starts_with("SG_IO: ") && l.contains("sense data")),
+            "hdparm returned soft error",
+        );
+        let state = lines
+            .iter()
             .filter(|l| l.trim_start().starts_with("drive state is: "))
             .find_map(|l| {
                 l.split_ascii_whitespace()
@@ -239,6 +247,14 @@ mod tests {
             0,
         )
         .unwrap();
+        assert!(Drive::state_(Path::new("/dev/_sdX")).is_err());
+
+        let _hdparm_mock = BinaryMock::new(
+            "hdparm",
+            "\n/dev/_sdX:\n drive state is:  standby\n".as_bytes(),
+            "SG_IO: bad/missing sense data, sb[]:  70 00 05 00 00 00 00 0a 00 00 00 00 20 00 01 cf 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n".as_bytes(),
+            0,
+        );
         assert!(Drive::state_(Path::new("/dev/_sdX")).is_err());
     }
 }
