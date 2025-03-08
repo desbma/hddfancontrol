@@ -24,6 +24,8 @@ pub(crate) enum State {
 }
 
 /// How to probe for drive state
+#[derive(strum::Display)]
+#[strum(serialize_all = "lowercase")]
 enum StateProbingMethod {
     /// Use `hdparm`
     Hdparm,
@@ -80,6 +82,7 @@ impl Drive {
         } else {
             anyhow::bail!("Unable to probe for drive state");
         };
+        log::debug!("{}: Will use {} state probing method", name, state_probing);
         Ok(Self {
             dev_path,
             name,
