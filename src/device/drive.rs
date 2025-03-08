@@ -23,6 +23,14 @@ pub(crate) enum State {
     Unknown,
 }
 
+/// How to probe for drive state
+enum StateProbingMethod {
+    /// Use `hdparm`
+    Hdparm,
+    /// Use `sdparm`
+    Sdparm,
+}
+
 impl State {
     /// Is drive currently spun down
     pub(crate) fn is_spun_down(&self) -> bool {
@@ -39,6 +47,8 @@ pub(crate) struct Drive {
     pub dev_path: PathBuf,
     /// Pretty name for display
     name: String,
+    /// How to probe for state
+    state_probing_method: StateProbingMethod,
 }
 
 impl fmt::Display for Drive {
@@ -63,7 +73,18 @@ impl Drive {
                 .ok_or_else(|| anyhow::anyhow!("Invalid drive path"))?,
             Self::model(&dev_path)?,
         );
-        Ok(Self { dev_path, name })
+        let state_probing = if Self::state_hdparm(&dev_path).is_ok() {
+            StateProbingMethod::Hdparm
+        } else if Self::state_sdparm(&dev_path).is_ok() {
+            StateProbingMethod::Sdparm
+        } else {
+            anyhow::bail!("Unable to probe for drive state");
+        };
+        Ok(Self {
+            dev_path,
+            name,
+            state_probing_method: state_probing,
+        })
     }
 
     /// Get drive model name
@@ -96,8 +117,8 @@ impl Drive {
         anyhow::bail!("Unable to get drive {path:?} model name");
     }
 
-    /// Get drive runtime state
-    fn state_(path: &Path) -> anyhow::Result<State> {
+    /// Get drive runtime state using `hdparm`
+    fn state_hdparm(path: &Path) -> anyhow::Result<State> {
         let output = Command::new("hdparm")
             .args([
                 "-C",
@@ -137,9 +158,47 @@ impl Drive {
         Ok(state)
     }
 
+    /// Get drive runtime state using `sdparm`
+    fn state_sdparm(path: &Path) -> anyhow::Result<State> {
+        let output = Command::new("sdparm")
+            .args([
+                "--command=ready",
+                path.to_str()
+                    .ok_or_else(|| anyhow::anyhow!("Invalid device path"))?,
+            ])
+            .stdin(Stdio::null())
+            .stderr(Stdio::null())
+            .env("LANG", "C")
+            .output()?;
+        anyhow::ensure!(
+            output.status.success(),
+            "sdparm failed with code {}",
+            output.status
+        );
+        let state = output
+            .stdout
+            .lines()
+            .map_while(Result::ok)
+            .filter_map(|l| {
+                let nl = l.trim();
+                (!nl.is_empty()).then(|| nl.to_owned())
+            })
+            .last()
+            .map(|l| match l.as_str() {
+                "Ready" => State::ActiveIdle,
+                "Not ready" => State::Sleeping,
+                _ => State::Unknown,
+            })
+            .ok_or_else(|| anyhow::anyhow!("Failed to parse sdparm drive state output"))?;
+        Ok(state)
+    }
+
     /// Get drive runtime state
     pub(crate) fn state(&self) -> anyhow::Result<State> {
-        Self::state_(&self.dev_path)
+        match self.state_probing_method {
+            StateProbingMethod::Hdparm => Self::state_hdparm(&self.dev_path),
+            StateProbingMethod::Sdparm => Self::state_sdparm(&self.dev_path),
+        }
     }
 }
 
@@ -177,7 +236,7 @@ mod tests {
 
     #[serial_test::serial]
     #[test]
-    fn test_state() {
+    fn test_state_hdparm() {
         let _ = simple_logger::init_with_level(log::Level::Trace);
 
         let _hdparm_mock = BinaryMock::new(
@@ -188,7 +247,7 @@ mod tests {
         )
         .unwrap();
         assert!(matches!(
-            Drive::state_(Path::new("/dev/_sdX")).unwrap(),
+            Drive::state_hdparm(Path::new("/dev/_sdX")).unwrap(),
             State::ActiveIdle
         ));
 
@@ -200,7 +259,7 @@ mod tests {
         )
         .unwrap();
         assert!(matches!(
-            Drive::state_(Path::new("/dev/_sdX")).unwrap(),
+            Drive::state_hdparm(Path::new("/dev/_sdX")).unwrap(),
             State::Standby
         ));
 
@@ -212,7 +271,7 @@ mod tests {
         )
         .unwrap();
         assert!(matches!(
-            Drive::state_(Path::new("/dev/_sdX")).unwrap(),
+            Drive::state_hdparm(Path::new("/dev/_sdX")).unwrap(),
             State::Sleeping
         ));
 
@@ -224,7 +283,7 @@ mod tests {
         )
         .unwrap();
         assert!(matches!(
-            Drive::state_(Path::new("/dev/_sdX")).unwrap(),
+            Drive::state_hdparm(Path::new("/dev/_sdX")).unwrap(),
             State::Unknown
         ));
 
@@ -236,7 +295,7 @@ mod tests {
         )
         .unwrap();
         assert!(matches!(
-            Drive::state_(Path::new("/dev/_sdX")).unwrap(),
+            Drive::state_hdparm(Path::new("/dev/_sdX")).unwrap(),
             State::Unknown
         ));
 
@@ -247,7 +306,7 @@ mod tests {
             0,
         )
         .unwrap();
-        assert!(Drive::state_(Path::new("/dev/_sdX")).is_err());
+        assert!(Drive::state_hdparm(Path::new("/dev/_sdX")).is_err());
 
         let _hdparm_mock = BinaryMock::new(
             "hdparm",
@@ -255,6 +314,36 @@ mod tests {
             "SG_IO: bad/missing sense data, sb[]:  70 00 05 00 00 00 00 0a 00 00 00 00 20 00 01 cf 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n".as_bytes(),
             0,
         );
-        assert!(Drive::state_(Path::new("/dev/_sdX")).is_err());
+        assert!(Drive::state_hdparm(Path::new("/dev/_sdX")).is_err());
+    }
+
+    #[serial_test::serial]
+    #[test]
+    fn test_state_sdparm() {
+        let _ = simple_logger::init_with_level(log::Level::Trace);
+
+        let _sdparm_mock = BinaryMock::new(
+            "sdparm",
+            "    /dev/_sdX: SEAGATE   ST2000NM0001      0002\nReady\n".as_bytes(),
+            &[],
+            0,
+        )
+        .unwrap();
+        assert!(matches!(
+            Drive::state_sdparm(Path::new("/dev/_sdX")).unwrap(),
+            State::ActiveIdle
+        ));
+
+        let _sdparm_mock = BinaryMock::new(
+            "sdparm",
+            "    /dev/_sdX: SEAGATE   ST2000NM0001      0002\nNot ready\n".as_bytes(),
+            &[],
+            0,
+        )
+        .unwrap();
+        assert!(matches!(
+            Drive::state_sdparm(Path::new("/dev/_sdX")).unwrap(),
+            State::Sleeping
+        ));
     }
 }
