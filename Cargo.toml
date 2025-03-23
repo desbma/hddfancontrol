@@ -7,7 +7,7 @@ repository = "https://github.com/desbma/hddfancontrol"
 keywords = ["hdd", "drive", "temperature", "fan", "control"]
 categories = ["command-line-utilities"]
 license = "GPL-3.0-only"
-version = "2.0.1"
+version = "2.0.2"
 rust-version = "1.81"
 edition = "2021"
 
@@ -16,25 +16,25 @@ lto = true
 codegen-units = 1
 
 [dependencies]
-anyhow = { version = "1.0.95", default-features = false, features = ["std", "backtrace"] }
+anyhow = { version = "1.0.97", default-features = false, features = ["std", "backtrace"] }
 backoff = { version = "0.4.0", default-features = false }
-clap = { version = "4.5.29", default-features = false, features = ["std", "color", "help", "usage", "error-context", "suggestions", "derive"] }
+clap = { version = "4.5.32", default-features = false, features = ["std", "color", "help", "usage", "error-context", "suggestions", "derive"] }
 clap_mangen = { version = "0.2.26", default-features = false, optional = true }
 clap-num = { version = "1.2.0", default-features = false }
 ctrlc = { version = "3.4.5", default-features = false, features = ["termination"] }
-humantime = { version = "2.1.0", default-features = false }
+humantime = { version = "2.2.0", default-features = false }
 itertools = { version = "0.14.0", default-features = false, features = ["use_std"] }
-log = { version = "0.4.25", default-features = false, features = ["max_level_trace", "release_max_level_trace"] }
+log = { version = "0.4.26", default-features = false, features = ["max_level_trace", "release_max_level_trace"] }
 nix = { version = "0.29.0", default-features = false, features = ["fs"] }
 simple_logger = { version = "5.0.0", default-features = false, features = ["colors", "stderr"] }
-strum = { version = "0.27.0", default-features = false, features = ["std", "derive"] }
-thiserror = { version = "2.0.11", default-features = false, features = ["std"] }
-typed_floats = { version = "1.0.2", default-features = false, features = ["std", "compiler_hints", "ensure_no_undefined_behavior"] }
+strum = { version = "0.27.1", default-features = false, features = ["std", "derive"] }
+thiserror = { version = "2.0.12", default-features = false, features = ["std"] }
+typed_floats = { version = "1.0.4", default-features = false, features = ["std", "compiler_hints", "ensure_no_undefined_behavior"] }
 
 [dev-dependencies]
 float-cmp = { version = "0.10.0", default-features = false, features = ["std"] }
 serial_test = { version = "3.2.0", default-features = false }
-tempfile = { version = "3.16.0", default-features = false }
+tempfile = { version = "3.19.1", default-features = false }
 
 [features]
 default = []

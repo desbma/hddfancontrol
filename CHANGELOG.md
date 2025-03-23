@@ -1,5 +1,22 @@
 # Changelog
 
+## 2.0.2 - 2025-03-23
+
+### <!-- 01 -->💡 Features
+
+- Support using sdparm to probe for drive state ([fe72479](https://github.com/desbma/hddfancontrol/commit/fe72479b9853e23ee3d4a3affcf38e8c091c4203) by desbma)
+- Log state probing method ([ae53c43](https://github.com/desbma/hddfancontrol/commit/ae53c4319d9f7655f38812efcc3cecef7061ffaf) by desbma)
+
+### <!-- 02 -->🐛 Bug fixes
+
+- Detect hdparm -C soft errors ([d5dd2b2](https://github.com/desbma/hddfancontrol/commit/d5dd2b28da822f118a5125600e7e468dcf9ef50b) by desbma)
+
+### <!-- 06 -->🚜 Refactor
+
+- Create separate probe method trait for type erasure ([b85eb25](https://github.com/desbma/hddfancontrol/commit/b85eb25ca713349c426ed11d234ceae717f4f07d) by desbma)
+
+---
+
 ## 2.0.1 - 2025-02-15
 
 ### <!-- 01 -->💡 Features
