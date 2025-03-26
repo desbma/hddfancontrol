@@ -125,7 +125,7 @@ pub(crate) enum Command {
         min_fan_speed_prct: Percentage,
 
         /// Interval to check temperature and adjust fan speed, ie. '30s', '3min'.
-        #[arg(short, long)]
+        #[arg(short, long, default_value = "20s")]
         interval: humantime::Duration,
 
         /// Also control fan speed according to these additional hwmon temperature probes.
