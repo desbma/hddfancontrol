@@ -7,7 +7,7 @@
 
 ---
 
-This tool has been rewritten in Rust. The previous Python version is in the [v1 branch](https://github.com/desbma/hddfancontrol/tree/v1). See [Migrating from v1.x](#migrating-from-v1x) for migration.
+Since version 2.0, this tool has been rewritten in Rust. The previous Python version can be found in the [v1 branch](https://github.com/desbma/hddfancontrol/tree/v1). See [Migrating from v1.x](#migrating-from-v1x) for migration.
 
 ---
 
@@ -64,7 +64,7 @@ The ideal use case is for a NAS with several hard drives, a low power CPU (ie. A
 ## Prerequisites
 
 - A Linux distribution
-- A least one SATA hard drive\*, that supports:
+- A least one SATA/SAS\* hard drive, that supports:
   - Temperature querying
   - Power state querying
 - A motherboard which:
@@ -73,7 +73,7 @@ The ideal use case is for a NAS with several hard drives, a low power CPU (ie. A
 
 Most motherboards and SATA drives fit these requirements.
 
-\* There has been reports of `hddfancontrol` working well with SAS drives, however this has not been thoroughly tested.
+\* There has been several reports of `hddfancontrol` working well with SAS drives, however this has been less tested than SATA.
 
 ## Installation
 
@@ -98,8 +98,8 @@ cargo build --release
 install -Dm 755 -t /usr/local/bin target/release/hddfancontrol
 ```
 
-Also install [hdparm](http://sourceforge.net/projects/hdparm/), [smartctl](https://www.smartmontools.org/) and optionally [hddtemp](http://www.guzu.net/linux/hddtemp.php).
-On recent Ubuntu and other Debian derivatives: `sudo apt-get install hdparm smartmontools`.
+Also install [hdparm](http://sourceforge.net/projects/hdparm/), [smartctl](https://www.smartmontools.org/), [sdparm](https://sg.danny.cz/sg/sdparm.html) (for SAS drive support), and optionally [hddtemp](http://www.guzu.net/linux/hddtemp.php).
+On recent Ubuntu and other Debian derivatives: `sudo apt install hdparm sdparm smartmontools`.
 
 See [systemd service](#systemd-service) to easily manage the daemon.
 
