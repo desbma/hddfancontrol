@@ -104,6 +104,7 @@ verbose_file_reads = "warn"
 
 [package.metadata.deb]
 depends = "$auto, hdparm, smartmontools"
+recommends = "sdparm"
 maintainer-scripts = "debian/"
 systemd-units = { enable = false, start = false, unit-scripts = "systemd/" }
 assets = [
