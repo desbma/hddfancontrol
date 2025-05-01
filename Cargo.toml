@@ -16,20 +16,20 @@ lto = true
 codegen-units = 1
 
 [dependencies]
-anyhow = { version = "1.0.97", default-features = false, features = ["std", "backtrace"] }
+anyhow = { version = "1.0.98", default-features = false, features = ["std", "backtrace"] }
 backoff = { version = "0.4.0", default-features = false }
-clap = { version = "4.5.32", default-features = false, features = ["std", "color", "help", "usage", "error-context", "suggestions", "derive"] }
+clap = { version = "4.5.37", default-features = false, features = ["std", "color", "help", "usage", "error-context", "suggestions", "derive"] }
 clap_mangen = { version = "0.2.26", default-features = false, optional = true }
 clap-num = { version = "1.2.0", default-features = false }
-ctrlc = { version = "3.4.5", default-features = false, features = ["termination"] }
+ctrlc = { version = "3.4.6", default-features = false, features = ["termination"] }
 humantime = { version = "2.2.0", default-features = false }
 itertools = { version = "0.14.0", default-features = false, features = ["use_std"] }
-log = { version = "0.4.26", default-features = false, features = ["max_level_trace", "release_max_level_trace"] }
-nix = { version = "0.29.0", default-features = false, features = ["fs"] }
+log = { version = "0.4.27", default-features = false, features = ["max_level_trace", "release_max_level_trace"] }
+nix = { version = "0.30.0", default-features = false, features = ["fs"] }
 simple_logger = { version = "5.0.0", default-features = false, features = ["colors", "stderr"] }
 strum = { version = "0.27.1", default-features = false, features = ["std", "derive"] }
 thiserror = { version = "2.0.12", default-features = false, features = ["std"] }
-typed_floats = { version = "1.0.4", default-features = false, features = ["std", "compiler_hints", "ensure_no_undefined_behavior"] }
+typed_floats = { version = "1.0.5", default-features = false, features = ["std", "compiler_hints", "ensure_no_undefined_behavior"] }
 
 [dev-dependencies]
 float-cmp = { version = "0.10.0", default-features = false, features = ["std"] }

@@ -82,7 +82,7 @@ impl Drive {
         } else {
             anyhow::bail!("Unable to probe for drive state");
         };
-        log::debug!("{}: Will use {} state probing method", name, state_probing);
+        log::debug!("{name}: Will use {state_probing} state probing method");
         Ok(Self {
             dev_path,
             name,
