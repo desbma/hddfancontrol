@@ -1,7 +1,7 @@
 //! Fan control
 
 use std::{
-    cmp::{max, Ordering},
+    cmp::{Ordering, max},
     fmt,
     ops::Range,
     path::{Path, PathBuf},
@@ -144,7 +144,8 @@ impl Fan<()> {
             c => {
                 log::info!(
                     "Running tests for {} candidates to find RPM file correlated with PWM {}, this may take some time",
-                    c, self.pwm
+                    c,
+                    self.pwm
                 );
 
                 for candidate in candidates {
@@ -155,7 +156,9 @@ impl Fan<()> {
                         pwm.set(pwm::Value::MIN)?;
                         sleep(RPM_CORRELATION_DELAY);
                         if pwm.get_rpm()? > 0 {
-                            log::debug!("RPM file {candidate:?} has positive value with PWM at minimum value, excluding");
+                            log::debug!(
+                                "RPM file {candidate:?} has positive value with PWM at minimum value, excluding"
+                            );
                             skip = true;
                             break;
                         }
@@ -345,7 +348,7 @@ mod tests {
 
     use std::io::Write as _;
 
-    use self::pwm::tests::{assert_file_content, FakePwm};
+    use self::pwm::tests::{FakePwm, assert_file_content};
     use super::*;
 
     #[test]

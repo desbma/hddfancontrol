@@ -53,8 +53,9 @@ where
     <T as FromStr>::Err: 'static,
 {
     let mut file = File::open(path)?;
-    let mut buf = [0; 16];
+    let mut buf = vec![0; 16];
     let count = file.read(&mut buf)?;
-    let s = str::from_utf8(&buf[..count])?.trim_end();
+    buf.truncate(count);
+    let s = str::from_utf8(&buf)?.trim_end();
     Ok(s.parse::<T>()?)
 }

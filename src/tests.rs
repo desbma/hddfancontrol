@@ -64,7 +64,10 @@ impl BinaryMock {
         let mut dirs = env::split_paths(&var).collect::<Vec<_>>();
         dirs.insert(0, path.to_owned());
         let new_var = env::join_paths(dirs)?;
-        env::set_var(PATH_KEY, &new_var);
+        // SAFETY: actually unsafe, but this is hack for tests only
+        unsafe {
+            env::set_var(PATH_KEY, &new_var);
+        }
         log::trace!("After: PATH={}", new_var.to_str().unwrap());
         Ok(())
     }
@@ -78,7 +81,10 @@ impl BinaryMock {
             .filter(|p| p != path)
             .collect::<Vec<_>>();
         let new_var = env::join_paths(dirs)?;
-        env::set_var(PATH_KEY, &new_var);
+        // SAFETY: actually unsafe, but this is hack for tests only
+        unsafe {
+            env::set_var(PATH_KEY, &new_var);
+        }
         log::trace!("After: PATH={}", new_var.to_str().unwrap());
         Ok(())
     }

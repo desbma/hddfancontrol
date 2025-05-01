@@ -57,19 +57,16 @@ impl DeviceTempProber for DaemonProber {
         let mut stream = TcpStream::connect(self.addr)?;
         let mut buf = String::new();
         stream.read_to_string(&mut buf)?;
-        for chunk in &buf.split('|').chunks(5) {
-            let tokens: Vec<_> = chunk.collect();
-            if tokens.len() < 5 {
-                break;
-            }
-            let dev = tokens[1];
+        let mut tokens = buf.split('|');
+        while let Some(chunk) = tokens.next_array::<5>() {
+            let dev = chunk[1];
             // At this point we have already converted the device path to string
             #[expect(clippy::unwrap_used)]
             if dev != self.device.to_str().unwrap() {
                 continue;
             }
-            let mut temp = tokens[3].parse()?;
-            let unit = tokens[4];
+            let mut temp = chunk[3].parse()?;
+            let unit = chunk[4];
             if unit == "F" {
                 temp = (temp - 32.0) / 1.8;
             } else if unit != "C" {

@@ -8,6 +8,8 @@ use std::{
     str::FromStr,
 };
 
+use itertools::Itertools as _;
+
 use super::{DeviceTempProber, Drive, DriveTempProbeMethod, ProberError, Temp};
 
 /// Smartctl SCT temperature probing method
@@ -127,10 +129,10 @@ impl FromStr for SmartAttribLog {
 
     /// Parse log from smartctl -A output
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let tokens: Vec<_> = s.split_ascii_whitespace().collect();
-        if tokens.len() < 10 {
-            return Err("No enough columns");
-        }
+        let tokens = s
+            .split_ascii_whitespace()
+            .next_array::<10>()
+            .ok_or("No enough columns")?;
         Ok(Self {
             id: tokens[0]
                 .parse()

@@ -9,8 +9,9 @@ use std::{
     ops::Range,
     path::PathBuf,
     sync::{
+        Arc,
         atomic::{AtomicBool, Ordering},
-        mpsc, Arc,
+        mpsc,
     },
     time::{Duration, Instant},
 };
@@ -94,6 +95,7 @@ fn main() -> anyhow::Result<()> {
             hwmons,
             restore_fan_settings,
         } => {
+            #[expect(clippy::indexing_slicing)] // guaranteed by clap's numl_args
             let drive_temp_range = Range {
                 start: drive_temp_range[0],
                 end: drive_temp_range[1],
