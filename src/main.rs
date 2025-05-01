@@ -7,6 +7,7 @@
 
 use std::{
     ops::Range,
+    path::PathBuf,
     sync::{
         atomic::{AtomicBool, Ordering},
         mpsc, Arc,
@@ -84,7 +85,7 @@ fn main() -> anyhow::Result<()> {
             }
         }
         cl::Command::Daemon {
-            drives: drive_paths,
+            drives: drive_selectors,
             hddtemp_daemon_port,
             pwm,
             drive_temp_range,
@@ -97,6 +98,17 @@ fn main() -> anyhow::Result<()> {
                 start: drive_temp_range[0],
                 end: drive_temp_range[1],
             };
+            let drive_paths: Vec<PathBuf> = drive_selectors
+                .into_iter()
+                .map(|s| {
+                    s.to_drive_paths()
+                        .with_context(|| format!("Failed to match drives for selector {s}"))
+                })
+                .collect::<anyhow::Result<Vec<_>>>()?
+                .into_iter()
+                .flatten()
+                .collect();
+            anyhow::ensure!(!drive_paths.is_empty(), "No drive match");
             let drives: Vec<Drive> = drive_paths
                 .iter()
                 .map(|path| Drive::new(path))

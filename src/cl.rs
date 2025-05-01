@@ -1,6 +1,11 @@
 //! Command line interface
 
-use std::{ops::Range, path::PathBuf, str::FromStr};
+use std::{
+    fmt, fs, io,
+    ops::Range,
+    path::{self, PathBuf},
+    str::FromStr,
+};
 
 use clap::{Parser, Subcommand};
 
@@ -98,14 +103,69 @@ pub(crate) struct Args {
     pub command: Command,
 }
 
+/// Drive selector matching 0 or more drives
+#[derive(Clone, Debug)]
+pub(crate) enum DriveSelector {
+    /// All drives for an interface type
+    Interface(String),
+    /// A single drive path
+    DrivePath(PathBuf),
+}
+
+impl DriveSelector {
+    /// Resolve selector to drive paths
+    pub(crate) fn to_drive_paths(&self) -> io::Result<Vec<PathBuf>> {
+        match self {
+            DriveSelector::Interface(itf) => {
+                let drives = fs::read_dir("/dev/disk/by-id")?.collect::<io::Result<Vec<_>>>()?;
+                let prefix = format!("{itf}-");
+                Ok(drives
+                    .into_iter()
+                    .map(|e| e.path())
+                    .filter(|p| {
+                        p.file_name().and_then(|f| f.to_str()).is_some_and(|f| {
+                            f.starts_with(&prefix)
+                                && !f.trim_end_matches(char::is_numeric).ends_with("-part")
+                        })
+                    })
+                    .collect())
+            }
+            DriveSelector::DrivePath(p) => Ok(vec![p.to_owned()]),
+        }
+    }
+}
+
+impl fmt::Display for DriveSelector {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            DriveSelector::Interface(itf) => write!(f, "{itf}"),
+            DriveSelector::DrivePath(p) => write!(f, "{p:?}"),
+        }
+    }
+}
+
+impl FromStr for DriveSelector {
+    type Err = &'static str;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.contains(path::MAIN_SEPARATOR) {
+            Ok(Self::DrivePath(s.into()))
+        } else {
+            Ok(Self::Interface(s.to_owned()))
+        }
+    }
+}
+
 /// Main command
 #[derive(Subcommand, Debug)]
 pub(crate) enum Command {
     /// Start fan control daemon
     Daemon {
-        /// Drive(s) to get temperature from (ie. /dev/sdX).
+        /// Drive path(s) to get temperature from (ie. `/dev/sdX`).
+        /// Interface type selectors are also supported (ie. `ata` to
+        /// select all drives matching `/dev/disk/by-id/ata-*`).
         #[arg(short, long, num_args = 1.., required = true)]
-        drives: Vec<PathBuf>,
+        drives: Vec<DriveSelector>,
 
         /// PWM filepath(s) with values at which the fan start and stop moving.
         /// Use the 'pwm-test' command to find these values.
