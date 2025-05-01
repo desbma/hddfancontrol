@@ -1,5 +1,31 @@
 # Changelog
 
+## 2.0.3 - 2025-05-01
+
+### <!-- 01 -->💡 Features
+
+- Set default probe interval to 20s ([bbadf83](https://github.com/desbma/hddfancontrol/commit/bbadf8351b07377c62847c5dac32b4de42df20bd) by desbma)
+- Support matching drives by interface type (fixes #69) ([d4076e2](https://github.com/desbma/hddfancontrol/commit/d4076e285243bf6ac9c58fcfd13333680a402ff2) by desbma)
+
+### <!-- 02 -->🐛 Bug fixes
+
+- Minor cliff template fix ([ee327e3](https://github.com/desbma/hddfancontrol/commit/ee327e3842f1ea1186b81585513d7e8d78cc164e) by desbma)
+
+### <!-- 04 -->📗 Documentation
+
+- README: Mention sdparm requirement ([ad353f2](https://github.com/desbma/hddfancontrol/commit/ad353f215e20c65a1dc0f7f812b8cf46fae3be7a) by desbma)
+
+### <!-- 08 -->🏗 Build
+
+- deb: Add optional sdparm dependency ([654a993](https://github.com/desbma/hddfancontrol/commit/654a99326e545a1122931831153eef13645554f4) by desbma)
+
+### <!-- 10 -->🧰 Miscellaneous tasks
+
+- Update rust edition & lints ([21da5a9](https://github.com/desbma/hddfancontrol/commit/21da5a9a163564f9a4b934d20484f1a22f7200ef) by desbma)
+- Update dependencies ([e6e28d5](https://github.com/desbma/hddfancontrol/commit/e6e28d5e69cf7a36be190aceea57975bf4f63cb3) by desbma)
+
+---
+
 ## 2.0.2 - 2025-03-23
 
 ### <!-- 01 -->💡 Features
