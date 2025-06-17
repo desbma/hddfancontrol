@@ -157,6 +157,7 @@ impl FromStr for DriveSelector {
 }
 
 /// Main command
+#[expect(clippy::large_enum_variant)]
 #[derive(Subcommand, Debug)]
 pub(crate) enum Command {
     /// Start fan control daemon

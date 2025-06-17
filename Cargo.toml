@@ -55,6 +55,7 @@ unused-qualifications = "warn"
 
 [lints.clippy]
 pedantic = { level = "warn", priority = -1 }
+unnecessary_debug_formatting = "allow"
 # below lints are from clippy::restriction, and assume clippy >= 1.86
 # https://rust-lang.github.io/rust-clippy/master/index.html#/?levels=allow&groups=restriction
 allow_attributes = "warn"
