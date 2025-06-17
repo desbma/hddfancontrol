@@ -10,7 +10,7 @@ use std::{
 };
 
 use anyhow::Context as _;
-use backoff::ExponentialBackoffBuilder;
+use backon::{BackoffBuilder as _, BlockingRetryable as _};
 
 use crate::sysfs::{ensure_sysfs_dir, ensure_sysfs_file, read_value, write_value};
 
@@ -78,31 +78,21 @@ impl Pwm<()> {
     pub(crate) fn new(path: &Path) -> anyhow::Result<Self> {
         // At boot sometimes the PWM is not immediately available, so retry a few times if not found,
         // with increasing delay
-        let retrier = ExponentialBackoffBuilder::new()
-            .with_initial_interval(Duration::from_millis(10))
-            .with_randomization_factor(0.0)
-            .with_multiplier(1.5)
-            .with_max_interval(Duration::from_secs(1))
-            .with_max_elapsed_time(Some(Duration::from_secs(10)))
-            .build();
-        let path = backoff::retry_notify(
-            retrier,
-            || match ensure_sysfs_file(path) {
-                Ok(p) => Ok(p),
-                Err(e)
-                    if e.downcast_ref::<io::Error>()
-                        .is_some_and(|ioe| ioe.kind() == ErrorKind::NotFound) =>
-                {
-                    Err(backoff::Error::transient(e))
-                }
-                Err(e) => Err(backoff::Error::permanent(e)),
-            },
-            |_e, d| log::warn!("{path:?} does not exist, retrying in {d:?}"),
-        )
-        .map_err(|e| match e {
-            backoff::Error::Permanent(e) => e,
-            backoff::Error::Transient { err, .. } => err,
-        })?;
+        let path = (|| ensure_sysfs_file(path))
+            .retry(
+                backon::ExponentialBuilder::default()
+                    .with_factor(1.5)
+                    .with_min_delay(Duration::from_millis(10))
+                    .with_max_delay(Duration::from_secs(1))
+                    .without_max_times()
+                    .build(),
+            )
+            .when(|err| {
+                err.downcast_ref::<io::Error>()
+                    .is_some_and(|ioe| ioe.kind() == ErrorKind::NotFound)
+            })
+            .notify(|_err, dur| log::warn!("{path:?} does not exist, retrying in {dur:?}"))
+            .call()?;
 
         let val_path_fname = path
             .file_name()
