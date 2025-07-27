@@ -4,6 +4,7 @@ mod drivetemp;
 mod hddtemp;
 mod hdparm;
 mod smartctl;
+mod sglogs;
 
 use std::{
     fmt,
@@ -81,7 +82,7 @@ pub(crate) fn prober(
     drive: &Drive,
     hddtemp_daemon_port: u16,
 ) -> anyhow::Result<Option<(Box<dyn DeviceTempProber>, bool)>> {
-    let methods: [Box<dyn dyn_method::DynDriveTempProbeMethod>; 6] = [
+    let methods: [Box<dyn dyn_method::DynDriveTempProbeMethod>; 7] = [
         Box::new(drivetemp::Method),
         Box::new(hdparm::Method),
         Box::new(smartctl::SctMethod),
@@ -90,6 +91,7 @@ pub(crate) fn prober(
         }),
         Box::new(hddtemp::InvocationMethod),
         Box::new(smartctl::AttribMethod),
+        Box::new(sglogs::Method),
     ];
     for method in methods {
         match method.prober(drive) {
