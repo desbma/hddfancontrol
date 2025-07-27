@@ -1,4 +1,4 @@
-//! sg_logs temperature probing
+//! `sg_logs` temperature probing
 
 use std::{
     fmt,
@@ -10,7 +10,7 @@ use std::{
 use super::{DeviceTempProber, DriveTempProbeMethod, ProberError, Temp};
 use crate::device::Drive;
 
-/// sg_logs temperature probing method
+/// `sg_logs` temperature probing method
 pub(crate) struct Method;
 
 impl DriveTempProbeMethod for Method {
@@ -37,7 +37,7 @@ impl fmt::Display for Method {
     }
 }
 
-/// sg_logs temperature prober
+/// `sg_logs` temperature prober
 pub(crate) struct Prober {
     /// Device path in /dev/
     device: PathBuf,
@@ -115,12 +115,7 @@ mod tests {
         assert!(prober.probe_temp().is_err());
 
         // Non-zero exit code
-        let _sglogs = BinaryMock::new(
-            "sg_logs",
-            b"",
-            &[],
-            1,
-        );
+        let _sglogs = BinaryMock::new("sg_logs", b"", &[], 1);
         assert!(prober.probe_temp().is_err());
     }
 }

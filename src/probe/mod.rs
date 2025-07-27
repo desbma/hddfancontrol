@@ -3,8 +3,8 @@
 mod drivetemp;
 mod hddtemp;
 mod hdparm;
-mod smartctl;
 mod sglogs;
+mod smartctl;
 
 use std::{
     fmt,
