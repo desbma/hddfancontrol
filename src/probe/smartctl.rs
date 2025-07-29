@@ -180,11 +180,17 @@ impl DeviceTempProber for AttribProber {
             "smartctl failed with code {}",
             output.status
         );
-        let temp = output
-            .stdout
-            .lines()
-            .map_while(Result::ok)
-            .find_map(|l| l.parse::<SmartAttribLog>().ok().and_then(|a| a.temp()))
+        let lines = output.stdout.lines().collect::<Result<Vec<_>, _>>()?;
+        let temp = lines
+            .iter()
+            .find_map(|l| l.strip_prefix("Current Drive Temperature:"))
+            .and_then(|s| s.trim_start().split_once(' '))
+            .and_then(|(s, _)| s.parse().ok())
+            .or_else(|| {
+                lines
+                    .iter()
+                    .find_map(|l| l.parse::<SmartAttribLog>().ok().and_then(|a| a.temp()))
+            })
             .ok_or_else(|| {
                 anyhow::anyhow!("Failed to parse smartctl attribute output, or no temp attribute")
             })?;
@@ -307,5 +313,35 @@ ID# ATTRIBUTE_NAME          FLAG     VALUE WORST THRESH TYPE      UPDATED  WHEN_
             0,
         );
         assert!(approx_eq!(f64, prober.probe_temp().unwrap(), 44.0));
+    }
+
+    #[serial_test::serial]
+    #[test]
+    fn test_attrib_sas_probe_temp() {
+        let mut prober = AttribProber {
+            device: PathBuf::from("/dev/_sdX"),
+        };
+
+        let _smartctl = BinaryMock::new(
+            "smartctl",
+            "Copyright (C) 2002-22, Bruce Allen, Christian Franke, www.smartmontools.org
+
+=== START OF READ SMART DATA SECTION ===
+Current Drive Temperature:     42 C
+Drive Trip Temperature:        85 C
+
+Accumulated power on time, hours:minutes 49198:37
+Manufactured in week 40 of year 2016
+Specified cycle count over device lifetime:  50000
+Accumulated start-stop cycles:  20
+Specified load-unload count over device lifetime:  600000
+Accumulated load-unload cycles:  1001
+Elements in grown defect list: 12
+"
+            .as_bytes(),
+            &[],
+            0,
+        );
+        assert!(approx_eq!(f64, prober.probe_temp().unwrap(), 42.0));
     }
 }
