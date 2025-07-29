@@ -68,8 +68,11 @@ impl DeviceTempProber for SctProber {
             .stdout
             .lines()
             .map_while(Result::ok)
-            .filter(|l| l.starts_with("Current Temperature: "))
             .find_map(|l| {
+                l.strip_prefix("Current Temperature: ")
+                    .map(ToOwned::to_owned)
+            })
+            .and_then(|l| {
                 l.split_ascii_whitespace()
                     .rev()
                     .nth(1)

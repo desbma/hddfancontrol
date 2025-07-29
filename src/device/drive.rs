@@ -109,12 +109,13 @@ impl Drive {
                 continue;
             }
             // log::trace!("{}", std::str::from_utf8(&output.stdout).unwrap());
-            if let Some(line) = output.stdout.lines().map_while(Result::ok).find(|l| {
+            if let Some(line) = output.stdout.lines().map_while(Result::ok).find_map(|l| {
                 let l = l.trim_start();
-                l.starts_with("Model Number:") || l.starts_with("Product:")
+                l.strip_prefix("Model Number:")
+                    .or_else(|| l.strip_prefix("Product:"))
+                    .map(ToOwned::to_owned)
             }) {
-                #[expect(clippy::unwrap_used)] // We know string contains ':'
-                return Ok(line.split_once(':').unwrap().1.trim().to_owned());
+                return Ok(line.trim().to_owned());
             }
         }
         anyhow::bail!("Unable to get drive {path:?} model name");
@@ -149,8 +150,8 @@ impl Drive {
         );
         let state = lines
             .iter()
-            .filter(|l| l.trim_start().starts_with("drive state is: "))
-            .find_map(|l| {
+            .find_map(|l| l.trim_start().strip_prefix("drive state is: "))
+            .and_then(|l| {
                 l.split_ascii_whitespace()
                     .next_back()
                     .map(ToOwned::to_owned)

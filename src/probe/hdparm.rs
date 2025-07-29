@@ -75,11 +75,11 @@ impl DeviceTempProber for Prober {
         );
         let temp = lines
             .iter()
-            .filter(|l| {
-                l.trim_start()
-                    .starts_with("drive temperature (celsius) is: ")
-            })
             .find_map(|l| {
+                l.trim_start()
+                    .strip_prefix("drive temperature (celsius) is: ")
+            })
+            .and_then(|l| {
                 l.split_ascii_whitespace()
                     .next_back()
                     .map(ToOwned::to_owned)
