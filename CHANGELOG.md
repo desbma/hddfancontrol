@@ -1,5 +1,23 @@
 # Changelog
 
+## 2.0.4 - 2025-07-30
+
+### <!-- 01 -->💡 Features
+
+- systemd: Always restart unit ([9b2367a](https://github.com/desbma/hddfancontrol/commit/9b2367a694235fffe7b7489d4c8a84b846081a86) by desbma)
+- Parse 'smartctl -A' SCSI temperature output ([3ba1da1](https://github.com/desbma/hddfancontrol/commit/3ba1da1179e47adb0f4ea892070c2f06986b457a) by desbma)
+
+### <!-- 06 -->🚜 Refactor
+
+- Simplify some parsing code ([aa425e9](https://github.com/desbma/hddfancontrol/commit/aa425e9fb5fdb3d0d6bf7de52618182fc6c01890) by desbma)
+
+### <!-- 10 -->🧰 Miscellaneous tasks
+
+- Update lints ([9c1c55e](https://github.com/desbma/hddfancontrol/commit/9c1c55e5e84fb6b4750e1f094ca1e94bd3a570d7) by desbma)
+- Replace abandoned dependency backoff by backon ([213df14](https://github.com/desbma/hddfancontrol/commit/213df14ab63bfc4f9140230b4d9409762d846410) by desbma)
+
+---
+
 ## 2.0.3 - 2025-05-01
 
 ### <!-- 01 -->💡 Features
