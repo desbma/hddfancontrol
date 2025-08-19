@@ -167,6 +167,11 @@ impl SmartAttribLog {
 
 impl DeviceTempProber for AttribProber {
     fn probe_temp(&mut self) -> anyhow::Result<Temp> {
+        const TEMP_SMART_DATA_PREFIXES: [&str; 3] = [
+            "Current Temperature:",       // ATA
+            "Current Drive Temperature:", // SCSI
+            "Temperature:",               // NVME
+        ];
         let output = Command::new("smartctl")
             .args([
                 "-A",
@@ -186,7 +191,11 @@ impl DeviceTempProber for AttribProber {
         let lines = output.stdout.lines().collect::<Result<Vec<_>, _>>()?;
         let temp = lines
             .iter()
-            .find_map(|l| l.strip_prefix("Current Drive Temperature:"))
+            .find_map(|l| {
+                TEMP_SMART_DATA_PREFIXES
+                    .iter()
+                    .find_map(|p| l.strip_prefix(p))
+            })
             .and_then(|s| s.trim_start().split_once(' '))
             .and_then(|(s, _)| s.parse().ok())
             .or_else(|| {
@@ -346,5 +355,44 @@ Elements in grown defect list: 12
             0,
         );
         assert!(approx_eq!(f64, prober.probe_temp().unwrap(), 42.0));
+    }
+
+    #[serial_test::serial]
+    #[test]
+    fn test_attrib_nvme_probe_temp() {
+        let mut prober = AttribProber {
+            device: PathBuf::from("/dev/_sdX"),
+        };
+
+        let _smartctl = BinaryMock::new(
+            "smartctl",
+            "smartctl 7.3 2022-02-28 r5338 [x86_64-linux-6.12.41-1-lts] (local build)
+Copyright (C) 2002-22, Bruce Allen, Christian Franke, www.smartmontools.org
+
+=== START OF SMART DATA SECTION ===
+SMART/Health Information (NVMe Log 0x02)
+Critical Warning:                   0x00
+Temperature:                        45 Celsius
+Available Spare:                    100%
+Available Spare Threshold:          10%
+Percentage Used:                    2%
+Data Units Read:                    149 127 888 [76,3 TB]
+Data Units Written:                 74 736 882 [38,2 TB]
+Host Read Commands:                 695 867 367
+Host Write Commands:                634 919 873
+Controller Busy Time:               2 572
+Power Cycles:                       3 610
+Power On Hours:                     9 264
+Unsafe Shutdowns:                   89
+Media and Data Integrity Errors:    0
+Error Information Log Entries:      0
+Warning  Comp. Temperature Time:    0
+Critical Comp. Temperature Time:    0
+"
+            .as_bytes(),
+            &[],
+            0,
+        );
+        assert!(approx_eq!(f64, prober.probe_temp().unwrap(), 45.0));
     }
 }
