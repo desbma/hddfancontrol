@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0.5 - 2025-08-20
+
+### <!-- 01 -->💡 Features
+
+- Handle smartctl -A output for NVME ([168ceb1](https://github.com/desbma/hddfancontrol/commit/168ceb1b1666195a3e2d0ae9f834d4efc5c7a032) by desbma)
+
+---
+
 ## 2.0.4 - 2025-07-30
 
 ### <!-- 01 -->💡 Features
