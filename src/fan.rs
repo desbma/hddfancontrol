@@ -221,6 +221,52 @@ impl<T> Fan<T> {
         (pwm_percent * f64::from(pwm::Value::MAX)) as pwm::Value
     }
 
+    /// Apply startup boost logic to a calculated PWM value
+    fn apply_startup_boost(&mut self, calculated_pwm: pwm::Value, _new_speed: Speed) -> pwm::Value {
+        let is_startup_from_zero = self.speed.is_some_and(Speed::is_zero);
+        let startup_time_remaining = self.startup
+            .map(|s| STARTUP_DELAY.saturating_sub(Instant::now().duration_since(s)))
+            .unwrap_or(Duration::ZERO);
+        let is_in_startup_period = self.startup
+            .is_some_and(|s| Instant::now().duration_since(s) < STARTUP_DELAY);
+            
+        log::debug!("Fan {self} startup status: from_zero={}, in_startup_period={}, time_remaining={:?}", 
+                   is_startup_from_zero, is_in_startup_period, startup_time_remaining);
+        
+        if is_startup_from_zero {
+            log::info!("Fan {self} startup from zero");
+            self.startup = Some(Instant::now());
+            let boosted = max(calculated_pwm, self.thresholds.min_start);
+            log::debug!("Fan {self} startup boost: {calculated_pwm} -> {boosted}");
+            boosted
+        } else if is_in_startup_period {
+            let boosted = max(calculated_pwm, self.thresholds.min_start);
+            log::debug!("Fan {self} still in startup period: {calculated_pwm} -> {boosted} (remaining: {:?})", 
+                       startup_time_remaining);
+            boosted
+        } else {
+            log::debug!("Fan {self} normal operation: using calculated PWM {calculated_pwm}");
+            calculated_pwm
+        }
+    }
+
+    /// Set PWM mode to software control if needed
+    fn ensure_software_mode(&mut self) -> anyhow::Result<()> {
+        if let Some(prev_mode) = self.pwm.get_mode()? {
+            let new_mode = ControlMode::Software;
+            if prev_mode != new_mode {
+                self.pwm.set_mode(new_mode)?;
+                log::info!(
+                    "PWM {} mode set from {} to {}",
+                    self.pwm,
+                    prev_mode,
+                    new_mode
+                );
+            }
+        }
+        Ok(())
+    }
+
     /// Set fan PWM directly from percentage (for PID mode)
     pub(crate) fn set_pwm_percent(&mut self, pwm_percent: f64) -> anyhow::Result<()> {
         log::debug!("Fan {self} set_pwm_percent called with pwm_percent: {:.3} ({:.1}%)", pwm_percent, pwm_percent * 100.0);
@@ -230,57 +276,23 @@ impl<T> Fan<T> {
         
         if self.speed == Some(equivalent_speed) {
             log::trace!("Fan {self} PWM unchanged: {:.1}%", pwm_percent * 100.0);
-        } else {
-            if let Some(prev_mode) = self.pwm.get_mode()? {
-                let new_mode = ControlMode::Software;
-                if prev_mode != new_mode {
-                    self.pwm.set_mode(new_mode)?;
-                    log::info!(
-                        "PWM {} mode set from {} to {}",
-                        self.pwm,
-                        prev_mode,
-                        new_mode
-                    );
-                }
-            }
-            
-            let calculated_pwm = self.pwm_percent_to_pwm_val(pwm_percent);
-            log::debug!("Fan {self} calculated PWM from {:.1}% PWM: {}", pwm_percent * 100.0, calculated_pwm);
-            
-            // For PID mode, we still need to respect startup logic
-            let is_startup_from_zero = self.speed.is_some_and(Speed::is_zero);
-            let startup_time_remaining = self.startup
-                .map(|s| STARTUP_DELAY.saturating_sub(Instant::now().duration_since(s)))
-                .unwrap_or(Duration::ZERO);
-            let is_in_startup_period = self.startup
-                .is_some_and(|s| Instant::now().duration_since(s) < STARTUP_DELAY);
-                
-            log::debug!("Fan {self} startup status: from_zero={}, in_startup_period={}, time_remaining={:?}", 
-                       is_startup_from_zero, is_in_startup_period, startup_time_remaining);
-            
-            let final_pwm = if is_startup_from_zero {
-                log::info!("Fan {self} startup from zero");
-                self.startup = Some(Instant::now());
-                let boosted = max(calculated_pwm, self.thresholds.min_start);
-                log::debug!("Fan {self} startup boost: {calculated_pwm} -> {boosted}");
-                boosted
-            } else if is_in_startup_period {
-                let boosted = max(calculated_pwm, self.thresholds.min_start);
-                log::debug!("Fan {self} still in startup period: {calculated_pwm} -> {boosted} (remaining: {:?})", 
-                           startup_time_remaining);
-                boosted
-            } else {
-                log::debug!("Fan {self} normal operation: using calculated PWM {calculated_pwm}");
-                calculated_pwm
-            };
-            
-            log::debug!("Fan {self} final PWM value: {final_pwm} ({:.1}%)", 
-                       final_pwm as f64 / 255.0 * 100.0);
-            
-            self.pwm.set(final_pwm)?;
-            log::info!("Fan {self} PWM set to {:.1}%, PWM: {final_pwm}", pwm_percent * 100.0);
-            self.speed = Some(equivalent_speed);
+            return Ok(());
         }
+
+        self.ensure_software_mode()?;
+        
+        let calculated_pwm = self.pwm_percent_to_pwm_val(pwm_percent);
+        log::debug!("Fan {self} calculated PWM from {:.1}% PWM: {}", pwm_percent * 100.0, calculated_pwm);
+        
+        let final_pwm = self.apply_startup_boost(calculated_pwm, equivalent_speed);
+        
+        log::debug!("Fan {self} final PWM value: {final_pwm} ({:.1}%)", 
+                   final_pwm as f64 / 255.0 * 100.0);
+        
+        self.pwm.set(final_pwm)?;
+        log::info!("Fan {self} PWM set to {:.1}%, PWM: {final_pwm}", pwm_percent * 100.0);
+        self.speed = Some(equivalent_speed);
+        
         Ok(())
     }
 
@@ -290,59 +302,26 @@ impl<T> Fan<T> {
         
         if self.speed == Some(speed) {
             log::trace!("Fan {self} speed unchanged: {speed}");
-        } else {
-            if let Some(prev_mode) = self.pwm.get_mode()? {
-                let new_mode = ControlMode::Software;
-                if prev_mode != new_mode {
-                    self.pwm.set_mode(new_mode)?;
-                    log::info!(
-                        "PWM {} mode set from {} to {}",
-                        self.pwm,
-                        prev_mode,
-                        new_mode
-                    );
-                }
-            }
-            
-            log::debug!("Fan {self} thresholds: min_start={}, max_stop={}", 
-                       self.thresholds.min_start, self.thresholds.max_stop);
-            
-            let calculated_pwm = self.speed_to_pwm_val(speed);
-            log::debug!("Fan {self} calculated PWM from speed {speed}: {calculated_pwm}");
-            
-            let is_startup_from_zero = self.speed.is_some_and(Speed::is_zero);
-            let startup_time_remaining = self.startup
-                .map(|s| STARTUP_DELAY.saturating_sub(Instant::now().duration_since(s)))
-                .unwrap_or(Duration::ZERO);
-            let is_in_startup_period = self.startup
-                .is_some_and(|s| Instant::now().duration_since(s) < STARTUP_DELAY);
-                
-            log::debug!("Fan {self} startup status: from_zero={}, in_startup_period={}, time_remaining={:?}", 
-                       is_startup_from_zero, is_in_startup_period, startup_time_remaining);
-            
-            let final_pwm = if is_startup_from_zero {
-                log::info!("Fan {self} startup from zero");
-                self.startup = Some(Instant::now());
-                let boosted = max(calculated_pwm, self.thresholds.min_start);
-                log::debug!("Fan {self} startup boost: {calculated_pwm} -> {boosted}");
-                boosted
-            } else if is_in_startup_period {
-                let boosted = max(calculated_pwm, self.thresholds.min_start);
-                log::debug!("Fan {self} still in startup period: {calculated_pwm} -> {boosted} (remaining: {:?})", 
-                           startup_time_remaining);
-                boosted
-            } else {
-                log::debug!("Fan {self} normal operation: using calculated PWM {calculated_pwm}");
-                calculated_pwm
-            };
-            
-            log::debug!("Fan {self} final PWM value: {final_pwm} ({:.1}%)", 
-                       final_pwm as f64 / 255.0 * 100.0);
-            
-            self.pwm.set(final_pwm)?;
-            log::info!("Fan {self} speed set to {speed}, PWM: {final_pwm}");
-            self.speed = Some(speed);
+            return Ok(());
         }
+
+        self.ensure_software_mode()?;
+        
+        log::debug!("Fan {self} thresholds: min_start={}, max_stop={}", 
+                   self.thresholds.min_start, self.thresholds.max_stop);
+        
+        let calculated_pwm = self.speed_to_pwm_val(speed);
+        log::debug!("Fan {self} calculated PWM from speed {speed}: {calculated_pwm}");
+        
+        let final_pwm = self.apply_startup_boost(calculated_pwm, speed);
+        
+        log::debug!("Fan {self} final PWM value: {final_pwm} ({:.1}%)", 
+                   final_pwm as f64 / 255.0 * 100.0);
+        
+        self.pwm.set(final_pwm)?;
+        log::info!("Fan {self} speed set to {speed}, PWM: {final_pwm}");
+        self.speed = Some(speed);
+        
         Ok(())
     }
 }
