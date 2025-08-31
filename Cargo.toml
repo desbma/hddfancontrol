@@ -26,6 +26,7 @@ humantime = { version = "2.2.0", default-features = false }
 itertools = { version = "0.14.0", default-features = false, features = ["use_std"] }
 log = { version = "0.4.27", default-features = false, features = ["max_level_trace", "release_max_level_trace"] }
 nix = { version = "0.30.1", default-features = false, features = ["fs"] }
+pid = { version = "4.0.0", default-features = false }
 simple_logger = { version = "5.0.0", default-features = false, features = ["colors", "stderr"] }
 strum = { version = "0.27.2", default-features = false, features = ["std", "derive"] }
 thiserror = { version = "2.0.16", default-features = false, features = ["std"] }

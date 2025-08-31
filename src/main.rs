@@ -21,6 +21,7 @@ use clap::Parser as _;
 use device::Hwmon;
 use exit::ExitHook;
 use fan::Speed;
+use pid::Pid;
 use probe::Temp;
 
 mod cl;
@@ -94,11 +95,34 @@ fn main() -> anyhow::Result<()> {
             interval,
             hwmons,
             restore_fan_settings,
+            pid_kp,
+            pid_ki,
+            pid_kd,
         } => {
-            #[expect(clippy::indexing_slicing)] // guaranteed by clap's numl_args
-            let drive_temp_range = Range {
-                start: drive_temp_range[0],
-                end: drive_temp_range[1],
+            // Determine temperature control mode
+            let (is_target_mode, drive_temp_range, target_temp) = if drive_temp_range.len() == 1 {
+                // Target temperature mode
+                log::info!("Using target temperature mode: {}°C", drive_temp_range[0]);
+                (true, Range { start: 0.0, end: 100.0 }, Some(drive_temp_range[0]))
+            } else {
+                // Range mode
+                #[expect(clippy::indexing_slicing)] // guaranteed by clap's num_args
+                let range = Range { start: drive_temp_range[0], end: drive_temp_range[1] };
+                log::info!("Using range mode: {}°C - {}°C", range.start, range.end);
+                (false, range, None)
+            };
+            
+            // PID controller for target temperature mode
+            let mut pid_controller = if is_target_mode {
+                let target_temp = target_temp.unwrap();
+                let mut pid = Pid::new(target_temp, 1.0); // setpoint, speed output limit (0.0-1.0)
+                pid.p(-pid_kp, 1.0);  // negative kp for cooling system
+                pid.i(-pid_ki, 1.0);  // negative ki for cooling system  
+                pid.d(-pid_kd, 1.0);  // negative kd for cooling system
+                log::info!("PID controller initialized: Kp={}, Ki={}, Kd={}, output range: 0.0-1.0", pid_kp, pid_ki, pid_kd);
+                Some(pid)
+            } else {
+                None
             };
             let drive_paths: Vec<PathBuf> = drive_selectors
                 .into_iter()
@@ -224,20 +248,44 @@ fn main() -> anyhow::Result<()> {
                     .collect::<anyhow::Result<_>>()?;
 
                 let mut speed = min_fan_speed;
+                
                 if let Some(max_drive_temp) = max_drive_temp {
-                    log::info!("Max drive temperature: {max_drive_temp}°C");
-                    speed = fan::target_speed(max_drive_temp, &drive_temp_range, speed);
+                    if is_target_mode {
+                        let target_temp = target_temp.unwrap();
+                        
+                        // Feed raw temperature directly to PID controller
+                        if let Some(ref mut pid) = pid_controller {
+                            speed = fan::target_speed_with_pid(pid, max_drive_temp, min_fan_speed);
+                            log::info!(
+                                "Drive temperature: {max_drive_temp}°C, target: {target_temp}°C, fan speed: {speed}"
+                            );
+                        }
+                    } else {
+                        log::info!("Max drive temperature: {max_drive_temp}°C");
+                        speed = fan::target_speed(max_drive_temp, &drive_temp_range, speed);
+                    }
                 } else {
                     log::info!("All drives are spun down");
                 }
-                for (hwmon_temp, (_hwmon, hwmon_range)) in
-                    hwmon_temps.into_iter().zip(hwmon_and_range.iter())
-                {
-                    speed = fan::target_speed(hwmon_temp, hwmon_range, speed);
+                
+                if !is_target_mode {
+                    for (hwmon_temp, (_hwmon, hwmon_range)) in
+                        hwmon_temps.into_iter().zip(hwmon_and_range.iter())
+                    {
+                        speed = fan::target_speed(hwmon_temp, hwmon_range, speed);
+                    }
                 }
+                
                 for fan in &mut fans {
-                    fan.set_speed(speed)
-                        .with_context(|| format!("Failed to set fan {fan} speed"))?;
+                    if is_target_mode {
+                        // In PID mode, treat speed as direct PWM percentage
+                        fan.set_pwm_percent(speed.get())
+                            .with_context(|| format!("Failed to set fan {fan} PWM"))?;
+                    } else {
+                        // In traditional mode, use normal speed setting
+                        fan.set_speed(speed)
+                            .with_context(|| format!("Failed to set fan {fan} speed"))?;
+                    }
                 }
 
                 let elapsed = Instant::now().duration_since(start);

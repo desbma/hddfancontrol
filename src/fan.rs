@@ -62,6 +62,11 @@ impl Speed {
     pub(crate) fn is_zero(self) -> bool {
         self.0.is_positive_zero()
     }
+
+    /// Get the speed value as f64
+    pub(crate) fn get(self) -> f64 {
+        self.0.get()
+    }
 }
 
 #[expect(clippy::missing_docs_in_private_items)]
@@ -210,8 +215,79 @@ impl<T> Fan<T> {
         }
     }
 
+    /// Compute PWM target value directly from PWM percentage (for PID mode)
+    #[expect(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    fn pwm_percent_to_pwm_val(&self, pwm_percent: f64) -> pwm::Value {
+        (pwm_percent * f64::from(pwm::Value::MAX)) as pwm::Value
+    }
+
+    /// Set fan PWM directly from percentage (for PID mode)
+    pub(crate) fn set_pwm_percent(&mut self, pwm_percent: f64) -> anyhow::Result<()> {
+        log::debug!("Fan {self} set_pwm_percent called with pwm_percent: {:.3} ({:.1}%)", pwm_percent, pwm_percent * 100.0);
+        
+        // Convert PWM percentage to fake speed for tracking purposes
+        let equivalent_speed = Speed::try_from(pwm_percent).map_err(|e| anyhow::anyhow!("Invalid PWM percentage: {}", e))?;
+        
+        if self.speed == Some(equivalent_speed) {
+            log::trace!("Fan {self} PWM unchanged: {:.1}%", pwm_percent * 100.0);
+        } else {
+            if let Some(prev_mode) = self.pwm.get_mode()? {
+                let new_mode = ControlMode::Software;
+                if prev_mode != new_mode {
+                    self.pwm.set_mode(new_mode)?;
+                    log::info!(
+                        "PWM {} mode set from {} to {}",
+                        self.pwm,
+                        prev_mode,
+                        new_mode
+                    );
+                }
+            }
+            
+            let calculated_pwm = self.pwm_percent_to_pwm_val(pwm_percent);
+            log::debug!("Fan {self} calculated PWM from {:.1}% PWM: {}", pwm_percent * 100.0, calculated_pwm);
+            
+            // For PID mode, we still need to respect startup logic
+            let is_startup_from_zero = self.speed.is_some_and(Speed::is_zero);
+            let startup_time_remaining = self.startup
+                .map(|s| STARTUP_DELAY.saturating_sub(Instant::now().duration_since(s)))
+                .unwrap_or(Duration::ZERO);
+            let is_in_startup_period = self.startup
+                .is_some_and(|s| Instant::now().duration_since(s) < STARTUP_DELAY);
+                
+            log::debug!("Fan {self} startup status: from_zero={}, in_startup_period={}, time_remaining={:?}", 
+                       is_startup_from_zero, is_in_startup_period, startup_time_remaining);
+            
+            let final_pwm = if is_startup_from_zero {
+                log::info!("Fan {self} startup from zero");
+                self.startup = Some(Instant::now());
+                let boosted = max(calculated_pwm, self.thresholds.min_start);
+                log::debug!("Fan {self} startup boost: {calculated_pwm} -> {boosted}");
+                boosted
+            } else if is_in_startup_period {
+                let boosted = max(calculated_pwm, self.thresholds.min_start);
+                log::debug!("Fan {self} still in startup period: {calculated_pwm} -> {boosted} (remaining: {:?})", 
+                           startup_time_remaining);
+                boosted
+            } else {
+                log::debug!("Fan {self} normal operation: using calculated PWM {calculated_pwm}");
+                calculated_pwm
+            };
+            
+            log::debug!("Fan {self} final PWM value: {final_pwm} ({:.1}%)", 
+                       final_pwm as f64 / 255.0 * 100.0);
+            
+            self.pwm.set(final_pwm)?;
+            log::info!("Fan {self} PWM set to {:.1}%, PWM: {final_pwm}", pwm_percent * 100.0);
+            self.speed = Some(equivalent_speed);
+        }
+        Ok(())
+    }
+
     /// Set fan speed
     pub(crate) fn set_speed(&mut self, speed: Speed) -> anyhow::Result<()> {
+        log::debug!("Fan {self} set_speed called with speed: {speed} ({:.3})", speed.0.get());
+        
         if self.speed == Some(speed) {
             log::trace!("Fan {self} speed unchanged: {speed}");
         } else {
@@ -227,21 +303,44 @@ impl<T> Fan<T> {
                     );
                 }
             }
-            let pwm_value = self.speed_to_pwm_val(speed);
-            let pwm_value = if self.speed.is_some_and(Speed::is_zero) {
-                log::info!("Fan {self} startup");
+            
+            log::debug!("Fan {self} thresholds: min_start={}, max_stop={}", 
+                       self.thresholds.min_start, self.thresholds.max_stop);
+            
+            let calculated_pwm = self.speed_to_pwm_val(speed);
+            log::debug!("Fan {self} calculated PWM from speed {speed}: {calculated_pwm}");
+            
+            let is_startup_from_zero = self.speed.is_some_and(Speed::is_zero);
+            let startup_time_remaining = self.startup
+                .map(|s| STARTUP_DELAY.saturating_sub(Instant::now().duration_since(s)))
+                .unwrap_or(Duration::ZERO);
+            let is_in_startup_period = self.startup
+                .is_some_and(|s| Instant::now().duration_since(s) < STARTUP_DELAY);
+                
+            log::debug!("Fan {self} startup status: from_zero={}, in_startup_period={}, time_remaining={:?}", 
+                       is_startup_from_zero, is_in_startup_period, startup_time_remaining);
+            
+            let final_pwm = if is_startup_from_zero {
+                log::info!("Fan {self} startup from zero");
                 self.startup = Some(Instant::now());
-                max(pwm_value, self.thresholds.min_start)
-            } else if self
-                .startup
-                .is_some_and(|s| Instant::now().duration_since(s) < STARTUP_DELAY)
-            {
-                max(pwm_value, self.thresholds.min_start)
+                let boosted = max(calculated_pwm, self.thresholds.min_start);
+                log::debug!("Fan {self} startup boost: {calculated_pwm} -> {boosted}");
+                boosted
+            } else if is_in_startup_period {
+                let boosted = max(calculated_pwm, self.thresholds.min_start);
+                log::debug!("Fan {self} still in startup period: {calculated_pwm} -> {boosted} (remaining: {:?})", 
+                           startup_time_remaining);
+                boosted
             } else {
-                pwm_value
+                log::debug!("Fan {self} normal operation: using calculated PWM {calculated_pwm}");
+                calculated_pwm
             };
-            self.pwm.set(pwm_value)?;
-            log::info!("Fan {self} speed set to {speed}");
+            
+            log::debug!("Fan {self} final PWM value: {final_pwm} ({:.1}%)", 
+                       final_pwm as f64 / 255.0 * 100.0);
+            
+            self.pwm.set(final_pwm)?;
+            log::info!("Fan {self} speed set to {speed}, PWM: {final_pwm}");
             self.speed = Some(speed);
         }
         Ok(())
@@ -343,6 +442,31 @@ pub(crate) fn target_speed(temp: Temp, temp_range: &Range<Temp>, min_speed: Spee
     }
 }
 
+/// Compute target fan speed for target temperature mode using real PID control
+pub(crate) fn target_speed_with_pid(
+    pid_controller: &mut pid::Pid<f64>,
+    avg_temp: Temp,
+    min_speed: Speed,
+) -> Speed {
+    // Get PID output as speed value (0.0-1.0)
+    let pid_speed_output = pid_controller.next_control_output(avg_temp).output;
+    
+    // Clamp to valid speed range [min_speed, 1.0]
+    let clamped_speed = pid_speed_output.max(min_speed.0.get()).min(1.0);
+    
+    // Scale to PWM range for debugging/logging
+    let pwm_equiv = (clamped_speed * 255.0) as u8;
+    let min_pwm = (min_speed.0.get() * 255.0) as u8;
+    
+    log::debug!(
+        "PID: raw_output={:.3}, clamped_speed={:.3}, pwm_equiv={}, min_pwm={}", 
+        pid_speed_output, clamped_speed, pwm_equiv, min_pwm
+    );
+    
+    #[expect(clippy::unwrap_used)]
+    Speed::try_from(clamped_speed).unwrap()
+}
+
 #[cfg(test)]
 mod tests {
 
@@ -430,6 +554,24 @@ mod tests {
             ),
             Speed::try_from(1.0).unwrap()
         );
+    }
+
+    #[test]
+    fn test_target_speed_with_pid() {
+        let min_speed = Speed::try_from(0.2).unwrap();
+        let mut pid = pid::Pid::new(30.0, 1.0); // target 30°C, speed output range
+        pid.p(-0.1, 1.0);  // negative for cooling system
+        pid.i(-0.05, 1.0); // negative for cooling system
+        pid.d(-0.01, 1.0); // negative for cooling system
+        
+        // Test that function returns valid speed values
+        let speed = target_speed_with_pid(&mut pid, 25.0, min_speed);
+        assert!(speed.0.get() >= min_speed.0.get());
+        assert!(speed.0.get() <= 1.0);
+        
+        let speed = target_speed_with_pid(&mut pid, 35.0, min_speed);
+        assert!(speed.0.get() >= min_speed.0.get());
+        assert!(speed.0.get() <= 1.0);
     }
 
     #[test]
