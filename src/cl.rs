@@ -175,9 +175,25 @@ pub(crate) enum Command {
         #[arg(short, long, num_args = 1.., required = true)]
         pwm: Vec<PwmSettings>,
 
-        /// Temperatures in Celcius at which the fan(s) will be set to minimum/maximum speed.
-        #[arg(short = 't', long, value_name = "TEMP", num_args = 2, default_values_t = vec![30.0, 50.0])]
+        /// Temperatures in Celcius. Use 2 values for range mode (min/max speed temps).
+        /// Use 1 value for target temperature mode.
+        #[arg(short = 't', long, value_name = "TEMP", num_args = 1..=2, default_values_t = vec![30.0, 50.0])]
         drive_temp_range: Vec<Temp>,
+
+        /// PID proportional gain for target temperature mode.
+        /// Higher values = more aggressive response to temperature error.
+        #[arg(long, value_name = "KP", default_value_t = 0.1)]
+        pid_kp: f64,
+
+        /// PID integral gain for target temperature mode.
+        /// Helps eliminate steady-state error but can cause overshoot if too high.
+        #[arg(long, value_name = "KI", default_value_t = 0.05)]
+        pid_ki: f64,
+
+        /// PID derivative gain for target temperature mode.
+        /// Helps reduce overshoot and oscillation.
+        #[arg(long, value_name = "KD", default_value_t = 0.01)]
+        pid_kd: f64,
 
         /// Minimum percentage of full fan speed to set the fan to.
         /// Never set to 0 unless you have other fans to cool down your system,
