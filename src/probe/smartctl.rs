@@ -199,9 +199,10 @@ impl DeviceTempProber for AttribProber {
             .and_then(|s| s.trim_start().split_once(' '))
             .and_then(|(s, _)| s.parse().ok())
             .or_else(|| {
-                lines
-                    .iter()
-                    .find_map(|l| l.parse::<SmartAttribLog>().ok().and_then(|a| a.temp()))
+                lines.iter().find_map(|l| {
+                    let attr = l.parse::<SmartAttribLog>().ok()?;
+                    attr.temp()
+                })
             })
             .ok_or_else(|| {
                 anyhow::anyhow!("Failed to parse smartctl attribute output, or no temp attribute")
