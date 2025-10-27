@@ -1,7 +1,8 @@
 //! Block device drive
 
 use std::{
-    fmt,
+    ffi::OsStr,
+    fmt, fs,
     io::BufRead as _,
     os::unix::prelude::FileTypeExt as _,
     path::{Path, PathBuf},
@@ -12,6 +13,8 @@ use std::{
 #[derive(strum::EnumString, strum::Display)]
 #[strum(serialize_all = "lowercase")]
 pub(crate) enum State {
+    /// Suspended by kernel power management
+    PmSuspended,
     /// Active/idle
     #[strum(serialize = "active/idle")]
     ActiveIdle,
@@ -34,11 +37,12 @@ enum StateProbingMethod {
 }
 
 impl State {
-    /// Is drive currently spun down
-    pub(crate) fn is_spun_down(&self) -> bool {
+    /// Can we probe drive temperature?
+    pub(crate) fn can_probe_temp(&self, supports_probing_when_asleep: bool) -> bool {
         match self {
-            State::Standby | State::Sleeping => true,
-            State::ActiveIdle | State::Unknown => false,
+            Self::PmSuspended => false,
+            Self::Standby | Self::Sleeping => supports_probing_when_asleep,
+            Self::ActiveIdle | Self::Unknown => true,
         }
     }
 }
@@ -199,9 +203,24 @@ impl Drive {
 
     /// Get drive runtime state
     pub(crate) fn state(&self) -> anyhow::Result<State> {
-        match self.state_probing_method {
-            StateProbingMethod::Hdparm => Self::state_hdparm(&self.dev_path),
-            StateProbingMethod::Sdparm => Self::state_sdparm(&self.dev_path),
+        const SUSPENDED_PM_STATUS: [&str; 2] = ["suspended", "suspending"];
+        let pm_status_path: PathBuf = [
+            OsStr::new("/sys/class/block"),
+            #[expect(clippy::unwrap_used)]
+            self.dev_path.file_name().unwrap(),
+            OsStr::new("device/power/runtime_status"),
+        ]
+        .into_iter()
+        .collect();
+        if fs::read_to_string(pm_status_path)
+            .is_ok_and(|s| SUSPENDED_PM_STATUS.contains(&s.trim_end()))
+        {
+            Ok(State::PmSuspended)
+        } else {
+            match self.state_probing_method {
+                StateProbingMethod::Hdparm => Self::state_hdparm(&self.dev_path),
+                StateProbingMethod::Sdparm => Self::state_sdparm(&self.dev_path),
+            }
         }
     }
 }

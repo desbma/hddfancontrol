@@ -194,15 +194,15 @@ fn main() -> anyhow::Result<()> {
                             .state()
                             .with_context(|| format!("Failed to get drive {drive} state"))?;
                         log::debug!("Drive {drive} state: {state}");
-                        let temp = if state.is_spun_down() && !*supports_probing_sleeping {
-                            log::debug!("Drive {drive} is sleeping");
-                            None
-                        } else {
+                        let temp = if state.can_probe_temp(*supports_probing_sleeping) {
                             let temp = prober
                                 .probe_temp()
                                 .with_context(|| format!("Failed to get drive {drive} temp"))?;
                             log::debug!("Drive {drive}: {temp}°C");
                             Some(temp)
+                        } else {
+                            log::debug!("Drive {drive} in state {state} can not be probed");
+                            None
                         };
                         Ok(temp)
                     })
