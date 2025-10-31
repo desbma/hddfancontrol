@@ -1,5 +1,23 @@
 # Changelog
 
+## 2.0.6 - 2025-10-31
+
+### <!-- 01 -->💡 Features
+
+- Avoid probing drives suspended by kernel power management ([56c173e](https://github.com/desbma/hddfancontrol/commit/56c173e7ab99dc06905e8050ddfce49da84a6b57) by desbma)
+
+### <!-- 02 -->🐛 Bug fixes
+
+- Msrv ([9886b37](https://github.com/desbma/hddfancontrol/commit/9886b37304c63c606132e84c4ffb39d88ffd2712) by desbma)
+- Remove unmaintained prettier pre-commit hook ([a5c5033](https://github.com/desbma/hddfancontrol/commit/a5c50331ae3f3caaab19839880d603a720e09681) by desbma)
+
+### <!-- 10 -->🧰 Miscellaneous tasks
+
+- Fix lint ([277aa1c](https://github.com/desbma/hddfancontrol/commit/277aa1c6a2a71c631e328979a164cd061e610426) by desbma)
+- Enable todo lint ([4058a3b](https://github.com/desbma/hddfancontrol/commit/4058a3b8af3ff17d5a7f22027ea340ca5af124d2) by desbma)
+
+---
+
 ## 2.0.5 - 2025-08-20
 
 ### <!-- 01 -->💡 Features
