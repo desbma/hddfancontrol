@@ -294,7 +294,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn test_set() {
+    fn set() {
         let mut fake_pwm = FakePwm::new();
         let pwm = Pwm::new(&fake_pwm.pwm_path).unwrap();
         pwm.set(123).unwrap();
@@ -302,7 +302,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn test_get() {
+    fn get() {
         let mut fake_pwm = FakePwm::new();
         let pwm = Pwm::new(&fake_pwm.pwm_path).unwrap();
         fake_pwm.val_file_write.write_all(b"124\n").unwrap();
@@ -310,7 +310,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn test_get_rpm() {
+    fn get_rpm() {
         let mut fake_pwm = FakePwm::new();
         let pwm = Pwm::new(&fake_pwm.pwm_path)
             .unwrap()
@@ -321,7 +321,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn test_get_mode() {
+    fn get_mode() {
         let mut fake_pwm = FakePwm::new();
         let pwm = Pwm::new(&fake_pwm.pwm_path).unwrap();
         fake_pwm.mode_file_write.write_all(b"0\n").unwrap();
@@ -335,7 +335,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn test_set_mode() {
+    fn set_mode() {
         let mut fake_pwm = FakePwm::new();
         let pwm = Pwm::new(&fake_pwm.pwm_path).unwrap();
         pwm.set_mode(ControlMode::Off).unwrap();
@@ -347,7 +347,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn test_display() {
+    fn display() {
         let fake_pwm = FakePwm::new();
         let pwm = Pwm::new(&fake_pwm.pwm_path).unwrap();
         assert_eq!(pwm.to_string().as_str(), "device_name/2");

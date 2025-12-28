@@ -221,7 +221,7 @@ mod tests {
 
     #[serial_test::serial]
     #[test]
-    fn test_sct_probe_temp() {
+    fn probe_temp() {
         let _smartctl = BinaryMock::new(
             "smartctl",
             "smartctl 7.0 2018-12-30 r4883 [x86_64-linux-4.19.36-1-lts] (local build)
@@ -252,7 +252,7 @@ Vendor specific:
 
     #[serial_test::serial]
     #[test]
-    fn test_attrib_probe_temp() {
+    fn attrib_probe_temp() {
         let mut prober = AttribProber {
             device: PathBuf::from("/dev/_sdX"),
         };
@@ -330,7 +330,7 @@ ID# ATTRIBUTE_NAME          FLAG     VALUE WORST THRESH TYPE      UPDATED  WHEN_
 
     #[serial_test::serial]
     #[test]
-    fn test_attrib_sas_probe_temp() {
+    fn sas_probe_temp() {
         let mut prober = AttribProber {
             device: PathBuf::from("/dev/_sdX"),
         };
@@ -360,7 +360,7 @@ Elements in grown defect list: 12
 
     #[serial_test::serial]
     #[test]
-    fn test_attrib_nvme_probe_temp() {
+    fn attrib_nvme_probe_temp() {
         let mut prober = AttribProber {
             device: PathBuf::from("/dev/_sdX"),
         };

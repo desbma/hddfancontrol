@@ -352,7 +352,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_target_speed() {
+    fn convert_target_speed() {
         assert_eq!(
             target_speed(
                 45.0,
@@ -433,7 +433,7 @@ mod tests {
     }
 
     #[test]
-    fn test_set_speed() {
+    fn set_speed() {
         let mut fake_pwm = FakePwm::new();
         let mut fan = Fan::new(&PwmSettings {
             filepath: fake_pwm.pwm_path.clone(),

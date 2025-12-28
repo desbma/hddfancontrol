@@ -179,7 +179,7 @@ mod tests {
     }
 
     #[test]
-    fn test_daemon_probe_temp() {
+    fn daemon_probe_temp() {
         let (addr, msg_tx) = start_hddtemp_server().unwrap();
         let mut prober = DaemonProber {
             addr,
@@ -220,7 +220,7 @@ mod tests {
 
     #[serial_test::serial]
     #[test]
-    fn test_invocation_probe_temp() {
+    fn invocation_probe_temp() {
         let mut prober = InvocationProber {
             device: PathBuf::from("/dev/_sdX"),
         };

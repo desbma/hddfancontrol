@@ -87,7 +87,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_probe_temp() {
+    fn probe_temp() {
         let mut input_file = tempfile::NamedTempFile::new().unwrap();
         let mut prober = Prober {
             input_path: input_file.path().to_owned(),

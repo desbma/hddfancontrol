@@ -100,7 +100,7 @@ mod tests {
 
     #[serial_test::serial]
     #[test]
-    fn test_hdparm_probe_temp() {
+    fn hdparm_probe_temp() {
         let mut prober = Prober {
             device: PathBuf::from("/dev/_sdX"),
         };
