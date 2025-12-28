@@ -11,7 +11,8 @@ use std::{
 
 use itertools::Itertools as _;
 
-use super::{DeviceTempProber, Drive, DriveTempProbeMethod, ProberError, Temp};
+use super::{DeviceTempProber, Drive, DriveTempProbeMethod, ProbeMethodError, Temp};
+use crate::probe::ProbeError;
 
 /// Hddtemp daemon probing method
 pub(crate) struct DaemonMethod {
@@ -22,14 +23,14 @@ pub(crate) struct DaemonMethod {
 impl DriveTempProbeMethod for DaemonMethod {
     type Prober = DaemonProber;
 
-    fn prober(&self, drive: &Drive) -> Result<DaemonProber, ProberError> {
+    fn prober(&self, drive: &Drive) -> Result<DaemonProber, ProbeMethodError> {
         let mut prober = DaemonProber {
             addr: self.addr,
             device: drive.dev_path.clone(),
         };
         prober
             .probe_temp()
-            .map_err(|e| ProberError::Unsupported(e.to_string()))?;
+            .map_err(|e| ProbeMethodError::Unsupported(e.to_string()))?;
         Ok(prober)
     }
 
@@ -53,10 +54,12 @@ pub(crate) struct DaemonProber {
 }
 
 impl DeviceTempProber for DaemonProber {
-    fn probe_temp(&mut self) -> anyhow::Result<Temp> {
-        let mut stream = TcpStream::connect(self.addr)?;
+    fn probe_temp(&mut self) -> Result<Temp, ProbeError> {
+        let mut stream = TcpStream::connect(self.addr).map_err(anyhow::Error::from)?;
         let mut buf = String::new();
-        stream.read_to_string(&mut buf)?;
+        stream
+            .read_to_string(&mut buf)
+            .map_err(anyhow::Error::from)?;
         let mut tokens = buf.split('|');
         while let Some(chunk) = tokens.next_array::<5>() {
             let dev = chunk[1];
@@ -65,16 +68,16 @@ impl DeviceTempProber for DaemonProber {
             if dev != self.device.to_str().unwrap() {
                 continue;
             }
-            let mut temp = chunk[3].parse()?;
+            let mut temp = chunk[3].parse().map_err(anyhow::Error::from)?;
             let unit = chunk[4];
             if unit == "F" {
                 temp = (temp - 32.0) / 1.8;
             } else if unit != "C" {
-                anyhow::bail!("Unexpected temp unit {unit:?}");
+                return Err(anyhow::anyhow!("Unexpected temp unit {unit:?}").into());
             }
             return Ok(temp);
         }
-        anyhow::bail!("No temperature found for device {:?}", self.device);
+        Err(anyhow::anyhow!("No temperature found for device {:?}", self.device).into())
     }
 }
 
@@ -84,13 +87,13 @@ pub(crate) struct InvocationMethod;
 impl DriveTempProbeMethod for InvocationMethod {
     type Prober = InvocationProber;
 
-    fn prober(&self, drive: &Drive) -> Result<InvocationProber, ProberError> {
+    fn prober(&self, drive: &Drive) -> Result<InvocationProber, ProbeMethodError> {
         let mut prober = InvocationProber {
             device: drive.dev_path.clone(),
         };
         prober
             .probe_temp()
-            .map_err(|e| ProberError::Unsupported(e.to_string()))?;
+            .map_err(|e| ProbeMethodError::Unsupported(e.to_string()))?;
         Ok(prober)
     }
 
@@ -112,7 +115,7 @@ pub(crate) struct InvocationProber {
 }
 
 impl DeviceTempProber for InvocationProber {
-    fn probe_temp(&mut self) -> anyhow::Result<Temp> {
+    fn probe_temp(&mut self) -> Result<Temp, ProbeError> {
         let output = Command::new("hddtemp")
             .args([
                 "-u",
@@ -123,16 +126,29 @@ impl DeviceTempProber for InvocationProber {
                     .ok_or_else(|| anyhow::anyhow!("Invalid device path"))?,
             ])
             .stdin(Stdio::null())
-            .stderr(Stdio::null())
             .env("LANG", "C")
-            .output()?;
-        anyhow::ensure!(
-            output.status.success(),
-            "hddtemp failed with code {}",
-            output.status
-        );
+            .output()
+            .map_err(anyhow::Error::from)?;
+        if !output.status.success() {
+            match output.status.code() {
+                Some(1)
+                    if str::from_utf8(&output.stderr).is_ok_and(|s| {
+                        s.trim_end().ends_with("open: No such file or directory")
+                    }) =>
+                {
+                    return Err(ProbeError::DeviceMissing);
+                }
+                _ => {
+                    return Err(anyhow::anyhow!("hdtemp failed with code {}", output.status).into());
+                }
+            }
+        }
         // TODO handle "drive is sleeping" case
-        let temp = str::from_utf8(&output.stdout)?.trim_end().parse()?;
+        let temp = str::from_utf8(&output.stdout)
+            .map_err(anyhow::Error::from)?
+            .trim_end()
+            .parse()
+            .map_err(anyhow::Error::from)?;
         Ok(temp)
     }
 }
@@ -225,7 +241,7 @@ mod tests {
             device: PathBuf::from("/dev/_sdX"),
         };
 
-        let _hddtemp = BinaryMock::new("hddtemp", "35\n".as_bytes(), &[], 0);
+        let _hddtemp = BinaryMock::new("hddtemp", "35\n".as_bytes(), &[], 0).unwrap();
         assert!(approx_eq!(f64, prober.probe_temp().unwrap(), 35.0));
 
         let _hddtemp = BinaryMock::new(
@@ -233,7 +249,28 @@ mod tests {
             "/dev/_sdX: drive_name: drive is sleeping\n".as_bytes(),
             &[],
             0,
-        );
+        )
+        .unwrap();
         assert!(prober.probe_temp().is_err());
+    }
+
+    #[serial_test::serial]
+    #[test]
+    fn invocation_drive_missing() {
+        let mut prober = InvocationProber {
+            device: PathBuf::from("/dev/_sdX"),
+        };
+
+        let _hddtemp = BinaryMock::new(
+            "hddtemp",
+            &[],
+            "/dev/_sdX: open: No such file or directory\n".as_bytes(),
+            1,
+        )
+        .unwrap();
+        assert!(matches!(
+            prober.probe_temp().unwrap_err(),
+            ProbeError::DeviceMissing
+        ));
     }
 }

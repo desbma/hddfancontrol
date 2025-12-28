@@ -3,10 +3,12 @@
 
 use std::{
     fmt, fs,
+    io::ErrorKind,
     path::{Path, PathBuf},
 };
 
-use super::{DeviceTempProber, Drive, DriveTempProbeMethod, ProberError, Temp};
+use super::{DeviceTempProber, Drive, DriveTempProbeMethod, ProbeMethodError, Temp};
+use crate::probe::ProbeError;
 
 /// Drivetemp native kernel temperature probing method
 pub(crate) struct Method;
@@ -14,39 +16,39 @@ pub(crate) struct Method;
 impl DriveTempProbeMethod for Method {
     type Prober = Prober;
 
-    fn prober(&self, drive: &Drive) -> Result<Prober, ProberError> {
+    fn prober(&self, drive: &Drive) -> Result<Prober, ProbeMethodError> {
         #[expect(clippy::unwrap_used)] // At this point we already checked it is a valid device
         let drive_name = drive.dev_path.file_name().unwrap();
         let hwmon_dir = Path::new("/sys/block/")
             .join(drive_name)
             .join("../../hwmon");
         if !hwmon_dir.is_dir() {
-            return Err(ProberError::Unsupported(format!(
+            return Err(ProbeMethodError::Unsupported(format!(
                 "{hwmon_dir:?} does not exist"
             )));
         }
         for hwmon_subdir_entry in fs::read_dir(&hwmon_dir)
-            .map_err(|e| ProberError::Other(e.into()))?
+            .map_err(|e| ProbeMethodError::Other(e.into()))?
             .map_while(Result::ok)
             .filter(|e| e.file_type().is_ok_and(|t| t.is_dir()))
         {
             let hwmon_subdir = hwmon_subdir_entry.path();
             let name_file = hwmon_subdir.join("name");
             let name = fs::read_to_string(&name_file)
-                .map_err(|e| ProberError::Other(e.into()))?
+                .map_err(|e| ProbeMethodError::Other(e.into()))?
                 .trim_end()
                 .to_owned();
             if name == "drivetemp" {
                 let input_path = hwmon_subdir.join("temp1_input");
                 if !input_path.is_file() {
-                    return Err(ProberError::Other(anyhow::anyhow!(
+                    return Err(ProbeMethodError::Other(anyhow::anyhow!(
                         "{input_path:?} does not exist"
                     )));
                 }
                 return Ok(Prober { input_path });
             }
         }
-        Err(ProberError::Unsupported(format!(
+        Err(ProbeMethodError::Unsupported(format!(
             "No drivetemp hwmon found in {hwmon_dir:?}"
         )))
     }
@@ -69,12 +71,15 @@ pub(crate) struct Prober {
 }
 
 impl DeviceTempProber for Prober {
-    fn probe_temp(&mut self) -> anyhow::Result<Temp> {
-        Ok(f64::from(
-            fs::read_to_string(&self.input_path)?
-                .trim_end()
-                .parse::<u32>()?,
-        ) / 1000.0)
+    fn probe_temp(&mut self) -> Result<Temp, ProbeError> {
+        let s = match fs::read_to_string(&self.input_path) {
+            Ok(s) => s,
+            Err(err) if err.kind() == ErrorKind::NotFound => {
+                return Err(ProbeError::DeviceMissing);
+            }
+            Err(err) => return Err(ProbeError::Other(err.into())),
+        };
+        Ok(f64::from(s.trim_end().parse::<u32>().map_err(anyhow::Error::from)?) / 1000.0)
     }
 }
 
@@ -94,5 +99,17 @@ mod tests {
         };
         input_file.write_all("54321\n".as_bytes()).unwrap();
         assert!(approx_eq!(f64, prober.probe_temp().unwrap(), 54.321));
+    }
+
+    #[test]
+    fn drive_missing() {
+        let tmp_dir = tempfile::tempdir().unwrap();
+        let mut prober = Prober {
+            input_path: tmp_dir.path().join("missing"),
+        };
+        assert!(matches!(
+            prober.probe_temp().unwrap_err(),
+            ProbeError::DeviceMissing
+        ));
     }
 }

@@ -9,8 +9,22 @@ use std::{
     process::{Command, Stdio},
 };
 
+use nix::libc::ENOENT;
+
+/// Error returned when state probing fails
+#[derive(thiserror::Error, Debug)]
+pub(crate) enum StateError {
+    /// Device is missing
+    #[error("Device is missing")]
+    DeviceMissing,
+    /// Other errors
+    #[error(transparent)]
+    Other(#[from] anyhow::Error),
+}
+
 /// Drive runtime state
 #[derive(strum::EnumString, strum::Display)]
+#[cfg_attr(test, derive(Debug))]
 #[strum(serialize_all = "lowercase")]
 pub(crate) enum State {
     /// Suspended by kernel power management
@@ -126,7 +140,7 @@ impl Drive {
     }
 
     /// Get drive runtime state using `hdparm`
-    fn state_hdparm(path: &Path) -> anyhow::Result<State> {
+    fn state_hdparm(path: &Path) -> Result<State, StateError> {
         let output = Command::new("hdparm")
             .args([
                 "-C",
@@ -135,23 +149,28 @@ impl Drive {
             ])
             .stdin(Stdio::null())
             .env("LANG", "C")
-            .output()?;
-        anyhow::ensure!(
-            output.status.success(),
-            "hdparm failed with code {}",
-            output.status
-        );
+            .output()
+            .map_err(anyhow::Error::from)?;
+        if !output.status.success() {
+            match output.status.code() {
+                Some(ENOENT) => return Err(StateError::DeviceMissing),
+                _ => {
+                    return Err(anyhow::anyhow!("hdparm failed with code {}", output.status).into());
+                }
+            }
+        }
         let lines: Vec<_> = output
             .stdout
             .lines()
             .chain(output.stderr.lines())
-            .collect::<Result<_, _>>()?;
-        anyhow::ensure!(
-            !lines
-                .iter()
-                .any(|l| l.starts_with("SG_IO: ") && l.contains("sense data")),
-            "hdparm returned soft error",
-        );
+            .collect::<Result<_, _>>()
+            .map_err(anyhow::Error::from)?;
+        if lines
+            .iter()
+            .any(|l| l.starts_with("SG_IO: ") && l.contains("sense data"))
+        {
+            return Err(anyhow::anyhow!("hdparm returned soft error").into());
+        }
         let state = lines
             .iter()
             .find_map(|l| l.trim_start().strip_prefix("drive state is: "))
@@ -167,7 +186,8 @@ impl Drive {
     }
 
     /// Get drive runtime state using `sdparm`
-    fn state_sdparm(path: &Path) -> anyhow::Result<State> {
+    fn state_sdparm(path: &Path) -> Result<State, StateError> {
+        const SDPARM_DEVICE_MISSING_CODE: i32 = 50 + ENOENT;
         let output = Command::new("sdparm")
             .args([
                 "--command=ready",
@@ -177,12 +197,16 @@ impl Drive {
             .stdin(Stdio::null())
             .stderr(Stdio::null())
             .env("LANG", "C")
-            .output()?;
-        anyhow::ensure!(
-            output.status.success(),
-            "sdparm failed with code {}",
-            output.status
-        );
+            .output()
+            .map_err(anyhow::Error::from)?;
+        if !output.status.success() {
+            match output.status.code() {
+                Some(SDPARM_DEVICE_MISSING_CODE) => return Err(StateError::DeviceMissing),
+                _ => {
+                    return Err(anyhow::anyhow!("sdparm failed with code {}", output.status).into());
+                }
+            }
+        }
         let state = output
             .stdout
             .lines()
@@ -202,7 +226,7 @@ impl Drive {
     }
 
     /// Get drive runtime state
-    pub(crate) fn state(&self) -> anyhow::Result<State> {
+    pub(crate) fn state(&self) -> Result<State, StateError> {
         const SUSPENDED_PM_STATUS: [&str; 2] = ["suspended", "suspending"];
         let pm_status_path: PathBuf = [
             OsStr::new("/sys/class/block"),
@@ -342,6 +366,24 @@ mod tests {
 
     #[serial_test::serial]
     #[test]
+    fn state_hdparm_device_missing() {
+        let _ = simple_logger::init_with_level(log::Level::Trace);
+
+        let _hdparm = BinaryMock::new(
+            "hdparm",
+            &[],
+            "/dev/_sdX: No such file or directory".as_bytes(),
+            2,
+        )
+        .unwrap();
+        assert!(matches!(
+            Drive::state_hdparm(Path::new("/dev/_sdX")).unwrap_err(),
+            StateError::DeviceMissing
+        ));
+    }
+
+    #[serial_test::serial]
+    #[test]
     fn state_sdparm() {
         let _ = simple_logger::init_with_level(log::Level::Trace);
 
@@ -367,6 +409,24 @@ mod tests {
         assert!(matches!(
             Drive::state_sdparm(Path::new("/dev/_sdX")).unwrap(),
             State::Sleeping
+        ));
+    }
+
+    #[serial_test::serial]
+    #[test]
+    fn state_sdparm_device_missing() {
+        let _ = simple_logger::init_with_level(log::Level::Trace);
+
+        let _sdparm_mock = BinaryMock::new(
+            "sdparm",
+            &[],
+            "open error: /dev/_sdX [read only]: No such file or directory".as_bytes(),
+            52,
+        )
+        .unwrap();
+        assert!(matches!(
+            Drive::state_sdparm(Path::new("/dev/_sdX")).unwrap_err(),
+            StateError::DeviceMissing
         ));
     }
 }

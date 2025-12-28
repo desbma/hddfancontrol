@@ -12,12 +12,23 @@ use std::{
 
 use crate::device::Drive;
 
-/// Error returned when
+/// Error returned when a temp probing method fails to create a prober
 #[derive(thiserror::Error, Debug)]
-pub(crate) enum ProberError {
+pub(crate) enum ProbeMethodError {
     /// Probing method is not supported by this drive on this system
     #[error("Temperature probing method unsupported: {0}")]
     Unsupported(String),
+    /// Other errors
+    #[error(transparent)]
+    Other(#[from] anyhow::Error),
+}
+
+/// Error returned when temp probing fails
+#[derive(thiserror::Error, Debug)]
+pub(crate) enum ProbeError {
+    /// Device is missing
+    #[error("Device is missing")]
+    DeviceMissing,
     /// Other errors
     #[error(transparent)]
     Other(#[from] anyhow::Error),
@@ -32,7 +43,7 @@ pub(crate) trait DriveTempProbeMethod: fmt::Display {
     type Prober: DeviceTempProber;
 
     /// Build a new prober if supported for this device
-    fn prober(&self, drive: &Drive) -> Result<Self::Prober, ProberError>;
+    fn prober(&self, drive: &Drive) -> Result<Self::Prober, ProbeMethodError>;
 
     /// Does prober supports probing spun down drive without waking it
     fn supports_probing_sleeping(&self) -> bool;
@@ -41,20 +52,20 @@ pub(crate) trait DriveTempProbeMethod: fmt::Display {
 /// Device temperature prober
 pub(crate) trait DeviceTempProber {
     /// Get current drive temperature
-    fn probe_temp(&mut self) -> anyhow::Result<Temp>;
+    fn probe_temp(&mut self) -> Result<Temp, ProbeError>;
 }
 
 /// Type erased version of `DriveTempProbeMethod`
 mod dyn_method {
     use std::fmt;
 
-    use super::{DeviceTempProber, DriveTempProbeMethod, ProberError};
+    use super::{DeviceTempProber, DriveTempProbeMethod, ProbeMethodError};
     use crate::Drive;
 
     /// Type erased version of `DriveTempProbeMethod`
     pub(super) trait DynDriveTempProbeMethod: fmt::Display {
         /// Build a new prober if supported for this device
-        fn prober(&self, drive: &Drive) -> Result<Box<dyn DeviceTempProber>, ProberError>;
+        fn prober(&self, drive: &Drive) -> Result<Box<dyn DeviceTempProber>, ProbeMethodError>;
 
         /// Does prober supports probing spun down drive without waking it
         fn supports_probing_sleeping(&self) -> bool;
@@ -65,7 +76,7 @@ mod dyn_method {
         T: DriveTempProbeMethod,
         T::Prober: 'static,
     {
-        fn prober(&self, drive: &Drive) -> Result<Box<dyn DeviceTempProber>, ProberError> {
+        fn prober(&self, drive: &Drive) -> Result<Box<dyn DeviceTempProber>, ProbeMethodError> {
             let prober = Box::new(<T as DriveTempProbeMethod>::prober(self, drive)?);
             Ok(prober)
         }
@@ -98,10 +109,10 @@ pub(crate) fn prober(
                 let sqa = method.supports_probing_sleeping();
                 return Ok(Some((p, sqa)));
             }
-            Err(ProberError::Unsupported(e)) => {
+            Err(ProbeMethodError::Unsupported(e)) => {
                 log::info!("Drive '{drive}' does not support probing method '{method}': {e}",);
             }
-            Err(ProberError::Other(e)) => return Err(e),
+            Err(ProbeMethodError::Other(e)) => return Err(e),
         }
     }
     Ok(None)

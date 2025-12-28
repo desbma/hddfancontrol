@@ -33,7 +33,11 @@ mod sysfs;
 #[cfg(test)]
 mod tests;
 
-use crate::{device::Drive, fan::Fan, probe::DeviceTempProber};
+use crate::{
+    device::{Drive, StateError},
+    fan::Fan,
+    probe::{DeviceTempProber, ProbeError},
+};
 
 /// Interruptible sleep
 fn sleep(dur: Duration, exit_rx: &mpsc::Receiver<()>) {
@@ -94,6 +98,7 @@ fn main() -> anyhow::Result<()> {
             interval,
             hwmons,
             restore_fan_settings,
+            allow_missing_devices,
         } => {
             #[expect(clippy::indexing_slicing)] // guaranteed by clap's numl_args
             let drive_temp_range = Range {
@@ -190,14 +195,36 @@ fn main() -> anyhow::Result<()> {
                     .iter_mut()
                     .zip(drives.iter())
                     .map(|((prober, supports_probing_sleeping), drive)| {
-                        let state = drive
-                            .state()
-                            .with_context(|| format!("Failed to get drive {drive} state"))?;
+                        let state = match drive.state() {
+                            Ok(state) => state,
+                            Err(StateError::DeviceMissing) if allow_missing_devices => {
+                                return Ok(None);
+                            }
+                            Err(StateError::DeviceMissing) => {
+                                return Err(anyhow::anyhow!("Device {drive} is missing"));
+                            }
+                            Err(StateError::Other(err)) => {
+                                return Err(
+                                    err.context(format!("Failed to get drive {drive} state"))
+                                );
+                            }
+                        };
                         log::debug!("Drive {drive} state: {state}");
                         let temp = if state.can_probe_temp(*supports_probing_sleeping) {
-                            let temp = prober
-                                .probe_temp()
-                                .with_context(|| format!("Failed to get drive {drive} temp"))?;
+                            let temp = match prober.probe_temp() {
+                                Ok(temp) => temp,
+                                Err(ProbeError::DeviceMissing) if allow_missing_devices => {
+                                    return Ok(None);
+                                }
+                                Err(ProbeError::DeviceMissing) => {
+                                    return Err(anyhow::anyhow!("Device {drive} is missing"));
+                                }
+                                Err(ProbeError::Other(err)) => {
+                                    return Err(
+                                        err.context(format!("Failed to get drive {drive} temp"))
+                                    );
+                                }
+                            };
                             log::debug!("Drive {drive}: {temp}°C");
                             Some(temp)
                         } else {

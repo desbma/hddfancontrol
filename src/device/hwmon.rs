@@ -4,6 +4,7 @@ use core::fmt;
 use std::{
     cmp::{max, min},
     fs,
+    io::ErrorKind,
     ops::Range,
     path::{Path, PathBuf},
 };
@@ -11,7 +12,7 @@ use std::{
 use anyhow::Context as _;
 
 use crate::{
-    probe::{DeviceTempProber, Temp},
+    probe::{DeviceTempProber, ProbeError, Temp},
     sysfs::{ensure_sysfs_dir, ensure_sysfs_file},
 };
 
@@ -93,18 +94,25 @@ impl Hwmon {
     }
 
     /// Read a sysfs temp probe
-    fn read_sysfs_temp(path: &Path) -> anyhow::Result<Temp> {
+    fn read_sysfs_temp(path: &Path) -> Result<Temp, ProbeError> {
         Ok(f64::from(Self::read_sysfs_temp_milli(path)?) / 1000.0)
     }
 
     /// Read a sysfs temp probe
-    fn read_sysfs_temp_milli(path: &Path) -> anyhow::Result<u32> {
-        Ok(fs::read_to_string(path)?.trim_end().parse()?)
+    fn read_sysfs_temp_milli(path: &Path) -> Result<u32, ProbeError> {
+        let s = match fs::read_to_string(path) {
+            Ok(s) => s,
+            Err(err) if err.kind() == ErrorKind::NotFound => {
+                return Err(ProbeError::DeviceMissing);
+            }
+            Err(err) => return Err(ProbeError::Other(err.into())),
+        };
+        Ok(s.trim_end().parse().map_err(anyhow::Error::from)?)
     }
 }
 
 impl DeviceTempProber for Hwmon {
-    fn probe_temp(&mut self) -> anyhow::Result<Temp> {
+    fn probe_temp(&mut self) -> Result<Temp, ProbeError> {
         Self::read_sysfs_temp(&self.input_path)
     }
 }

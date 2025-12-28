@@ -202,9 +202,14 @@ pub(crate) enum Command {
         #[arg(long, default_value_t = 7634)]
         hddtemp_daemon_port: u16,
 
-        /// Restore fan settings on exit, otherwise the fans are run at full speed on exit.
+        /// Restore initial fan settings on exit, otherwise the fans are run at full speed on exit.
         #[arg(short, long)]
         restore_fan_settings: bool,
+
+        /// Do not error on missing devices. Useful for hot swappable drives.
+        /// All devices must still be available on startup.
+        #[arg(short, long)]
+        allow_missing_devices: bool,
     },
 
     /// Test PWM to find start/stop fan values

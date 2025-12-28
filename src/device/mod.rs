@@ -3,5 +3,5 @@
 mod drive;
 mod hwmon;
 
-pub(crate) use drive::Drive;
+pub(crate) use drive::{Drive, StateError};
 pub(crate) use hwmon::Hwmon;

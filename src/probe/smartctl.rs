@@ -10,7 +10,8 @@ use std::{
 
 use itertools::Itertools as _;
 
-use super::{DeviceTempProber, Drive, DriveTempProbeMethod, ProberError, Temp};
+use super::{DeviceTempProber, Drive, DriveTempProbeMethod, ProbeMethodError, Temp};
+use crate::probe::ProbeError;
 
 /// Smartctl SCT temperature probing method
 pub(crate) struct SctMethod;
@@ -18,13 +19,13 @@ pub(crate) struct SctMethod;
 impl DriveTempProbeMethod for SctMethod {
     type Prober = SctProber;
 
-    fn prober(&self, drive: &Drive) -> Result<SctProber, ProberError> {
+    fn prober(&self, drive: &Drive) -> Result<SctProber, ProbeMethodError> {
         let mut prober = SctProber {
             device: drive.dev_path.clone(),
         };
         prober
             .probe_temp()
-            .map_err(|e| ProberError::Unsupported(e.to_string()))?;
+            .map_err(|e| ProbeMethodError::Unsupported(e.to_string()))?;
         Ok(prober)
     }
 
@@ -46,7 +47,7 @@ pub(crate) struct SctProber {
 }
 
 impl DeviceTempProber for SctProber {
-    fn probe_temp(&mut self) -> anyhow::Result<Temp> {
+    fn probe_temp(&mut self) -> Result<Temp, ProbeError> {
         let output = Command::new("smartctl")
             .args([
                 "-l",
@@ -58,12 +59,19 @@ impl DeviceTempProber for SctProber {
             .stdin(Stdio::null())
             .stderr(Stdio::null())
             .env("LANG", "C")
-            .output()?;
-        anyhow::ensure!(
-            output.status.success(),
-            "smartctl failed with code {}",
-            output.status
-        );
+            .output()
+            .map_err(anyhow::Error::from)?;
+        if !output.status.success() {
+            match output.status.code() {
+                // The `exists` test is racy but parsing smartcl output would be too fragile
+                Some(1) if !self.device.exists() => return Err(ProbeError::DeviceMissing),
+                _ => {
+                    return Err(
+                        anyhow::anyhow!("smartctl failed with code {}", output.status).into(),
+                    );
+                }
+            }
+        }
         let temp = output
             .stdout
             .lines()
@@ -79,7 +87,8 @@ impl DeviceTempProber for SctProber {
                     .map(ToOwned::to_owned)
             })
             .ok_or_else(|| anyhow::anyhow!("Failed to parse smartctl SCT temp output"))?
-            .parse()?;
+            .parse()
+            .map_err(anyhow::Error::from)?;
         Ok(temp)
     }
 }
@@ -90,13 +99,13 @@ pub(crate) struct AttribMethod;
 impl DriveTempProbeMethod for AttribMethod {
     type Prober = AttribProber;
 
-    fn prober(&self, drive: &Drive) -> Result<AttribProber, ProberError> {
+    fn prober(&self, drive: &Drive) -> Result<AttribProber, ProbeMethodError> {
         let mut prober = AttribProber {
             device: drive.dev_path.clone(),
         };
         prober
             .probe_temp()
-            .map_err(|e| ProberError::Unsupported(e.to_string()))?;
+            .map_err(|e| ProbeMethodError::Unsupported(e.to_string()))?;
         Ok(prober)
     }
 
@@ -166,7 +175,7 @@ impl SmartAttribLog {
 }
 
 impl DeviceTempProber for AttribProber {
-    fn probe_temp(&mut self) -> anyhow::Result<Temp> {
+    fn probe_temp(&mut self) -> Result<Temp, ProbeError> {
         const TEMP_SMART_DATA_PREFIXES: [&str; 3] = [
             "Current Temperature:",       // ATA
             "Current Drive Temperature:", // SCSI
@@ -182,13 +191,24 @@ impl DeviceTempProber for AttribProber {
             .stdin(Stdio::null())
             .stderr(Stdio::null())
             .env("LANG", "C")
-            .output()?;
-        anyhow::ensure!(
-            output.status.success(),
-            "smartctl failed with code {}",
-            output.status
-        );
-        let lines = output.stdout.lines().collect::<Result<Vec<_>, _>>()?;
+            .output()
+            .map_err(anyhow::Error::from)?;
+        if !output.status.success() {
+            match output.status.code() {
+                // The `exists` test is racy but parsing smartcl output would be too fragile
+                Some(1) if !self.device.exists() => return Err(ProbeError::DeviceMissing),
+                _ => {
+                    return Err(
+                        anyhow::anyhow!("smartctl failed with code {}", output.status).into(),
+                    );
+                }
+            }
+        }
+        let lines = output
+            .stdout
+            .lines()
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(anyhow::Error::from)?;
         let temp = lines
             .iter()
             .find_map(|l| {
@@ -243,7 +263,8 @@ Vendor specific:
             .as_bytes(),
             &[],
             0,
-        );
+        )
+        .unwrap();
         let mut prober = SctProber {
             device: PathBuf::from("/dev/_sdX"),
         };
@@ -288,7 +309,8 @@ ID# ATTRIBUTE_NAME          FLAG     VALUE WORST THRESH TYPE      UPDATED  WHEN_
             .as_bytes(),
             &[],
             0,
-        );
+        )
+        .unwrap();
         assert!(approx_eq!(f64, prober.probe_temp().unwrap(), 35.0));
 
         let _smartctl = BinaryMock::new(
@@ -324,7 +346,8 @@ ID# ATTRIBUTE_NAME          FLAG     VALUE WORST THRESH TYPE      UPDATED  WHEN_
             .as_bytes(),
             &[],
             0,
-        );
+        )
+        .unwrap();
         assert!(approx_eq!(f64, prober.probe_temp().unwrap(), 44.0));
     }
 
@@ -354,7 +377,8 @@ Elements in grown defect list: 12
             .as_bytes(),
             &[],
             0,
-        );
+        )
+        .unwrap();
         assert!(approx_eq!(f64, prober.probe_temp().unwrap(), 42.0));
     }
 
@@ -393,7 +417,8 @@ Critical Comp. Temperature Time:    0
             .as_bytes(),
             &[],
             0,
-        );
+        )
+        .unwrap();
         assert!(approx_eq!(f64, prober.probe_temp().unwrap(), 45.0));
     }
 }

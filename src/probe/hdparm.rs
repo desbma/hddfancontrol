@@ -4,11 +4,13 @@ use std::{
     fmt,
     io::BufRead as _,
     path::PathBuf,
-    process::{Command, Stdio},
+    process::{Command, Output, Stdio},
 };
 
-use super::{DeviceTempProber, DriveTempProbeMethod, ProberError, Temp};
-use crate::device::Drive;
+use nix::libc::ENOENT;
+
+use super::{DeviceTempProber, DriveTempProbeMethod, ProbeMethodError, Temp};
+use crate::{device::Drive, probe::ProbeError};
 
 /// Hdparm Hitachi/HGST temperature probing method
 pub(crate) struct Method;
@@ -16,13 +18,13 @@ pub(crate) struct Method;
 impl DriveTempProbeMethod for Method {
     type Prober = Prober;
 
-    fn prober(&self, drive: &Drive) -> Result<Prober, ProberError> {
+    fn prober(&self, drive: &Drive) -> Result<Prober, ProbeMethodError> {
         let mut prober = Prober {
             device: drive.dev_path.clone(),
         };
         prober
             .probe_temp()
-            .map_err(|e| ProberError::Unsupported(e.to_string()))?;
+            .map_err(|e| ProbeMethodError::Unsupported(e.to_string()))?;
         Ok(prober)
     }
 
@@ -44,8 +46,8 @@ pub(crate) struct Prober {
 }
 
 impl DeviceTempProber for Prober {
-    fn probe_temp(&mut self) -> anyhow::Result<Temp> {
-        let output = Command::new("hdparm")
+    fn probe_temp(&mut self) -> Result<Temp, ProbeError> {
+        let output: Output = Command::new("hdparm")
             .args([
                 "-H",
                 self.device
@@ -54,25 +56,31 @@ impl DeviceTempProber for Prober {
             ])
             .stdin(Stdio::null())
             .env("LANG", "C")
-            .output()?;
-        anyhow::ensure!(
-            output.status.success(),
-            "hdparm failed with code {}",
-            output.status
-        );
-        let lines: Vec<_> = output
+            .output()
+            .map_err(anyhow::Error::from)?;
+        if !output.status.success() {
+            match output.status.code() {
+                Some(ENOENT) => return Err(ProbeError::DeviceMissing),
+                _ => {
+                    return Err(anyhow::anyhow!("hdparm failed with code {}", output.status).into());
+                }
+            }
+        }
+        let lines: Vec<String> = output
             .stdout
             .lines()
             .chain(output.stderr.lines())
-            .collect::<Result<_, _>>()?;
+            .collect::<Result<_, _>>()
+            .map_err(anyhow::Error::from)?;
+
         // See https://github.com/Distrotech/hdparm/blob/4517550db29a91420fb2b020349523b1b4512df2/sgio.c#L308-L315
         // for some soft errors
-        anyhow::ensure!(
-            !lines
-                .iter()
-                .any(|l| l.starts_with("SG_IO: ") && l.contains("sense data")),
-            "hdparm returned soft error",
-        );
+        if lines
+            .iter()
+            .any(|l| l.starts_with("SG_IO: ") && l.contains("sense data"))
+        {
+            return Err(anyhow::anyhow!("hdparm returned soft error").into());
+        }
         let temp = lines
             .iter()
             .find_map(|l| {
@@ -85,7 +93,8 @@ impl DeviceTempProber for Prober {
                     .map(ToOwned::to_owned)
             })
             .ok_or_else(|| anyhow::anyhow!("Failed to parse hdparm temp output"))?
-            .parse()?;
+            .parse()
+            .map_err(anyhow::Error::from)?;
         Ok(temp)
     }
 }
@@ -111,7 +120,8 @@ mod tests {
             .as_bytes(),
             &[],
             0,
-        );
+        )
+        .unwrap();
         assert!(approx_eq!(f64, prober.probe_temp().unwrap(), 30.0));
 
         let _hdparm = BinaryMock::new(
@@ -119,7 +129,8 @@ mod tests {
             "\n/dev/_sdX:\n drive temperature (celsius) is: -18\n drive temperature in range: yes\n".as_bytes(),
             "SG_IO: questionable sense data, results may be incorrect\n".as_bytes(),
             0,
-        );
+        )
+        .unwrap();
         assert!(prober.probe_temp().is_err());
 
         let _hdparm = BinaryMock::new(
@@ -127,7 +138,8 @@ mod tests {
             "\n/dev/_sdX:\n drive temperature (celsius) is: -18\n drive temperature in range: yes\n".as_bytes(),
             "SG_IO: missing sense data, results may be incorrect\n".as_bytes(),
             0,
-        );
+        )
+        .unwrap();
         assert!(prober.probe_temp().is_err());
 
         let _hdparm = BinaryMock::new(
@@ -135,7 +147,28 @@ mod tests {
             "\n/dev/_sdX:\n drive temperature (celsius) is: -18\n drive temperature in range: yes\n".as_bytes(),
             "SG_IO: bad/missing sense data, sb[]: 70 00 05 00 00 00 00 0a 04 51 40 00 21 04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n".as_bytes(),
             0,
-        );
+        )
+        .unwrap();
         assert!(prober.probe_temp().is_err());
+    }
+
+    #[serial_test::serial]
+    #[test]
+    fn hdparm_drive_missing() {
+        let mut prober = Prober {
+            device: PathBuf::from("/dev/_sdX"),
+        };
+
+        let _hdparm = BinaryMock::new(
+            "hdparm",
+            &[],
+            "/dev/_sdX: No such file or directory".as_bytes(),
+            2,
+        )
+        .unwrap();
+        assert!(matches!(
+            prober.probe_temp().unwrap_err(),
+            ProbeError::DeviceMissing
+        ));
     }
 }
