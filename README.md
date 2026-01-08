@@ -124,7 +124,7 @@ Before using HDD Fan control unmonitored for long period of time, I recommend ke
 To get the start/stop values for the `--pwm` parameter, you can either:
 
 - Use the `pwm-test` command (`hddfancontrol pwm-test ...`), which will run some tests and detect the values at which the fans start and stop. However you need to have previously identified the PWM file (the `--pwm` parameter)
-- use the [pwmconfig tool](http://www.lm-sensors.org/wiki/man/pwmconfig).
+- use the [pwmconfig tool](https://man.archlinux.org/man/pwmconfig.8).
 
 ## Changelog
 
