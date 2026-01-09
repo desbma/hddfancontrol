@@ -11,6 +11,8 @@ Restart=always
 # Scheduler priority
 CPUSchedulingPolicy=rr
 CPUSchedulingPriority=49
+IOSchedulingClass=realtime
+IOSchedulingPriority=0
 
 # Hardening
 ProtectSystem=strict
