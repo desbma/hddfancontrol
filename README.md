@@ -106,7 +106,7 @@ See [systemd service](#systemd-service) to easily manage the daemon.
 ### From [`crates.io`](https://crates.io/)
 
 ```
-sudo cargo install --root /usr/local
+sudo cargo install --root /usr/local hddfancontrol
 ```
 
 ## Configuration
