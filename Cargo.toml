@@ -9,7 +9,7 @@ categories = ["command-line-utilities"]
 license = "GPL-3.0-only"
 version = "2.0.6"
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.87"
 
 [profile.release]
 lto = true

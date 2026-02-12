@@ -20,7 +20,7 @@ use anyhow::Context as _;
 use clap::Parser as _;
 use device::Hwmon;
 use exit::ExitHook;
-use fan::Speed;
+use fan::{Fan, Speed};
 use probe::Temp;
 
 mod cl;
@@ -33,7 +33,11 @@ mod sysfs;
 #[cfg(test)]
 mod tests;
 
-use crate::{device::Drive, fan::Fan, probe::DeviceTempProber};
+use crate::{
+    device::Drive,
+    fan::{CommandFan, PwmFan},
+    probe::DeviceTempProber,
+};
 
 /// Interruptible sleep
 fn sleep(dur: Duration, exit_rx: &mpsc::Receiver<()>) {
@@ -63,7 +67,7 @@ fn main() -> anyhow::Result<()> {
     match args.command {
         cl::Command::PwmTest { pwm } => {
             for pwm_path in &pwm {
-                let fan = Fan::new(&cl::PwmSettings {
+                let fan = PwmFan::new(&cl::PwmSettings {
                     filepath: pwm_path.to_owned(),
                     thresholds: fan::Thresholds::default(),
                 })
@@ -89,6 +93,7 @@ fn main() -> anyhow::Result<()> {
             drives: drive_selectors,
             hddtemp_daemon_port,
             pwm,
+            fan_cmd,
             drive_temp_range,
             min_fan_speed_prct,
             interval,
@@ -157,11 +162,17 @@ fn main() -> anyhow::Result<()> {
 
             let min_fan_speed = Speed::try_from(f64::from(min_fan_speed_prct) / 100.0)
                 .with_context(|| format!("Invalid speed {min_fan_speed_prct}%"))?;
-            let mut fans: Vec<_> = pwm
+            let mut fans: Vec<Box<dyn Fan>> = pwm
                 .iter()
-                .map(Fan::new)
+                .map(|p| PwmFan::new(p).map(|f| Box::new(f) as Box<dyn Fan>))
                 .collect::<anyhow::Result<_>>()
-                .context("Failed to setup fans")?;
+                .context("Failed to setup PWM fans")?;
+            let cmd_fans: Vec<Box<dyn Fan>> = fan_cmd
+                .iter()
+                .map(|c| Ok(Box::new(CommandFan::new(c)) as Box<dyn Fan>))
+                .collect::<anyhow::Result<_>>()
+                .context("Failed to setup command fans")?;
+            fans.extend(cmd_fans);
 
             let _exit_hook = ExitHook::new(
                 pwm.iter()

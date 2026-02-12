@@ -1,13 +1,14 @@
 //! Command line interface
 
 use std::{
+    ffi::OsString,
     fmt, fs, io,
     ops::Range,
     path::{self, PathBuf},
     str::FromStr,
 };
 
-use clap::{Parser, Subcommand};
+use clap::{ArgGroup, Parser, Subcommand};
 
 use crate::{fan::Thresholds, probe::Temp};
 
@@ -161,6 +162,7 @@ impl FromStr for DriveSelector {
 #[derive(Subcommand, Debug)]
 pub(crate) enum Command {
     /// Start fan control daemon
+    #[command(group(ArgGroup::new("fan_control").required(true).multiple(true).args(["pwm", "fan_cmd"])))]
     Daemon {
         /// Drive path(s) to get temperature from (ie. `/dev/sdX`).
         /// Interface type selectors are also supported (ie. `ata` to
@@ -172,8 +174,15 @@ pub(crate) enum Command {
         /// Use the 'pwm-test' command to find these values.
         /// Format is `PWM_PATH:STAT_VAL:STOP_VAL`
         /// (ie. `/sys/class/hwmon/hwmonX/device/pwmY:200:75`)
-        #[arg(short, long, num_args = 1.., required = true)]
+        #[arg(short, long, num_args = 1..)]
         pwm: Vec<PwmSettings>,
+
+        /// Control fan speed through external command.
+        /// This command will be called to set or change fan speed with the target speed
+        /// passed as the first argument, as an integer between 0 and 1000, where 0 should stop
+        /// the fan, and 1000 set it to its maximum speed.
+        #[arg(short, long, num_args = 1..)]
+        fan_cmd: Vec<OsString>,
 
         /// Temperatures in Celcius at which the fan(s) will be set to minimum/maximum speed.
         #[arg(short = 't', long, value_name = "TEMP", num_args = 2, default_values_t = vec![30.0, 50.0])]
@@ -213,4 +222,91 @@ pub(crate) enum Command {
         #[arg(short, long, num_args = 1.., required = true)]
         pwm: Vec<PathBuf>,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use clap::CommandFactory as _;
+
+    use super::*;
+
+    /// Base daemon args without `pwm`/`fan_cmd`
+    fn base_args() -> Vec<&'static str> {
+        vec!["hddfancontrol", "daemon", "-d", "/dev/sda"]
+    }
+
+    #[test]
+    fn daemon_requires_pwm_or_fan_cmd() {
+        let result = Args::try_parse_from(base_args());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn daemon_accepts_pwm_only() {
+        let mut args = base_args();
+        args.extend(["-p", "/sys/class/hwmon/hwmon0/pwm1:200:75"]);
+        let result = Args::try_parse_from(args);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn daemon_accepts_fan_cmd_only() {
+        let mut args = base_args();
+        args.extend(["-f", "/usr/bin/fan_set"]);
+        let result = Args::try_parse_from(args);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn daemon_accepts_both_pwm_and_fan_cmd() {
+        let mut args = base_args();
+        args.extend([
+            "-p",
+            "/sys/class/hwmon/hwmon0/pwm1:200:75",
+            "-f",
+            "/usr/bin/fan_set",
+        ]);
+        let result = Args::try_parse_from(args);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn daemon_accepts_multiple_pwm() {
+        let mut args = base_args();
+        args.extend([
+            "-p",
+            "/sys/class/hwmon/hwmon0/pwm1:200:75",
+            "/sys/class/hwmon/hwmon0/pwm2:180:60",
+        ]);
+        let result = Args::try_parse_from(args);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn daemon_accepts_multiple_fan_cmd() {
+        let mut args = base_args();
+        args.extend(["-f", "/usr/bin/fan_set1", "/usr/bin/fan_set2"]);
+        let result = Args::try_parse_from(args);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn daemon_accepts_multiple_pwm_and_multiple_fan_cmd() {
+        let mut args = base_args();
+        args.extend([
+            "-p",
+            "/sys/class/hwmon/hwmon0/pwm1:200:75",
+            "/sys/class/hwmon/hwmon0/pwm2:180:60",
+            "-f",
+            "/usr/bin/fan_set1",
+            "/usr/bin/fan_set2",
+        ]);
+        let result = Args::try_parse_from(args);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn verify_cli() {
+        Args::command().debug_assert();
+    }
 }
