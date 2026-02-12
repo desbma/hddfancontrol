@@ -3,6 +3,7 @@
 use std::{
     ffi::OsString,
     fmt, fs, io,
+    num::NonZeroUsize,
     ops::Range,
     path::{self, PathBuf},
     str::FromStr,
@@ -198,6 +199,10 @@ pub(crate) enum Command {
         #[arg(short, long, default_value = "20s")]
         interval: humantime::Duration,
 
+        /// Number of last temperature samples to average before computing target fan speed.
+        #[arg(short, long, default_value_t = NonZeroUsize::MIN)]
+        average: NonZeroUsize,
+
         /// Also control fan speed according to these additional hwmon temperature probes.
         /// Format is `HWMON_PATH[:TEMP_MIN_SPEED:TEMP_MAX_SPEED]`
         /// (ie. `/sys/devices/platform/coretemp.0/hwmon/hwmonX/tempY_input:45:75`).
@@ -303,6 +308,36 @@ mod tests {
         ]);
         let result = Args::try_parse_from(args);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn daemon_default_average() {
+        let mut args = base_args();
+        args.extend(["-p", "/sys/class/hwmon/hwmon0/pwm1:200:75"]);
+        let parsed = Args::try_parse_from(args).unwrap();
+        match parsed.command {
+            Command::Daemon { average, .. } => assert_eq!(average.get(), 1),
+            Command::PwmTest { .. } => panic!("expected Daemon"),
+        }
+    }
+
+    #[test]
+    fn daemon_custom_average() {
+        let mut args = base_args();
+        args.extend(["-p", "/sys/class/hwmon/hwmon0/pwm1:200:75", "-a", "5"]);
+        let parsed = Args::try_parse_from(args).unwrap();
+        match parsed.command {
+            Command::Daemon { average, .. } => assert_eq!(average.get(), 5),
+            Command::PwmTest { .. } => panic!("expected Daemon"),
+        }
+    }
+
+    #[test]
+    fn daemon_rejects_average_zero() {
+        let mut args = base_args();
+        args.extend(["-p", "/sys/class/hwmon/hwmon0/pwm1:200:75", "-a", "0"]);
+        let result = Args::try_parse_from(args);
+        assert!(result.is_err());
     }
 
     #[test]

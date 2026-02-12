@@ -6,6 +6,7 @@
 )]
 
 use std::{
+    collections::VecDeque,
     ops::Range,
     path::PathBuf,
     sync::{
@@ -97,6 +98,7 @@ fn main() -> anyhow::Result<()> {
             drive_temp_range,
             min_fan_speed_prct,
             interval,
+            average,
             hwmons,
             restore_fan_settings,
         } => {
@@ -194,6 +196,9 @@ fn main() -> anyhow::Result<()> {
                 .context("Failed to setup SIGINT handler")?;
             }
 
+            let sample_count = average.get();
+            let mut temp_measures: VecDeque<Temp> = VecDeque::with_capacity(sample_count);
+
             while !exit_requested.load(Ordering::SeqCst) {
                 let start = Instant::now();
 
@@ -234,18 +239,27 @@ fn main() -> anyhow::Result<()> {
                     })
                     .collect::<anyhow::Result<_>>()?;
 
-                let mut speed = min_fan_speed;
-                if let Some(max_drive_temp) = max_drive_temp {
-                    log::info!("Max drive temperature: {max_drive_temp}°C");
-                    speed = fan::target_speed(max_drive_temp, &drive_temp_range, speed);
-                } else {
+                let max_temp = max_drive_temp
+                    .into_iter()
+                    .chain(hwmon_temps)
+                    .reduce(f64::max);
+
+                if let Some(temp) = max_temp {
+                    if temp_measures.len() == sample_count {
+                        temp_measures.pop_front();
+                    }
+                    temp_measures.push_back(temp);
+                }
+
+                let speed = if temp_measures.is_empty() {
                     log::info!("All drives are spun down");
-                }
-                for (hwmon_temp, (_hwmon, hwmon_range)) in
-                    hwmon_temps.into_iter().zip(hwmon_and_range.iter())
-                {
-                    speed = fan::target_speed(hwmon_temp, hwmon_range, speed);
-                }
+                    min_fan_speed
+                } else {
+                    #[expect(clippy::cast_precision_loss)]
+                    let avg_temp = temp_measures.iter().sum::<Temp>() / temp_measures.len() as Temp;
+                    log::info!("Avg max temperature: {avg_temp:.1}°C");
+                    fan::target_speed(avg_temp, &drive_temp_range, min_fan_speed)
+                };
                 for fan in &mut fans {
                     fan.set_speed(speed)
                         .with_context(|| format!("Failed to set fan {fan} speed"))?;
