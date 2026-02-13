@@ -158,68 +158,83 @@ impl FromStr for DriveSelector {
     }
 }
 
+/// Daemon subcommand arguments
+#[derive(clap::Args, Debug)]
+#[command(group(ArgGroup::new("fan_control").required(true).multiple(true).args(["pwm", "fan_cmd"])))]
+pub(crate) struct DaemonArgs {
+    /// Drive path(s) to get temperature from (ie. `/dev/sdX`).
+    /// Interface type selectors are also supported (ie. `ata` to
+    /// select all drives matching `/dev/disk/by-id/ata-*`).
+    #[arg(short, long, num_args = 1.., required = true)]
+    pub drives: Vec<DriveSelector>,
+
+    /// PWM filepath(s) with values at which the fan start and stop moving.
+    /// Use the 'pwm-test' command to find these values.
+    /// Format is `PWM_PATH:STAT_VAL:STOP_VAL`
+    /// (ie. `/sys/class/hwmon/hwmonX/device/pwmY:200:75`)
+    #[arg(short, long, num_args = 1..)]
+    pub pwm: Vec<PwmSettings>,
+
+    /// Control fan speed through external command.
+    /// This command will be called to set or change fan speed with the target speed
+    /// passed as the first argument, as an integer between 0 and 1000, where 0 should stop
+    /// the fan, and 1000 set it to its maximum speed.
+    #[arg(short, long, num_args = 1..)]
+    pub fan_cmd: Vec<OsString>,
+
+    /// Temperatures in Celcius at which the fan(s) will be set to minimum/maximum speed.
+    #[arg(short = 't', long, value_name = "TEMP", num_args = 2, default_values_t = vec![30.0, 50.0])]
+    drive_temp_range: Vec<Temp>,
+
+    /// Minimum percentage of full fan speed to set the fan to.
+    /// Never set to 0 unless you have other fans to cool down your system,
+    /// or a case specially designed for passive cooling.
+    #[arg(short, long, default_value_t = 20, value_parser=percentage)]
+    pub min_fan_speed_prct: Percentage,
+
+    /// Interval to check temperature and adjust fan speed, ie. '30s', '3min'.
+    #[arg(short, long, default_value = "20s")]
+    pub interval: humantime::Duration,
+
+    /// Number of last temperature samples to average before computing target fan speed.
+    #[arg(short, long, default_value_t = NonZeroUsize::MIN)]
+    pub average: NonZeroUsize,
+
+    /// Also control fan speed according to these additional hwmon temperature probes.
+    /// Format is `HWMON_PATH[:TEMP_MIN_SPEED:TEMP_MAX_SPEED]`
+    /// (ie. `/sys/devices/platform/coretemp.0/hwmon/hwmonX/tempY_input:45:75`).
+    /// If missing, target temperature range will be autodetected or use a default value.
+    /// WARNING: Don't use for CPU sensors, unless you have low TDP CPU. You may also need to set
+    /// a low value for -i/--interval parameter to react quickly to sudden temperature increase.
+    #[arg(short = 'w', long)]
+    pub hwmons: Vec<HwmonSettings>,
+
+    /// hddtemp daemon TCP port.
+    #[arg(long, default_value_t = 7634)]
+    pub hddtemp_daemon_port: u16,
+
+    /// Restore fan settings on exit, otherwise the fans are run at full speed on exit.
+    #[arg(short, long)]
+    pub restore_fan_settings: bool,
+}
+
+impl DaemonArgs {
+    /// Temperature range for fan speed mapping, derived from the two-element CLI input
+    #[expect(clippy::indexing_slicing)]
+    pub(crate) fn drive_temp_range(&self) -> Range<Temp> {
+        Range {
+            start: self.drive_temp_range[0],
+            end: self.drive_temp_range[1],
+        }
+    }
+}
+
 /// Main command
 #[expect(clippy::large_enum_variant)]
 #[derive(Subcommand, Debug)]
 pub(crate) enum Command {
     /// Start fan control daemon
-    #[command(group(ArgGroup::new("fan_control").required(true).multiple(true).args(["pwm", "fan_cmd"])))]
-    Daemon {
-        /// Drive path(s) to get temperature from (ie. `/dev/sdX`).
-        /// Interface type selectors are also supported (ie. `ata` to
-        /// select all drives matching `/dev/disk/by-id/ata-*`).
-        #[arg(short, long, num_args = 1.., required = true)]
-        drives: Vec<DriveSelector>,
-
-        /// PWM filepath(s) with values at which the fan start and stop moving.
-        /// Use the 'pwm-test' command to find these values.
-        /// Format is `PWM_PATH:STAT_VAL:STOP_VAL`
-        /// (ie. `/sys/class/hwmon/hwmonX/device/pwmY:200:75`)
-        #[arg(short, long, num_args = 1..)]
-        pwm: Vec<PwmSettings>,
-
-        /// Control fan speed through external command.
-        /// This command will be called to set or change fan speed with the target speed
-        /// passed as the first argument, as an integer between 0 and 1000, where 0 should stop
-        /// the fan, and 1000 set it to its maximum speed.
-        #[arg(short, long, num_args = 1..)]
-        fan_cmd: Vec<OsString>,
-
-        /// Temperatures in Celcius at which the fan(s) will be set to minimum/maximum speed.
-        #[arg(short = 't', long, value_name = "TEMP", num_args = 2, default_values_t = vec![30.0, 50.0])]
-        drive_temp_range: Vec<Temp>,
-
-        /// Minimum percentage of full fan speed to set the fan to.
-        /// Never set to 0 unless you have other fans to cool down your system,
-        /// or a case specially designed for passive cooling.
-        #[arg(short, long, default_value_t = 20, value_parser=percentage)]
-        min_fan_speed_prct: Percentage,
-
-        /// Interval to check temperature and adjust fan speed, ie. '30s', '3min'.
-        #[arg(short, long, default_value = "20s")]
-        interval: humantime::Duration,
-
-        /// Number of last temperature samples to average before computing target fan speed.
-        #[arg(short, long, default_value_t = NonZeroUsize::MIN)]
-        average: NonZeroUsize,
-
-        /// Also control fan speed according to these additional hwmon temperature probes.
-        /// Format is `HWMON_PATH[:TEMP_MIN_SPEED:TEMP_MAX_SPEED]`
-        /// (ie. `/sys/devices/platform/coretemp.0/hwmon/hwmonX/tempY_input:45:75`).
-        /// If missing, target temperature range will be autodetected or use a default value.
-        /// WARNING: Don't use for CPU sensors, unless you have low TDP CPU. You may also need to set
-        /// a low value for -i/--interval parameter to react quickly to sudden temperature increase.
-        #[arg(short = 'w', long)]
-        hwmons: Vec<HwmonSettings>,
-
-        /// hddtemp daemon TCP port.
-        #[arg(long, default_value_t = 7634)]
-        hddtemp_daemon_port: u16,
-
-        /// Restore fan settings on exit, otherwise the fans are run at full speed on exit.
-        #[arg(short, long)]
-        restore_fan_settings: bool,
-    },
+    Daemon(DaemonArgs),
 
     /// Test PWM to find start/stop fan values
     PwmTest {
@@ -316,7 +331,7 @@ mod tests {
         args.extend(["-p", "/sys/class/hwmon/hwmon0/pwm1:200:75"]);
         let parsed = Args::try_parse_from(args).unwrap();
         match parsed.command {
-            Command::Daemon { average, .. } => assert_eq!(average.get(), 1),
+            Command::Daemon(daemon) => assert_eq!(daemon.average.get(), 1),
             Command::PwmTest { .. } => panic!("expected Daemon"),
         }
     }
@@ -327,7 +342,7 @@ mod tests {
         args.extend(["-p", "/sys/class/hwmon/hwmon0/pwm1:200:75", "-a", "5"]);
         let parsed = Args::try_parse_from(args).unwrap();
         match parsed.command {
-            Command::Daemon { average, .. } => assert_eq!(average.get(), 5),
+            Command::Daemon(daemon) => assert_eq!(daemon.average.get(), 5),
             Command::PwmTest { .. } => panic!("expected Daemon"),
         }
     }
