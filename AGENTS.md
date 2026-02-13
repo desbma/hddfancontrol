@@ -16,7 +16,10 @@ Single-binary Rust daemon (`hddfancontrol`) that regulates Linux fan speed based
 - `src/cl.rs` — CLI parsing (clap derive)
 - `src/device/` — drive and hwmon device abstractions
 - `src/probe/` — temperature probing backends (drivetemp, hddtemp, hdparm, smartctl)
-- `src/fan.rs` — fan speed control logic
+- `src/fan/` — fan speed control logic
+  - `mod.rs` — Fan trait, Speed newtype, Thresholds struct, target_speed function
+  - `pwm_fan.rs` — PWM-based fan control via sysfs
+  - `cmd_fan.rs` — command-based fan control via external command invocation
 - `src/pwm.rs` — PWM sysfs interface
 - `src/sysfs.rs` — sysfs file helpers
 - `src/exit.rs` — exit hook for PWM restore
