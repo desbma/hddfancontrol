@@ -84,6 +84,7 @@ impl Pwm<()> {
                     .with_factor(1.5)
                     .with_min_delay(Duration::from_millis(10))
                     .with_max_delay(Duration::from_secs(1))
+                    .with_total_delay(Some(Duration::from_secs(10)))
                     .without_max_times()
                     .build(),
             )
