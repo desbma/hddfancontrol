@@ -31,6 +31,8 @@ mod fan;
 mod probe;
 mod pwm;
 mod sysfs;
+#[cfg(feature = "temp_log")]
+mod temp_log;
 #[cfg(test)]
 mod tests;
 
@@ -166,11 +168,11 @@ fn setup_fans(
     Ok(fans)
 }
 
-/// Probe max temperature across all drives
-fn probe_max_drive_temp(
+/// Probe temperature for each drive, returning `None` for sleeping drives
+fn probe_drive_temps(
     drive_probers: &mut [DriveProber],
     drives: &[Drive],
-) -> anyhow::Result<Option<Temp>> {
+) -> anyhow::Result<Vec<Option<Temp>>> {
     drive_probers
         .iter_mut()
         .zip(drives.iter())
@@ -192,8 +194,7 @@ fn probe_max_drive_temp(
             Ok(temp)
         })
         .collect::<anyhow::Result<Vec<_>>>()
-        .context("Failed to get maximum drive temperature")
-        .map(|temps| temps.into_iter().flatten().reduce(f64::max))
+        .context("Failed to get drive temperatures")
 }
 
 /// Probe temperatures from hwmon sensors
@@ -219,6 +220,13 @@ fn run_daemon(args: cl::DaemonArgs) -> anyhow::Result<()> {
     let (drives, mut drive_probers) = setup_drives(args.drives, args.hddtemp_daemon_port)?;
     let mut hwmon_and_range = setup_hwmons(&args.hwmons)?;
     let mut fans = setup_fans(&args.pwm, &args.fan_cmd)?;
+    #[cfg(feature = "temp_log")]
+    let mut temp_log_writer = args
+        .temp_log
+        .as_deref()
+        .map(temp_log::TempLogWriter::new)
+        .transpose()
+        .context("Failed to open temp log file")?;
 
     let _exit_hook = ExitHook::new(
         args.pwm
@@ -247,14 +255,36 @@ fn run_daemon(args: cl::DaemonArgs) -> anyhow::Result<()> {
     while !exit_requested.load(Ordering::SeqCst) {
         let start = Instant::now();
 
-        let max_drive_temp = probe_max_drive_temp(&mut drive_probers, &drives)?;
+        // Measure
+        let drive_temps = probe_drive_temps(&mut drive_probers, &drives)?;
         let hwmon_temps = probe_hwmon_temps(&mut hwmon_and_range)?;
 
-        let max_temp = max_drive_temp
+        // Log
+        #[cfg(feature = "temp_log")]
+        if let Some(writer) = temp_log_writer.as_mut() {
+            let measures = drives
+                .iter()
+                .zip(drive_temps.iter())
+                .map(|(drive, temp)| temp_log::TempMeasure::new(drive, *temp))
+                .chain(
+                    hwmon_and_range
+                        .iter()
+                        .map(|(h, _r)| h)
+                        .zip(hwmon_temps.iter())
+                        .map(|(hwmon, temp)| temp_log::TempMeasure::new(hwmon, Some(*temp))),
+                )
+                .collect();
+            writer
+                .write(measures)
+                .context("Failed to write temp log entry")?;
+        }
+
+        // Keep max
+        let max_temp = drive_temps
             .into_iter()
+            .flatten()
             .chain(hwmon_temps)
             .reduce(f64::max);
-
         if let Some(temp) = max_temp {
             if temp_measures.len() == sample_count {
                 temp_measures.pop_front();
@@ -262,6 +292,7 @@ fn run_daemon(args: cl::DaemonArgs) -> anyhow::Result<()> {
             temp_measures.push_back(temp);
         }
 
+        // Compute fan speed
         let speed = if temp_measures.is_empty() {
             log::info!("All drives are spun down");
             min_fan_speed
@@ -276,6 +307,7 @@ fn run_daemon(args: cl::DaemonArgs) -> anyhow::Result<()> {
                 .with_context(|| format!("Failed to set fan {fan} speed"))?;
         }
 
+        // Sleep
         let elapsed = Instant::now().duration_since(start);
         let to_wait = interval.saturating_sub(elapsed);
         log::debug!("Will sleep at most {to_wait:?}");

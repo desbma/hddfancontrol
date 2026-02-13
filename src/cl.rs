@@ -213,6 +213,11 @@ pub(crate) struct DaemonArgs {
     #[arg(long, default_value_t = 7634)]
     pub hddtemp_daemon_port: u16,
 
+    /// Log temperature samples to a JSONL file at the given path.
+    #[cfg(feature = "temp_log")]
+    #[arg(long)]
+    pub temp_log: Option<PathBuf>,
+
     /// Restore fan settings on exit, otherwise the fans are run at full speed on exit.
     #[arg(short, long)]
     pub restore_fan_settings: bool,
