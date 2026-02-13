@@ -7,6 +7,7 @@
 
 use std::{
     collections::VecDeque,
+    iter,
     ops::Range,
     path::PathBuf,
     sync::{
@@ -90,11 +91,11 @@ fn run_pwm_test(pwm: &[PathBuf]) -> anyhow::Result<()> {
 
 /// Set up drives and their temperature probers
 fn setup_drives(
-    drive_selectors: Vec<cl::DriveSelector>,
+    drive_selectors: &[cl::DriveSelector],
     hddtemp_daemon_port: u16,
 ) -> anyhow::Result<(Vec<Drive>, Vec<DriveProber>)> {
     let drive_paths: Vec<PathBuf> = drive_selectors
-        .into_iter()
+        .iter()
         .map(|s| {
             s.to_drive_paths()
                 .with_context(|| format!("Failed to match drives for selector {s}"))
@@ -211,15 +212,55 @@ fn probe_hwmon_temps(hwmon_and_range: &mut [(Hwmon, Range<Temp>)]) -> anyhow::Re
         .collect::<anyhow::Result<_>>()
 }
 
+/// Compute the temperature for each source, smoothed over windows of past samples
+fn smooth_temps(windows: &[&VecDeque<Temp>]) -> Vec<Option<Temp>> {
+    windows
+        .iter()
+        .map(|s| {
+            if s.is_empty() {
+                None
+            } else {
+                #[expect(clippy::cast_precision_loss)]
+                let avg = s.iter().sum::<Temp>() / s.len() as Temp;
+                Some(avg)
+            }
+        })
+        .collect()
+}
+
+/// Compute the target fan speed from temps and their ranges
+fn compute_fan_speed(
+    temps: &[Option<Temp>],
+    ranges: &[Range<Temp>],
+    min_speed: Speed,
+) -> anyhow::Result<Speed> {
+    anyhow::ensure!(temps.len() == ranges.len());
+    let mut speed = min_speed;
+    for (temp, range) in temps.iter().zip(ranges.iter()) {
+        if let Some(temp) = temp {
+            speed = fan::target_speed(*temp, range, speed);
+        }
+    }
+    Ok(speed)
+}
+
 /// Run the fan control daemon
-fn run_daemon(args: cl::DaemonArgs) -> anyhow::Result<()> {
-    let drive_temp_range = args.drive_temp_range();
+fn run_daemon(args: &cl::DaemonArgs) -> anyhow::Result<()> {
     let interval = *args.interval;
     let min_fan_speed = Speed::try_from(f64::from(args.min_fan_speed_prct) / 100.0)
         .with_context(|| format!("Invalid speed {}%", args.min_fan_speed_prct))?;
-    let (drives, mut drive_probers) = setup_drives(args.drives, args.hddtemp_daemon_port)?;
-    let mut hwmon_and_range = setup_hwmons(&args.hwmons)?;
+    let (drives, mut drive_probers) = setup_drives(&args.drives, args.hddtemp_daemon_port)?;
+    let mut hwmons_and_ranges = setup_hwmons(&args.hwmons)?;
     let mut fans = setup_fans(&args.pwm, &args.fan_cmd)?;
+    let max_window_size = args.average.get();
+    let mut drive_temp_window: VecDeque<Temp> = VecDeque::with_capacity(max_window_size);
+    let mut hwmon_temp_windows: Vec<VecDeque<Temp>> =
+        vec![VecDeque::with_capacity(max_window_size); hwmons_and_ranges.len()];
+    let ranges: Vec<Range<Temp>> = iter::once(args.drive_temp_range())
+        .chain(hwmons_and_ranges.iter().map(|(_, r)| r.clone()))
+        .collect();
+
+    // JSONL writer
     #[cfg(feature = "temp_log")]
     let mut temp_log_writer = args
         .temp_log
@@ -228,6 +269,7 @@ fn run_daemon(args: cl::DaemonArgs) -> anyhow::Result<()> {
         .transpose()
         .context("Failed to open temp log file")?;
 
+    // Exit hook
     let _exit_hook = ExitHook::new(
         args.pwm
             .iter()
@@ -249,28 +291,25 @@ fn run_daemon(args: cl::DaemonArgs) -> anyhow::Result<()> {
         .context("Failed to setup SIGINT handler")?;
     }
 
-    let sample_count = args.average.get();
-    let mut temp_measures: VecDeque<Temp> = VecDeque::with_capacity(sample_count);
-
     while !exit_requested.load(Ordering::SeqCst) {
         let start = Instant::now();
 
         // Measure
-        let drive_temps = probe_drive_temps(&mut drive_probers, &drives)?;
-        let hwmon_temps = probe_hwmon_temps(&mut hwmon_and_range)?;
+        let cur_drive_temps = probe_drive_temps(&mut drive_probers, &drives)?;
+        let cur_hwmon_temps = probe_hwmon_temps(&mut hwmons_and_ranges)?;
 
         // Log
         #[cfg(feature = "temp_log")]
         if let Some(writer) = temp_log_writer.as_mut() {
             let measures = drives
                 .iter()
-                .zip(drive_temps.iter())
+                .zip(cur_drive_temps.iter())
                 .map(|(drive, temp)| temp_log::TempMeasure::new(drive, *temp))
                 .chain(
-                    hwmon_and_range
+                    hwmons_and_ranges
                         .iter()
                         .map(|(h, _r)| h)
-                        .zip(hwmon_temps.iter())
+                        .zip(cur_hwmon_temps.iter())
                         .map(|(hwmon, temp)| temp_log::TempMeasure::new(hwmon, Some(*temp))),
                 )
                 .collect();
@@ -279,29 +318,29 @@ fn run_daemon(args: cl::DaemonArgs) -> anyhow::Result<()> {
                 .context("Failed to write temp log entry")?;
         }
 
-        // Keep max
-        let max_temp = drive_temps
-            .into_iter()
-            .flatten()
-            .chain(hwmon_temps)
-            .reduce(f64::max);
-        if let Some(temp) = max_temp {
-            if temp_measures.len() == sample_count {
-                temp_measures.pop_front();
+        // Update windows
+        if let Some(max_drive_temp) = cur_drive_temps.into_iter().flatten().reduce(f64::max) {
+            if drive_temp_window.len() == max_window_size {
+                drive_temp_window.pop_front();
             }
-            temp_measures.push_back(temp);
+            drive_temp_window.push_back(max_drive_temp);
+        }
+        for (windows, temp) in hwmon_temp_windows.iter_mut().zip(cur_hwmon_temps.iter()) {
+            if windows.len() == max_window_size {
+                windows.pop_front();
+            }
+            windows.push_back(*temp);
         }
 
-        // Compute fan speed
-        let speed = if temp_measures.is_empty() {
+        // Compute and set fan speed
+        if drive_temp_window.is_empty() {
             log::info!("All drives are spun down");
-            min_fan_speed
-        } else {
-            #[expect(clippy::cast_precision_loss)]
-            let avg_temp = temp_measures.iter().sum::<Temp>() / temp_measures.len() as Temp;
-            log::info!("Avg max temperature: {avg_temp:.1}°C");
-            fan::target_speed(avg_temp, &drive_temp_range, min_fan_speed)
-        };
+        }
+        let all_temp_windows: Vec<_> = iter::once(&drive_temp_window)
+            .chain(hwmon_temp_windows.iter())
+            .collect();
+        let smoothed_temps = smooth_temps(&all_temp_windows);
+        let speed = compute_fan_speed(&smoothed_temps, &ranges, min_fan_speed)?;
         for fan in &mut fans {
             fan.set_speed(speed)
                 .with_context(|| format!("Failed to set fan {fan} speed"))?;
@@ -327,6 +366,120 @@ fn main() -> anyhow::Result<()> {
 
     match args.command {
         cl::Command::PwmTest { pwm } => run_pwm_test(&pwm),
-        cl::Command::Daemon(daemon_args) => run_daemon(daemon_args),
+        cl::Command::Daemon(daemon_args) => run_daemon(&daemon_args),
+    }
+}
+
+#[cfg(test)]
+mod main_tests {
+    use std::slice;
+
+    use super::*;
+
+    #[test]
+    fn drives_only() {
+        let window = VecDeque::from([40.0, 42.0, 44.0]);
+        let result = smooth_temps(&[&window]);
+        assert_eq!(result, vec![Some(42.0)]);
+    }
+
+    #[test]
+    fn drives_and_hwmon() {
+        let drive_window = VecDeque::from([40.0, 44.0]);
+        let hwmon_window = VecDeque::from([60.0, 70.0]);
+        let smoothed = smooth_temps(&[&drive_window, &hwmon_window]);
+        assert_eq!(smoothed, vec![Some(42.0), Some(65.0)]);
+    }
+
+    #[test]
+    fn all_drives_sleeping() {
+        let drive_window = VecDeque::new();
+        let smoothed = smooth_temps(&[&drive_window]);
+        assert_eq!(smoothed, vec![None]);
+    }
+
+    #[test]
+    fn drives_sleeping_with_hwmon() {
+        let drive_window = VecDeque::new();
+        let hwmon_window = VecDeque::from([60.0]);
+        let smoothed = smooth_temps(&[&drive_window, &hwmon_window]);
+        assert_eq!(smoothed, vec![None, Some(60.0)]);
+    }
+
+    #[test]
+    fn multiple_hwmons() {
+        let drive_window = VecDeque::from([40.0]);
+        let hwmon1_window = VecDeque::from([60.0, 70.0]);
+        let hwmon2_window = VecDeque::from([80.0]);
+        let smoothed = smooth_temps(&[&drive_window, &hwmon1_window, &hwmon2_window]);
+        assert_eq!(smoothed, vec![Some(40.0), Some(65.0), Some(80.0)]);
+    }
+
+    #[test]
+    fn fan_speed_drives_only() {
+        let smoothed = vec![Some(45.0)];
+        let ranges = vec![Range {
+            start: 40.0,
+            end: 50.0,
+        }];
+        let min_speed = Speed::try_from(0.2).unwrap();
+        let speed = compute_fan_speed(&smoothed, &ranges, min_speed).unwrap();
+        assert_eq!(speed, Speed::try_from(0.5).unwrap());
+    }
+
+    #[test]
+    fn fan_speed_all_sleeping() {
+        let smoothed = vec![None];
+        let ranges = vec![Range {
+            start: 40.0,
+            end: 50.0,
+        }];
+        let min_speed = Speed::try_from(0.2).unwrap();
+        let speed = compute_fan_speed(&smoothed, &ranges, min_speed).unwrap();
+        assert_eq!(speed, min_speed);
+    }
+
+    #[test]
+    fn fan_speed_hwmon_increases_speed() {
+        let drive_range = Range {
+            start: 30.0,
+            end: 50.0,
+        };
+        let hwmon_range = Range {
+            start: 45.0,
+            end: 75.0,
+        };
+        let min_speed = Speed::try_from(0.2).unwrap();
+        let drive_only =
+            compute_fan_speed(&[Some(35.0)], slice::from_ref(&drive_range), min_speed).unwrap();
+        let with_hwmon = compute_fan_speed(
+            &[Some(35.0), Some(70.0)],
+            &[drive_range, hwmon_range],
+            min_speed,
+        )
+        .unwrap();
+        assert!(with_hwmon > drive_only);
+    }
+
+    #[test]
+    fn fan_speed_hwmon_does_not_decrease_speed() {
+        let drive_range = Range {
+            start: 40.0,
+            end: 50.0,
+        };
+        let hwmon_range = Range {
+            start: 45.0,
+            end: 75.0,
+        };
+        let min_speed = Speed::try_from(0.2).unwrap();
+        let drive_only =
+            compute_fan_speed(&[Some(48.0)], slice::from_ref(&drive_range), min_speed).unwrap();
+        let with_hwmon = compute_fan_speed(
+            &[Some(48.0), Some(46.0)],
+            &[drive_range, hwmon_range],
+            min_speed,
+        )
+        .unwrap();
+        assert_eq!(with_hwmon, drive_only);
     }
 }

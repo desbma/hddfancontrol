@@ -6,7 +6,7 @@
 - Check: `cargo clippy --all-targets -- -D warnings`
 - Test all: `cargo test`
 - Test single: `cargo test <test_name>` (e.g. `cargo test test_parse_temp`)
-- Format: `cargo fmt` (check: `cargo fmt -- --check`)
+- Format: `cargo fmt`
 
 ## Architecture
 
@@ -27,9 +27,10 @@ Single-binary Rust daemon (`hddfancontrol`) that regulates Linux fan speed based
 
 ## Code Style
 
-- Rust 2024 edition, MSRV 1.85. Errors via `anyhow`/`thiserror`.
+- Rust 2024 edition, MSRV 1.87. Errors via `anyhow`/`thiserror`.
 - Clippy pedantic enabled; no `unwrap`/`expect`/`panic`/`todo` outside tests.
 - Every module and item must have a doc comment (`//!` or `///`); `missing_docs` is warned.
+- Doc comments do not end with a dot, unless it separates sentences
 - Imports: group std, then external crates, then local modules. Use `_` suffix for unused trait imports.
 - Prefer `default-features = false` for dependencies.
 - In tests: use `use super::*;` to import from the parent module
