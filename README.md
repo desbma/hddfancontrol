@@ -61,6 +61,13 @@ The ideal use case is for a NAS with several hard drives, a low power CPU (ie. A
   - to never set the fans below a certain speed (useful if the fans controlled by HDD Fan control are the only ones available in the chassis)
 - Can also optionally monitor CPU temperature, and control fan speed accordingly
 
+### Temperature logging
+
+`hddfancontrol` can log temperature measures to a JSONL file for example to plot temperatures on a graph.
+An example of script to plot the temperature data is [available in the repository](./scripts/plot-temps.py).
+This feature is controlled by the cargo feature `temp-log`, enabled by default.
+If you don't need this feature and want the program to be as light as possible, you can compile with `--no-default-features`.
+
 ## Prerequisites
 
 - A Linux distribution

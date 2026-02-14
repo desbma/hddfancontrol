@@ -15,7 +15,7 @@ IOSchedulingClass=realtime
 IOSchedulingPriority=0
 
 # Hardening
-ProtectSystem=strict
+ProtectSystem=full
 PrivateTmp=true
 ProtectHome=true
 SystemCallArchitectures=native

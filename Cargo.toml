@@ -23,10 +23,12 @@ clap = { version = "4.5.51", default-features = false, features = ["std", "color
 clap-num = { version = "1.2.0", default-features = false }
 clap_mangen = { version = "0.2.31", default-features = false, optional = true }
 ctrlc = { version = "3.5.1", default-features = false, features = ["termination"] }
+flate2 = { version = "1.1.9", default-features = false, features = ["rust_backend"], optional = true }
 humantime = { version = "2.3.0", default-features = false }
 itertools = { version = "0.14.0", default-features = false, features = ["use_std"] }
 log = { version = "0.4.28", default-features = false, features = ["max_level_trace", "release_max_level_trace"] }
 nix = { version = "0.30.1", default-features = false, features = ["fs"] }
+rev_lines = { version = "0.3.0", optional = true, default-features = false }
 serde = { version = "1.0.219", default-features = false, features = ["std", "derive"], optional = true }
 serde_json = { version = "1.0.140", default-features = false, features = ["std"], optional = true }
 simple_logger = { version = "5.1.0", default-features = false, features = ["colors", "stderr"] }
@@ -40,8 +42,8 @@ serial_test = { version = "3.2.0", default-features = false }
 tempfile = { version = "3.23.0", default-features = false }
 
 [features]
-default = ["temp_log"]
-temp_log = ["dep:chrono", "dep:serde", "dep:serde_json"]
+default = ["temp-log"]
+temp-log = ["dep:chrono", "dep:flate2", "dep:rev_lines", "dep:serde", "dep:serde_json"]
 gen-man-pages = ["dep:clap_mangen"]
 
 [lints.rust]

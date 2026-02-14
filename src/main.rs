@@ -32,8 +32,10 @@ mod fan;
 mod probe;
 mod pwm;
 mod sysfs;
-#[cfg(feature = "temp_log")]
+#[cfg(feature = "temp-log")]
 mod temp_log;
+#[cfg(feature = "temp-log")]
+use chrono::Utc;
 #[cfg(test)]
 mod tests;
 
@@ -260,12 +262,12 @@ fn run_daemon(args: &cl::DaemonArgs) -> anyhow::Result<()> {
         .chain(hwmons_and_ranges.iter().map(|(_, r)| r.clone()))
         .collect();
 
-    // JSONL writer
-    #[cfg(feature = "temp_log")]
-    let mut temp_log_writer = args
+    // JSONL logger
+    #[cfg(feature = "temp-log")]
+    let mut temp_logger = args
         .temp_log
         .as_deref()
-        .map(temp_log::TempLogWriter::new)
+        .map(|p| temp_log::TempLogger::new(p, args.temp_log_max_files))
         .transpose()
         .context("Failed to open temp log file")?;
 
@@ -299,8 +301,8 @@ fn run_daemon(args: &cl::DaemonArgs) -> anyhow::Result<()> {
         let cur_hwmon_temps = probe_hwmon_temps(&mut hwmons_and_ranges)?;
 
         // Log
-        #[cfg(feature = "temp_log")]
-        if let Some(writer) = temp_log_writer.as_mut() {
+        #[cfg(feature = "temp-log")]
+        if let Some(logger) = temp_logger.as_mut() {
             let measures = drives
                 .iter()
                 .zip(cur_drive_temps.iter())
@@ -313,8 +315,8 @@ fn run_daemon(args: &cl::DaemonArgs) -> anyhow::Result<()> {
                         .map(|(hwmon, temp)| temp_log::TempMeasure::new(hwmon, Some(*temp))),
                 )
                 .collect();
-            writer
-                .write(measures)
+            logger
+                .log(Utc::now(), measures)
                 .context("Failed to write temp log entry")?;
         }
 

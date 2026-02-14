@@ -214,9 +214,17 @@ pub(crate) struct DaemonArgs {
     pub hddtemp_daemon_port: u16,
 
     /// Log temperature samples to a JSONL file at the given path.
-    #[cfg(feature = "temp_log")]
+    /// At every day change, log files will be compressed and rotated
+    /// in the same directory.
+    #[cfg(feature = "temp-log")]
     #[arg(long)]
     pub temp_log: Option<PathBuf>,
+
+    /// Maximum number of rotated (compressed) log files to keep.
+    /// When set, older files beyond this limit are deleted during daily rotation.
+    #[cfg(feature = "temp-log")]
+    #[arg(long)]
+    pub temp_log_max_files: Option<NonZeroUsize>,
 
     /// Restore fan settings on exit, otherwise the fans are run at full speed on exit.
     #[arg(short, long)]
