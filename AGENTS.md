@@ -36,3 +36,9 @@ Single-binary Rust daemon (`hddfancontrol`) that regulates Linux fan speed based
 - In tests: use `use super::*;` to import from the parent module
 - In tests: prefer `unwrap()` over `expect()` for conciseness
 - In tests: do not add custom messages to `assert!`/`assert_eq!`/`assert_ne!` — the test name is sufficient
+- When moving or refactoring code, never remove comment lines — preserve all comments and move them along with the code they document
+
+## Version control
+
+- This repository uses the jujutsu VCS. **Never use any `jj` command that modifies the repository**.
+- You can also use read-only git commands for inspecting repository state. **Never use any git command that modifies the repository**.
