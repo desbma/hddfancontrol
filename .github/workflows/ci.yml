@@ -16,6 +16,15 @@ jobs:
           toolchain: stable
       - run: cargo build --verbose
 
+  feature-combinations:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-hack
+      - run: cargo hack check --feature-powerset --no-dev-deps
+
   test:
     runs-on: ubuntu-latest
     steps:
