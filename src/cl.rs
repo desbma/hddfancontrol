@@ -255,6 +255,24 @@ pub(crate) enum Command {
         #[arg(short, long, num_args = 1.., required = true)]
         pwm: Vec<PathBuf>,
     },
+
+    /// Generate man pages
+    #[cfg(feature = "generate-extras")]
+    GenManPages {
+        /// Target directory (must exist)
+        dir: PathBuf,
+    },
+
+    /// Generate shell completion
+    #[cfg(feature = "generate-extras")]
+    #[group(required = true, multiple = false)]
+    GenShellCompletions {
+        /// Shell to generate for, leave empty for all
+        #[arg(short = 's', long, default_value = None)]
+        shell: Option<clap_complete::Shell>,
+        /// Target directory to generate all shell completions into
+        dir: Option<PathBuf>,
+    },
 }
 
 #[cfg(test)]
@@ -265,7 +283,7 @@ mod tests {
 
     /// Base daemon args without `pwm`/`fan_cmd`
     fn base_args() -> Vec<&'static str> {
-        vec!["hddfancontrol", "daemon", "-d", "/dev/sda"]
+        vec![env!("CARGO_BIN_NAME"), "daemon", "-d", "/dev/sda"]
     }
 
     #[test]
@@ -345,6 +363,10 @@ mod tests {
         let parsed = Args::try_parse_from(args).unwrap();
         match parsed.command {
             Command::Daemon(daemon) => assert_eq!(daemon.average.get(), 1),
+            #[cfg(feature = "generate-extras")]
+            Command::GenManPages { .. } | Command::GenShellCompletions { .. } => {
+                panic!("expected Daemon")
+            }
             Command::PwmTest { .. } => panic!("expected Daemon"),
         }
     }
@@ -356,6 +378,10 @@ mod tests {
         let parsed = Args::try_parse_from(args).unwrap();
         match parsed.command {
             Command::Daemon(daemon) => assert_eq!(daemon.average.get(), 5),
+            #[cfg(feature = "generate-extras")]
+            Command::GenManPages { .. } | Command::GenShellCompletions { .. } => {
+                panic!("expected Daemon")
+            }
             Command::PwmTest { .. } => panic!("expected Daemon"),
         }
     }
@@ -365,6 +391,46 @@ mod tests {
         let mut args = base_args();
         args.extend(["-p", "/sys/class/hwmon/hwmon0/pwm1:200:75", "-a", "0"]);
         let result = Args::try_parse_from(args);
+        assert!(result.is_err());
+    }
+
+    #[cfg(feature = "generate-extras")]
+    #[test]
+    fn gen_shell_completions_single_shell() {
+        let result = Args::try_parse_from([
+            env!("CARGO_BIN_NAME"),
+            "gen-shell-completions",
+            "-s",
+            "bash",
+        ]);
+        assert!(result.is_ok());
+    }
+
+    #[cfg(feature = "generate-extras")]
+    #[test]
+    fn gen_shell_completions_all_in_dir() {
+        let result =
+            Args::try_parse_from([env!("CARGO_BIN_NAME"), "gen-shell-completions", "/tmp"]);
+        assert!(result.is_ok());
+    }
+
+    #[cfg(feature = "generate-extras")]
+    #[test]
+    fn gen_shell_completions_rejects_shell_and_dir() {
+        let result = Args::try_parse_from([
+            env!("CARGO_BIN_NAME"),
+            "gen-shell-completions",
+            "-s",
+            "bash",
+            "/tmp",
+        ]);
+        assert!(result.is_err());
+    }
+
+    #[cfg(feature = "generate-extras")]
+    #[test]
+    fn gen_shell_completions_rejects_no_args() {
+        let result = Args::try_parse_from([env!("CARGO_BIN_NAME"), "gen-shell-complete"]);
         assert!(result.is_err());
     }
 

@@ -3,9 +3,9 @@
 ## Commands
 
 - Build: `cargo build`
-- Check: `cargo clippy --all-targets -- -D warnings`
-- Test all: `cargo test`
-- Test single: `cargo test <test_name>` (e.g. `cargo test test_parse_temp`)
+- Check: `cargo clippy --all-targets --all-features -- -D warnings`
+- Test all: `cargo test --all-features`
+- Test single: `cargo test --all-features <test_name>` (e.g. `cargo test --all-features test_parse_temp`)
 - Format: `cargo fmt`
 
 ## Architecture

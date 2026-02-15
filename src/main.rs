@@ -1,10 +1,5 @@
 //! Control fan speed according to drive temperature
 
-#![cfg_attr(
-    feature = "gen-man-pages",
-    expect(dead_code, unused_crate_dependencies, unused_imports)
-)]
-
 use std::{
     collections::VecDeque,
     iter,
@@ -28,6 +23,8 @@ use probe::Temp;
 mod cl;
 mod device;
 mod exit;
+#[cfg(feature = "generate-extras")]
+mod extras;
 mod fan;
 mod probe;
 mod pwm;
@@ -51,17 +48,6 @@ type DriveProber = (Box<dyn DeviceTempProber>, bool);
 /// Interruptible sleep
 fn sleep(dur: Duration, exit_rx: &mpsc::Receiver<()>) {
     let _ = exit_rx.recv_timeout(dur);
-}
-
-#[cfg(feature = "gen-man-pages")]
-fn main() -> anyhow::Result<()> {
-    use clap::CommandFactory as _;
-    let cmd = cl::Args::command();
-    let output = std::env::args_os()
-        .nth(1)
-        .ok_or_else(|| anyhow::anyhow!("Missing output dir argument"))?;
-    clap_mangen::generate_to(cmd, output)?;
-    Ok(())
 }
 
 /// Run PWM fan test
@@ -358,7 +344,6 @@ fn run_daemon(args: &cl::DaemonArgs) -> anyhow::Result<()> {
     Ok(())
 }
 
-#[cfg(not(feature = "gen-man-pages"))]
 fn main() -> anyhow::Result<()> {
     // Parse cl args
     let args = cl::Args::parse();
@@ -369,6 +354,16 @@ fn main() -> anyhow::Result<()> {
     match args.command {
         cl::Command::PwmTest { pwm } => run_pwm_test(&pwm),
         cl::Command::Daemon(daemon_args) => run_daemon(&daemon_args),
+        #[cfg(feature = "generate-extras")]
+        cl::Command::GenManPages { dir } => {
+            extras::generate_man_pages(&dir)?;
+            Ok(())
+        }
+        #[cfg(feature = "generate-extras")]
+        cl::Command::GenShellCompletions { shell, dir } => {
+            extras::generate_shell_completions(shell, dir.as_deref())?;
+            Ok(())
+        }
     }
 }
 

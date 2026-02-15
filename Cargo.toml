@@ -21,6 +21,7 @@ backon = { version = "1.6.0", default-features = false, features = ["std", "std-
 chrono = { version = "0.4.41", default-features = false, features = ["std", "now", "serde"], optional = true }
 clap = { version = "4.5.51", default-features = false, features = ["std", "color", "help", "usage", "error-context", "suggestions", "derive"] }
 clap-num = { version = "1.2.0", default-features = false }
+clap_complete = { version = "4.5.65", default-features = false, optional = true }
 clap_mangen = { version = "0.2.31", default-features = false, optional = true }
 ctrlc = { version = "3.5.1", default-features = false, features = ["termination"] }
 flate2 = { version = "1.1.9", default-features = false, features = ["rust_backend"], optional = true }
@@ -44,7 +45,7 @@ tempfile = { version = "3.23.0", default-features = false }
 [features]
 default = ["temp-log"]
 temp-log = ["dep:chrono", "dep:flate2", "dep:rev_lines", "dep:serde", "dep:serde_json"]
-gen-man-pages = ["dep:clap_mangen"]
+generate-extras = ["dep:clap_mangen", "dep:clap_complete"]
 
 [lints.rust]
 # https://doc.rust-lang.org/rustc/lints/listing/allowed-by-default.html
