@@ -3,7 +3,7 @@
 use std::{
     fmt,
     fs::{self, File},
-    io::{self, BufRead as _, BufReader, BufWriter, Write as _},
+    io::{self, BufRead as _, BufReader, BufWriter, ErrorKind, Write as _},
     num::NonZeroUsize,
     path::{Path, PathBuf},
 };
@@ -73,7 +73,15 @@ impl TempLogger {
             .to_owned();
         let file = File::options().create(true).append(true).open(path)?;
         let last_date = Self::last_logged_date(path, &stem)
-            .inspect_err(|err| log::warn!("Failed to read last logged date: {err:?}"))
+            .inspect_err(|err| {
+                if err
+                    .root_cause()
+                    .downcast_ref::<io::Error>()
+                    .is_none_or(|ioe| ioe.kind() != ErrorKind::NotFound)
+                {
+                    log::warn!("Failed to read last logged date: {err:?}");
+                }
+            })
             .ok();
         Ok(Self {
             path: path.to_owned(),
