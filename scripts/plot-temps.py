@@ -25,19 +25,31 @@ if __name__ == "__main__":
     arg_parser.add_argument(
         "log_files",
         nargs="+",
-        help="Input log files (.jsonl or .jsonl.gz), in data chronological order",
+        help="Input log files (.jsonl or .jsonl.gz), in any order",
     )
     arg_parser.add_argument("svg_filepath", help="Output SVG file")
     args = arg_parser.parse_args()
 
     devices = set()
 
+    # Peek at the first record of each file to determine chronological order
+    def first_timestamp(log_filepath: str) -> float:
+        with contextlib.ExitStack() as cm:
+            if log_filepath.endswith(".gz"):
+                jsonl_file = cm.enter_context(gzip.open(log_filepath, "rt"))
+            else:
+                jsonl_file = cm.enter_context(open(log_filepath))
+            first_line = json.loads(next(iter(jsonl_file)))
+            return datetime.datetime.fromisoformat(first_line["time_utc"]).timestamp()
+
+    sorted_log_files = sorted(args.log_files, key=first_timestamp)
+
     with tempfile.NamedTemporaryFile(
         "wt", suffix=".csv", delete_on_close=False
     ) as csv_file:
         with contextlib.closing(csv_file):
             csv_writer = csv.writer(csv_file)
-            for log_filepath in args.log_files:
+            for log_filepath in sorted_log_files:
                 with contextlib.ExitStack() as cm:
                     if log_filepath.endswith(".gz"):
                         jsonl_file = cm.enter_context(gzip.open(log_filepath, "rt"))
