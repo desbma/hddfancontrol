@@ -4,7 +4,14 @@ set -o pipefail
 
 readonly VERSION="${1:?}"
 
-cd "$(git rev-parse --show-toplevel)"
+cd "$(jj root)"
+
+if jj show --stat | tail -n -1 | grep -q '^0 files changed'
+then
+  jj describe -m "chore: version ${VERSION}"
+else
+  jj new -m "chore: version ${VERSION}"
+fi
 
 cargo set-version "${VERSION//.b/-beta.}"
 
@@ -14,14 +21,12 @@ cargo update
 cargo check
 cargo test
 
-git add Cargo.{toml,lock}
+jj new
 
-git commit -m "chore: version ${VERSION}"
 git tag -f -m "Version ${VERSION}" "${VERSION}"
-
 git cliff 2.0.0.b0..HEAD | head -n -3 > CHANGELOG.md
-git add CHANGELOG.md
-git commit --amend --no-edit
-
 git tag -d "${VERSION}"
+
+jj squash -u
+
 git tag -f -m "Version ${VERSION}" "${VERSION}"
