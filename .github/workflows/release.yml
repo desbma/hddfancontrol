@@ -60,8 +60,11 @@ jobs:
           target: x86_64-unknown-linux-gnu
       - run: |
           mkdir -p target/man
-          cargo run --features gen-man-pages -- target/man
+          cargo run --features generate-extras -- gen-man-pages target/man
+          rm target/man/hddfancontrol-gen-*
           gzip -9 target/man/*.1
+          mkdir -p target/shell-completions
+          cargo run --features generate-extras -- gen-shell-completions target/shell-completions
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-deb
