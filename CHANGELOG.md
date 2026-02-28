@@ -1,5 +1,49 @@
 # Changelog
 
+## 2.1.0 - 2026-02-28
+
+### <!-- 01 -->💡 Features
+
+- systemd: Set io real time priority ([9cb9997](https://github.com/desbma/hddfancontrol/commit/9cb999730655247ec3301f0bbc9a1c1d640d599b) by desbma)
+- Fan control via script ([fed3481](https://github.com/desbma/hddfancontrol/commit/fed348155253af04db30fc6309634659b50b5a58) by desbma)
+- Average temperature samples ([97a14c3](https://github.com/desbma/hddfancontrol/commit/97a14c3e07635dc8d66f858d48d6c7ec72087992) by desbma)
+- Temperature JSONL logging ([a5507fb](https://github.com/desbma/hddfancontrol/commit/a5507fb511bcbd600c49d49425b7d6bd14eea40b) by desbma)
+- Add script to plot temperature data ([bab394f](https://github.com/desbma/hddfancontrol/commit/bab394f959dbf202d6ed3d371944b0765842837a) by desbma)
+- Compress and rotate temp log files ([3799b8a](https://github.com/desbma/hddfancontrol/commit/3799b8a8f1a4edc378cddb77af68c4a442d18a5f) by desbma)
+- Refactor man page generation + add shell completions ([699d7d4](https://github.com/desbma/hddfancontrol/commit/699d7d46a5f421a0538a583fdc42800fbf910604) by desbma)
+- Don't warn if last temp log file is missing ([7f98afb](https://github.com/desbma/hddfancontrol/commit/7f98afb6d0ea3c921e571c0c0cc1d2fb11a5245a) by desbma)
+- plot script: Don't require input files to be in chronological order ([3382eed](https://github.com/desbma/hddfancontrol/commit/3382eede807218dff8145a1c0692ee636c0cc839) by desbma)
+
+### <!-- 02 -->🐛 Bug fixes
+
+- doc: Pwmconfig link ([cf7ecec](https://github.com/desbma/hddfancontrol/commit/cf7ecec9bc56208009a389e525787395c0309edd) by desbma)
+- doc: Crates.io install instructions ([d49c8de](https://github.com/desbma/hddfancontrol/commit/d49c8ded4c7c803ebcb1ec6dcd23eedd61d2874a) by desbma)
+- Possible pwm file infinite wait ([13d8f01](https://github.com/desbma/hddfancontrol/commit/13d8f01d3021f491ed219a37deba64573e600703) by desbma)
+- Hwmon temp range regression ([d007cf2](https://github.com/desbma/hddfancontrol/commit/d007cf2858f9989c19ceaacc839681f8145e79a9) by desbma)
+
+### <!-- 06 -->🚜 Refactor
+
+- Split main function ([e85f907](https://github.com/desbma/hddfancontrol/commit/e85f907e9d1c6dd06eae0f61c20408e9eabcac0b) by desbma)
+
+### <!-- 09 -->🤖 Continuous integration
+
+- Update actions versions ([a9bf5ac](https://github.com/desbma/hddfancontrol/commit/a9bf5ac4ae63c4f6857ed74ed975201cb0f4f8bc) by desbma)
+- Add cargo audit workflow ([3fd99e0](https://github.com/desbma/hddfancontrol/commit/3fd99e0d80299ca50b163727431a76b41ed6f84b) by desbma)
+- Run clippy on all targets, including tests ([6b01a6e](https://github.com/desbma/hddfancontrol/commit/6b01a6e1d0b2329fdb134153294a6f07cf18ddcd) by desbma)
+- Add msrv check ([18d5dc1](https://github.com/desbma/hddfancontrol/commit/18d5dc1b7c5c045becc70a6e05d72fa5b4209cee) by desbma)
+- Build all feature combinations ([640b2d9](https://github.com/desbma/hddfancontrol/commit/640b2d99966c5e58d45b631bf4b39d28de8ddbc4) by desbma)
+- Fix debian release extras ([9b8dc14](https://github.com/desbma/hddfancontrol/commit/9b8dc14c39e050617ffaff90191f2849c9ec9f5f) by desbma)
+
+### <!-- 10 -->🧰 Miscellaneous tasks
+
+- Update lints ([e2d2315](https://github.com/desbma/hddfancontrol/commit/e2d23156546d61dcd0374b44a0d34488a9215c9a) by desbma)
+- Add AGENTS.md ([ef05290](https://github.com/desbma/hddfancontrol/commit/ef05290fe30ef8a3ca8b286c4101530f3115f3e2) by desbma)
+- Update AGENTS.md ([95504ba](https://github.com/desbma/hddfancontrol/commit/95504ba4c767af42031464bef94b0bbd47f5a143) by desbma)
+- Update AGENTS.md with VCS and refactor instructions ([d1de5cf](https://github.com/desbma/hddfancontrol/commit/d1de5cf0c1791d22f3006767d586f0a0c2c03c19) by desbma)
+- Update release script ([54d25d5](https://github.com/desbma/hddfancontrol/commit/54d25d596213738f59cd3fa9548ad989bcf2caa4) by desbma)
+
+---
+
 ## 2.0.6 - 2025-10-31
 
 ### <!-- 01 -->💡 Features
