@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.1.1 - 2026-03-07
+
+### <!-- 10 -->🧰 Miscellaneous tasks
+
+- Update dependencies ([a9f007d](https://github.com/desbma/hddfancontrol/commit/a9f007da41fefbea77202f294d38670f19f9e8aa) by desbma)
+
+---
+
 ## 2.1.0 - 2026-02-28
 
 ### <!-- 01 -->💡 Features
