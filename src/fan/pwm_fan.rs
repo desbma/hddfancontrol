@@ -198,7 +198,7 @@ impl PwmFan<PathBuf> {
         /// Maximum duration to wait for the fan to be stabilized
         const STABILIZE_TIMEOUT: Duration = Duration::from_secs(30);
         /// Probe interval
-        const STABILIZE_PROBE_DELAY: Duration = Duration::from_millis(2000);
+        const STABILIZE_PROBE_DELAY: Duration = Duration::from_secs(2);
 
         let mut time_waited = Duration::from_secs(0);
         let mut prev_rpm = self.pwm.get_rpm()?;
