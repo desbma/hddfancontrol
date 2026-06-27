@@ -3,9 +3,11 @@
 // See https://docs.kernel.org/hwmon/pwm-fan.html
 
 use std::{
+    cmp::Ordering,
     fmt,
     io::{self, ErrorKind},
     path::{Path, PathBuf},
+    thread::sleep,
     time::Duration,
 };
 
@@ -196,10 +198,57 @@ impl<T> Pwm<T> {
     }
 }
 
+/// Speed change direction
+#[derive(Copy, Clone)]
+pub(crate) enum SpeedChange {
+    /// Speed is increasing
+    Increasing,
+    /// Speed is decreasing
+    Decreasing,
+}
+
 impl Pwm<PathBuf> {
     /// Get fan RPM value
     pub(crate) fn get_rpm(&self) -> anyhow::Result<u32> {
         read_value(&self.rpm).with_context(|| format!("Failed to read from {:?}", self.rpm))
+    }
+
+    /// Wait until fan speed stop increasing or decreasing
+    pub(crate) fn wait_stable(&self, change: SpeedChange) -> anyhow::Result<()> {
+        /// Maximum duration to wait for the fan to be stabilized
+        const STABILIZE_TIMEOUT: Duration = Duration::from_secs(30);
+        /// Probe interval
+        const STABILIZE_PROBE_DELAY: Duration = Duration::from_secs(2);
+
+        let mut time_waited = Duration::from_secs(0);
+        let mut prev_rpm = self.get_rpm()?;
+        loop {
+            sleep(STABILIZE_PROBE_DELAY);
+            time_waited += STABILIZE_PROBE_DELAY;
+
+            let cur_rpm = self.get_rpm()?;
+            log::debug!("Fan {self} RPM: {cur_rpm}");
+
+            // We consider the fan speed stable if it changed less than 10% (if the value is significant),
+            // and if the direction changed
+            if (cur_rpm < 100) || (cur_rpm.abs_diff(prev_rpm) < (cur_rpm / 10)) {
+                #[expect(clippy::match_same_arms)]
+                match (cur_rpm.cmp(&prev_rpm), change) {
+                    (Ordering::Equal, _) => break,
+                    (Ordering::Greater, SpeedChange::Decreasing) => break,
+                    (Ordering::Less, SpeedChange::Increasing) => break,
+                    _ => (),
+                }
+            }
+
+            anyhow::ensure!(
+                time_waited < STABILIZE_TIMEOUT,
+                "Fan did not stabilize after {STABILIZE_TIMEOUT:?}"
+            );
+
+            prev_rpm = cur_rpm;
+        }
+        Ok(())
     }
 }
 

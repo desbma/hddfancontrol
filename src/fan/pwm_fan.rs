@@ -1,10 +1,9 @@
 //! PWM fan control
 
 use std::{
-    cmp::{Ordering, max},
+    cmp::max,
     fmt,
     path::{Path, PathBuf},
-    thread::sleep,
     time::{Duration, Instant},
 };
 
@@ -13,7 +12,7 @@ use anyhow::Context as _;
 use super::{Fan, Speed, Thresholds};
 use crate::{
     cl::PwmSettings,
-    pwm::{self, ControlMode, Pwm},
+    pwm::{self, ControlMode, Pwm, SpeedChange},
 };
 
 /// Minimum duration to apply fan startup boost
@@ -37,15 +36,6 @@ impl<T> fmt::Display for PwmFan<T> {
     }
 }
 
-/// Speed change direction
-#[derive(Copy, Clone)]
-enum SpeedChange {
-    /// Speed is increasing
-    Increasing,
-    /// Speed is decreasing
-    Decreasing,
-}
-
 impl PwmFan<()> {
     /// Build a new fan from PWM settings
     pub(crate) fn new(pwm_info: &PwmSettings) -> anyhow::Result<Self> {
@@ -60,9 +50,6 @@ impl PwmFan<()> {
 
     /// Find RPM filepath for the current fan
     pub(crate) fn resolve_rpm_path(&self) -> anyhow::Result<PathBuf> {
-        /// Delay to wait for between PWM speed control, and RPM feedback to ensure both are correlated
-        const RPM_CORRELATION_DELAY: Duration = Duration::from_secs(3);
-
         let dir = self.pwm.sysfs_dir();
         let candidates: Vec<_> = dir
             .read_dir()
@@ -97,7 +84,7 @@ impl PwmFan<()> {
                     let mut skip = false;
                     for _ in 0..3 {
                         pwm.set(pwm::Value::MIN)?;
-                        sleep(RPM_CORRELATION_DELAY);
+                        pwm.wait_stable(SpeedChange::Decreasing)?;
                         if pwm.get_rpm()? > 0 {
                             log::debug!(
                                 "RPM file {candidate:?} has positive value with PWM at minimum value, excluding"
@@ -107,7 +94,7 @@ impl PwmFan<()> {
                         }
 
                         pwm.set(pwm::Value::MAX)?;
-                        sleep(RPM_CORRELATION_DELAY);
+                        pwm.wait_stable(SpeedChange::Increasing)?;
                         if pwm.get_rpm()? == 0 {
                             log::debug!(
                                 "RPM file {candidate:?} has null value with PWM at maximum value, excluding"
@@ -193,45 +180,6 @@ impl<T> Fan for PwmFan<T> {
 }
 
 impl PwmFan<PathBuf> {
-    /// Wait until fan speed stop increasing or decreasing
-    fn wait_stable(&self, change: SpeedChange) -> anyhow::Result<()> {
-        /// Maximum duration to wait for the fan to be stabilized
-        const STABILIZE_TIMEOUT: Duration = Duration::from_secs(30);
-        /// Probe interval
-        const STABILIZE_PROBE_DELAY: Duration = Duration::from_secs(2);
-
-        let mut time_waited = Duration::from_secs(0);
-        let mut prev_rpm = self.pwm.get_rpm()?;
-        debug_assert!((prev_rpm > 0) || matches!(change, SpeedChange::Increasing));
-        loop {
-            sleep(STABILIZE_PROBE_DELAY);
-            time_waited += STABILIZE_PROBE_DELAY;
-
-            let cur_rpm = self.pwm.get_rpm()?;
-            log::debug!("Fan {self} RPM: {cur_rpm}");
-
-            // We consider the fan speed stable if it changed less than 10% (if the value is significant),
-            // and if the direction changed
-            if (cur_rpm < 100) || (cur_rpm.abs_diff(prev_rpm) < (cur_rpm / 10)) {
-                #[expect(clippy::match_same_arms)]
-                match (cur_rpm.cmp(&prev_rpm), change) {
-                    (Ordering::Equal, _) => break,
-                    (Ordering::Greater, SpeedChange::Decreasing) => break,
-                    (Ordering::Less, SpeedChange::Increasing) => break,
-                    _ => (),
-                }
-            }
-
-            anyhow::ensure!(
-                time_waited < STABILIZE_TIMEOUT,
-                "Fan did not stabilize after {STABILIZE_TIMEOUT:?}"
-            );
-
-            prev_rpm = cur_rpm;
-        }
-        Ok(())
-    }
-
     /// Is the fan physically moving?
     fn is_moving(&self) -> anyhow::Result<bool> {
         Ok(self.pwm.get_rpm()? > 0)
@@ -240,13 +188,13 @@ impl PwmFan<PathBuf> {
     /// Dynamically test fan to find its thresholds
     pub(crate) fn test(&mut self) -> anyhow::Result<Thresholds> {
         self.set_speed(1.0.try_into()?)?;
-        self.wait_stable(SpeedChange::Increasing)?;
+        self.pwm.wait_stable(SpeedChange::Increasing)?;
         anyhow::ensure!(self.is_moving()?, "Fan is not moving at maximum speed");
 
         let mut max_stop = 0;
         for pwm_val in (0..=pwm::Value::MAX).rev().step_by(5) {
             self.set_speed((f64::from(pwm_val) / f64::from(pwm::Value::MAX)).try_into()?)?;
-            self.wait_stable(SpeedChange::Decreasing)?;
+            self.pwm.wait_stable(SpeedChange::Decreasing)?;
             if !self.is_moving()? {
                 max_stop = pwm_val;
                 break;
@@ -257,7 +205,7 @@ impl PwmFan<PathBuf> {
         let mut min_start = 0;
         for pwm_val in (0..=u8::MAX).step_by(5) {
             self.set_speed((f64::from(pwm_val) / f64::from(pwm::Value::MAX)).try_into()?)?;
-            self.wait_stable(SpeedChange::Increasing)?;
+            self.pwm.wait_stable(SpeedChange::Increasing)?;
             if self.is_moving()? {
                 min_start = pwm_val;
                 break;
