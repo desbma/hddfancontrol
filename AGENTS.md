@@ -1,12 +1,12 @@
 # AGENTS.md
 
-## Commands
+## Build & Test Commands
 
 - Build: `cargo build`
-- Check: `cargo clippy --all-targets --all-features -- -D warnings`
-- Test all: `cargo test --all-features`
-- Test single: `cargo test --all-features <test_name>` (e.g. `cargo test --all-features test_parse_temp`)
-- Format: `cargo fmt`
+- Check/Lint: `cargo clippy --all-targets --all-features -- -D warnings`
+- Format: `cargo +nightly fmt --check -- --config imports_granularity=Crate --config group_imports=StdExternalCrate`
+- Test: `cargo test --all-features`
+- Single test: `cargo test --all-features <test_name>` (e.g. `cargo test --all-features test_parse_temp`)
 
 ## Architecture
 
@@ -28,14 +28,26 @@ Single-binary Rust daemon (`hddfancontrol`) that regulates Linux fan speed based
 ## Code Style
 
 - Rust 2024 edition, MSRV 1.87. Errors via `anyhow`/`thiserror`.
-- Clippy pedantic enabled; no `unwrap`/`expect`/`panic`/`todo` outside tests.
+- Clippy pedantic enabled plus many restriction lints; no `unwrap`/`expect`/`panic`/`todo` outside tests.
 - Every module and item must have a doc comment (`//!` or `///`); `missing_docs` is warned.
-- Doc comments do not end with a dot, unless it separates sentences
-- Imports: group std, then external crates, then local modules. Use `_` suffix for unused trait imports.
+- Imports:
+  - Place all `use` statements at the top of the file; do not put them inside functions, `impl` blocks, or other inner scopes, except inside `#[cfg(...)]` modules such as `mod tests`
+  - Group std imports first, then external crates, then local modules
+  - Never use fully-qualified paths in code; always import namespaces via `use` statements and refer to symbols by their short name
+  - Import deep `std` namespaces aggressively, except for namespaces like `io` or `fs` whose symbols have very common names that may collide
+  - For third-party crates, prefer importing at the crate or module level rather than deeply importing individual symbols, unless needed to avoid very long fully-qualified namespaces
+- In format strings, never mix positional placeholders (`{}`) with named ones; for expression arguments, use named arguments (`{id}` … `id = loc.id`)
+- When formatting paths in error messages or logs, always use debug formatting (`:?`) rather than `.display()` to preserve non-UTF-8 safety and show quoting
+- Prefer `log` macros for logging; no `dbg!` or `todo!`
 - Prefer `default-features = false` for dependencies.
+- Do not add `derive` traits unless they are required by the current code or actively used by tests/runtime behavior
+- Comments and doc comments should be concise, and single-sentence comments should omit trailing periods
+- Doc comments do not end with a dot, unless it separates sentences
 - In tests: use `use super::*;` to import from the parent module
 - In tests: prefer `unwrap()` over `expect()` for conciseness
 - In tests: do not add custom messages to `assert!`/`assert_eq!`/`assert_ne!` — the test name is sufficient
+- In tests: prefer full type comparisons with `assert_eq!` over selectively checking nested attributes or unpacking; tag types with `#[cfg_attr(test, derive(Eq, PartialEq))]` if needed
+- In tests: do not add section-separator comments — test names are descriptive enough
 - When moving or refactoring code, never remove comment lines — preserve all comments and move them along with the code they document
 
 ## Version control
