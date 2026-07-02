@@ -16,22 +16,22 @@ lto = true
 codegen-units = 1
 
 [dependencies]
-anyhow = { version = "1.0.102", default-features = false, features = ["std", "backtrace"] }
+anyhow = { version = "1.0.103", default-features = false, features = ["std", "backtrace"] }
 backon = { version = "1.6.0", default-features = false, features = ["std", "std-blocking-sleep"] }
-chrono = { version = "0.4.44", default-features = false, features = ["std", "now", "serde"], optional = true }
-clap = { version = "4.5.60", default-features = false, features = ["std", "color", "help", "usage", "error-context", "suggestions", "derive"] }
+chrono = { version = "0.4.45", default-features = false, features = ["std", "now", "serde"], optional = true }
+clap = { version = "4.6.1", default-features = false, features = ["std", "color", "help", "usage", "error-context", "suggestions", "derive"] }
 clap-num = { version = "1.2.0", default-features = false }
-clap_complete = { version = "4.5.66", default-features = false, optional = true }
-clap_mangen = { version = "0.2.31", default-features = false, optional = true }
+clap_complete = { version = "4.6.7", default-features = false, optional = true }
+clap_mangen = { version = "0.3.0", default-features = false, optional = true }
 ctrlc = { version = "3.5.2", default-features = false, features = ["termination"] }
 flate2 = { version = "1.1.9", default-features = false, features = ["rust_backend"], optional = true }
-humantime = { version = "2.3.0", default-features = false }
-itertools = { version = "0.14.0", default-features = false, features = ["use_std"] }
-log = { version = "0.4.29", default-features = false, features = ["max_level_trace", "release_max_level_trace"] }
-nix = { version = "0.31.2", default-features = false, features = ["fs"] }
+humantime = { version = "2.4.0", default-features = false }
+itertools = { version = "0.15.0", default-features = false, features = ["use_std"] }
+log = { version = "0.4.33", default-features = false, features = ["max_level_trace", "release_max_level_trace"] }
+nix = { version = "0.31.3", default-features = false, features = ["fs"] }
 rev_lines = { version = "0.3.0", optional = true, default-features = false }
 serde = { version = "1.0.228", default-features = false, features = ["std", "derive"], optional = true }
-serde_json = { version = "1.0.149", default-features = false, features = ["std"], optional = true }
+serde_json = { version = "1.0.150", default-features = false, features = ["std"], optional = true }
 simple_logger = { version = "5.2.0", default-features = false, features = ["colors", "stderr"] }
 strum = { version = "0.28.0", default-features = false, features = ["std", "derive"] }
 thiserror = { version = "2.0.18", default-features = false, features = ["std"] }
@@ -39,8 +39,8 @@ typed_floats = { version = "1.0.7", default-features = false, features = ["std",
 
 [dev-dependencies]
 float-cmp = { version = "0.10.0", default-features = false, features = ["std"] }
-serial_test = { version = "3.4.0", default-features = false }
-tempfile = { version = "3.26.0", default-features = false }
+serial_test = { version = "3.5.0", default-features = false }
+tempfile = { version = "3.27.0", default-features = false }
 
 [features]
 default = ["temp-log"]
