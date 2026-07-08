@@ -157,30 +157,60 @@ fn setup_fans(
     Ok(fans)
 }
 
-/// Probe temperature for each drive, returning `None` for sleeping drives
+/// Maximum consecutive probe failures tolerated per drive
+const MAX_CONSECUTIVE_PROBE_FAILURES: usize = 5;
+
+/// Probe temperature for a single drive, unless its state does not allow it
+fn probe_drive_temp(
+    prober: &mut dyn DeviceTempProber,
+    supports_probing_sleeping: bool,
+    drive: &Drive,
+) -> anyhow::Result<Option<Temp>> {
+    let state = drive
+        .state()
+        .with_context(|| format!("Failed to get drive {drive} state"))?;
+    log::debug!("Drive {drive} state: {state}");
+    if state.can_probe_temp(supports_probing_sleeping) {
+        let temp = prober
+            .probe_temp()
+            .with_context(|| format!("Failed to get drive {drive} temp"))?;
+        log::debug!("Drive {drive}: {temp}°C");
+        Ok(Some(temp))
+    } else {
+        log::debug!("Drive {drive} in state {state} can not be probed");
+        Ok(None)
+    }
+}
+
+/// Probe temperature for each drive, returning `None` for sleeping drives or transient probe
+/// errors, which drives can produce under heavy IO load
 fn probe_drive_temps(
     drive_probers: &mut [DriveProber],
     drives: &[Drive],
+    consecutive_failures: &mut [usize],
 ) -> anyhow::Result<Vec<Option<Temp>>> {
     drive_probers
         .iter_mut()
         .zip(drives.iter())
-        .map(|((prober, supports_probing_sleeping), drive)| {
-            let state = drive
-                .state()
-                .with_context(|| format!("Failed to get drive {drive} state"))?;
-            log::debug!("Drive {drive} state: {state}");
-            let temp = if state.can_probe_temp(*supports_probing_sleeping) {
-                let temp = prober
-                    .probe_temp()
-                    .with_context(|| format!("Failed to get drive {drive} temp"))?;
-                log::debug!("Drive {drive}: {temp}°C");
-                Some(temp)
-            } else {
-                log::debug!("Drive {drive} in state {state} can not be probed");
-                None
-            };
-            Ok(temp)
+        .zip(consecutive_failures.iter_mut())
+        .map(|(((prober, supports_probing_sleeping), drive), failures)| {
+            match probe_drive_temp(prober.as_mut(), *supports_probing_sleeping, drive) {
+                Ok(temp) => {
+                    *failures = 0;
+                    Ok(temp)
+                }
+                Err(err) => {
+                    *failures += 1;
+                    if *failures >= MAX_CONSECUTIVE_PROBE_FAILURES {
+                        Err(err)
+                    } else {
+                        log::warn!(
+                            "Ignoring drive {drive} probe error ({failures}/{MAX_CONSECUTIVE_PROBE_FAILURES}): {err:#}"
+                        );
+                        Ok(None)
+                    }
+                }
+            }
         })
         .collect::<anyhow::Result<Vec<_>>>()
         .context("Failed to get drive temperatures")
@@ -240,6 +270,7 @@ fn run_daemon(args: &cl::DaemonArgs) -> anyhow::Result<()> {
     let (drives, mut drive_probers) = setup_drives(&args.drives, args.hddtemp_daemon_port)?;
     let mut hwmons_and_ranges = setup_hwmons(&args.hwmons)?;
     let mut fans = setup_fans(&args.pwm, &args.fan_cmd)?;
+    let mut drive_probe_failures = vec![0; drives.len()];
     let max_window_size = args.average.get();
     let mut drive_temp_window: VecDeque<Temp> = VecDeque::with_capacity(max_window_size);
     let mut hwmon_temp_windows: Vec<VecDeque<Temp>> =
@@ -283,7 +314,8 @@ fn run_daemon(args: &cl::DaemonArgs) -> anyhow::Result<()> {
         let start = Instant::now();
 
         // Measure
-        let cur_drive_temps = probe_drive_temps(&mut drive_probers, &drives)?;
+        let cur_drive_temps =
+            probe_drive_temps(&mut drive_probers, &drives, &mut drive_probe_failures)?;
         let cur_hwmon_temps = probe_hwmon_temps(&mut hwmons_and_ranges)?;
 
         // Log
@@ -372,6 +404,75 @@ mod main_tests {
     use std::slice;
 
     use super::*;
+    use crate::tests::BinaryMock;
+
+    /// Prober returning a constant temperature
+    struct FakeProber(Temp);
+
+    impl DeviceTempProber for FakeProber {
+        fn probe_temp(&mut self) -> anyhow::Result<Temp> {
+            Ok(self.0)
+        }
+    }
+
+    #[serial_test::serial]
+    #[test]
+    fn probe_drive_temps_tolerates_transient_failure() {
+        let _ = simple_logger::init_with_level(log::Level::Trace);
+
+        let _hdparm_mock = BinaryMock::new(
+            "hdparm",
+            "\n/dev/_sdX:\n drive state is:  active/idle\n".as_bytes(),
+            "SG_IO: bad/missing sense data, sb[]:  70 00 05 00 00 00 00 0a 00 00 00 00 20 00 01 cf 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n".as_bytes(),
+            0,
+        )
+        .unwrap();
+        let drives = vec![Drive::fake("/dev/_sdX")];
+        let mut probers: Vec<DriveProber> = vec![(Box::new(FakeProber(30.0)), false)];
+        let mut failures = vec![0];
+        let temps = probe_drive_temps(&mut probers, &drives, &mut failures).unwrap();
+        assert_eq!(temps, vec![None]);
+        assert_eq!(failures, vec![1]);
+    }
+
+    #[serial_test::serial]
+    #[test]
+    fn probe_drive_temps_fails_after_max_consecutive_failures() {
+        let _ = simple_logger::init_with_level(log::Level::Trace);
+
+        let _hdparm_mock = BinaryMock::new(
+            "hdparm",
+            "\n/dev/_sdX:\n drive state is:  active/idle\n".as_bytes(),
+            "SG_IO: bad/missing sense data, sb[]:  70 00 05 00 00 00 00 0a 00 00 00 00 20 00 01 cf 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n".as_bytes(),
+            0,
+        )
+        .unwrap();
+        let drives = vec![Drive::fake("/dev/_sdX")];
+        let mut probers: Vec<DriveProber> = vec![(Box::new(FakeProber(30.0)), false)];
+        let mut failures = vec![MAX_CONSECUTIVE_PROBE_FAILURES - 1];
+        assert!(probe_drive_temps(&mut probers, &drives, &mut failures).is_err());
+        assert_eq!(failures, vec![MAX_CONSECUTIVE_PROBE_FAILURES]);
+    }
+
+    #[serial_test::serial]
+    #[test]
+    fn probe_drive_temps_success_resets_failure_count() {
+        let _ = simple_logger::init_with_level(log::Level::Trace);
+
+        let _hdparm_mock = BinaryMock::new(
+            "hdparm",
+            "\n/dev/_sdX:\n drive state is:  active/idle\n".as_bytes(),
+            &[],
+            0,
+        )
+        .unwrap();
+        let drives = vec![Drive::fake("/dev/_sdX")];
+        let mut probers: Vec<DriveProber> = vec![(Box::new(FakeProber(30.0)), false)];
+        let mut failures = vec![MAX_CONSECUTIVE_PROBE_FAILURES - 1];
+        let temps = probe_drive_temps(&mut probers, &drives, &mut failures).unwrap();
+        assert_eq!(temps, vec![Some(30.0)]);
+        assert_eq!(failures, vec![0]);
+    }
 
     #[test]
     fn drives_only() {

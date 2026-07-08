@@ -94,6 +94,16 @@ impl Drive {
         })
     }
 
+    /// Build a drive with hdparm state probing, bypassing device checks
+    #[cfg(test)]
+    pub(crate) fn fake(dev_path: &str) -> Self {
+        Self {
+            dev_path: PathBuf::from(dev_path),
+            name: dev_path.to_owned(),
+            state_probing_method: StateProbingMethod::Hdparm,
+        }
+    }
+
     /// Get drive model name
     fn model(path: &Path) -> anyhow::Result<String> {
         let dev = path
