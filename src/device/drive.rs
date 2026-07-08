@@ -9,6 +9,8 @@ use std::{
     process::{Command, Stdio},
 };
 
+use anyhow::Context as _;
+
 /// Drive runtime state
 #[derive(strum::EnumString, strum::Display)]
 #[strum(serialize_all = "lowercase")]
@@ -53,8 +55,8 @@ pub(crate) struct Drive {
     pub dev_path: PathBuf,
     /// Pretty name for display
     name: String,
-    /// How to probe for state
-    state_probing_method: StateProbingMethod,
+    /// How to probe for state, or `None` for non-rotational drives that need none
+    state_probing_method: Option<StateProbingMethod>,
 }
 
 impl fmt::Display for Drive {
@@ -79,18 +81,33 @@ impl Drive {
                 .ok_or_else(|| anyhow::anyhow!("Invalid drive path"))?,
             Self::model(&dev_path)?,
         );
-        let state_probing = if Self::state_hdparm(&dev_path).is_ok() {
-            StateProbingMethod::Hdparm
-        } else if Self::state_sdparm(&dev_path).is_ok() {
-            StateProbingMethod::Sdparm
+        let rotational_path: PathBuf = [
+            OsStr::new("/sys/class/block"),
+            dev_path
+                .file_name()
+                .ok_or_else(|| anyhow::anyhow!("Invalid device path"))?,
+            OsStr::new("queue/rotational"),
+        ]
+        .into_iter()
+        .collect();
+        let state_probing_method = if Self::is_rotational(&rotational_path)? {
+            let method = if Self::state_hdparm(&dev_path).is_ok() {
+                StateProbingMethod::Hdparm
+            } else if Self::state_sdparm(&dev_path).is_ok() {
+                StateProbingMethod::Sdparm
+            } else {
+                anyhow::bail!("Unable to probe for drive state");
+            };
+            log::debug!("{name}: Will use {method} state probing method");
+            Some(method)
         } else {
-            anyhow::bail!("Unable to probe for drive state");
+            log::debug!("{name}: Non-rotational drive, skipping state probing");
+            None
         };
-        log::debug!("{name}: Will use {state_probing} state probing method");
         Ok(Self {
             dev_path,
             name,
-            state_probing_method: state_probing,
+            state_probing_method,
         })
     }
 
@@ -100,7 +117,18 @@ impl Drive {
         Self {
             dev_path: PathBuf::from(dev_path),
             name: dev_path.to_owned(),
-            state_probing_method: StateProbingMethod::Hdparm,
+            state_probing_method: Some(StateProbingMethod::Hdparm),
+        }
+    }
+
+    /// Read whether the drive has rotating platters from its sysfs attribute file
+    fn is_rotational(rotational_path: &Path) -> anyhow::Result<bool> {
+        let content = fs::read_to_string(rotational_path)
+            .with_context(|| format!("Failed to read {rotational_path:?}"))?;
+        match content.trim_end() {
+            "1" => Ok(true),
+            "0" => Ok(false),
+            other => anyhow::bail!("Unexpected {rotational_path:?} content: {other:?}"),
         }
     }
 
@@ -214,6 +242,9 @@ impl Drive {
     /// Get drive runtime state
     pub(crate) fn state(&self) -> anyhow::Result<State> {
         const SUSPENDED_PM_STATUS: [&str; 2] = ["suspended", "suspending"];
+        let Some(method) = &self.state_probing_method else {
+            return Ok(State::ActiveIdle);
+        };
         let pm_status_path: PathBuf = [
             OsStr::new("/sys/class/block"),
             #[expect(clippy::unwrap_used)]
@@ -227,7 +258,7 @@ impl Drive {
         {
             Ok(State::PmSuspended)
         } else {
-            match self.state_probing_method {
+            match method {
                 StateProbingMethod::Hdparm => Self::state_hdparm(&self.dev_path),
                 StateProbingMethod::Sdparm => Self::state_sdparm(&self.dev_path),
             }
@@ -238,6 +269,8 @@ impl Drive {
 #[cfg(test)]
 #[expect(clippy::shadow_unrelated)]
 mod tests {
+    use tempfile::NamedTempFile;
+
     use super::*;
     use crate::tests::BinaryMock;
 
@@ -378,5 +411,41 @@ mod tests {
             Drive::state_sdparm(Path::new("/dev/_sdX")).unwrap(),
             State::Sleeping
         ));
+    }
+
+    #[test]
+    fn state_non_rotational_is_active_idle() {
+        let drive = Drive {
+            dev_path: PathBuf::from("/dev/_sdX"),
+            name: "/dev/_sdX".to_owned(),
+            state_probing_method: None,
+        };
+        assert!(matches!(drive.state().unwrap(), State::ActiveIdle));
+    }
+
+    #[test]
+    fn is_rotational_hdd() {
+        let file = NamedTempFile::new().unwrap();
+        fs::write(file.path(), "1\n").unwrap();
+        assert!(Drive::is_rotational(file.path()).unwrap());
+    }
+
+    #[test]
+    fn is_rotational_ssd() {
+        let file = NamedTempFile::new().unwrap();
+        fs::write(file.path(), "0\n").unwrap();
+        assert!(!Drive::is_rotational(file.path()).unwrap());
+    }
+
+    #[test]
+    fn is_rotational_unexpected_content() {
+        let file = NamedTempFile::new().unwrap();
+        fs::write(file.path(), "2\n").unwrap();
+        assert!(Drive::is_rotational(file.path()).is_err());
+    }
+
+    #[test]
+    fn is_rotational_missing_file() {
+        assert!(Drive::is_rotational(Path::new("/nonexistent/queue/rotational")).is_err());
     }
 }
