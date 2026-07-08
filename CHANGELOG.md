@@ -1,5 +1,31 @@
 # Changelog
 
+## 2.1.2 - 2026-07-08
+
+### <!-- 01 -->💡 Features
+
+- Tolerate transcient state probing failures ([2962792](https://github.com/desbma/hddfancontrol/commit/29627923fee38cae1f70ce0d87132d17b9bcd72f) by desbma)
+- Don't probe state for non rotational drives ([a0bcbbb](https://github.com/desbma/hddfancontrol/commit/a0bcbbb6e446551e80c1b666660f1d52138f3faa) by desbma)
+
+### <!-- 02 -->🐛 Bug fixes
+
+- Use wait_stable in resolve_rpm_path too ([1919059](https://github.com/desbma/hddfancontrol/commit/19190596b24ccec6cfe3fc985f83d1a168a5612b) by desbma)
+
+### <!-- 09 -->🤖 Continuous integration
+
+- Pin gh actions versions with hash ([4d78b0e](https://github.com/desbma/hddfancontrol/commit/4d78b0e3229d3bfb7e37fe65dce4412fac953c5f) by desbma)
+- Update actions ([6bc86fd](https://github.com/desbma/hddfancontrol/commit/6bc86fd0a8dd2058890b8e6d8f3266b2674e95b2) by desbma)
+
+### <!-- 10 -->🧰 Miscellaneous tasks
+
+- Lint ([a88d87b](https://github.com/desbma/hddfancontrol/commit/a88d87b254b18870e0d199bc5a4cb6fe80650059) by desbma)
+- Remove pre-commit hooks ([28ff0a6](https://github.com/desbma/hddfancontrol/commit/28ff0a6a83f0fae347dce83cdaf6afe7e0785dba) by desbma)
+- Update AGENTS.md ([55067e5](https://github.com/desbma/hddfancontrol/commit/55067e57afe67c57b5efd102d249929a082b2dd3) by desbma)
+- Update dependencies ([9547b42](https://github.com/desbma/hddfancontrol/commit/9547b42cc78bf0dc963b3c6fb68994458beeec01) by desbma)
+- Update lints ([db7a902](https://github.com/desbma/hddfancontrol/commit/db7a90283ea85efc8142127361754315259eef94) by desbma)
+
+---
+
 ## 2.1.1 - 2026-03-07
 
 ### <!-- 10 -->🧰 Miscellaneous tasks
