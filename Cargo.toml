@@ -49,19 +49,25 @@ generate-extras = ["dep:clap_complete", "dep:clap_mangen"]
 
 [lints.rust]
 # https://doc.rust-lang.org/rustc/lints/listing/allowed-by-default.html
+ambiguous_negative_literals = "warn"
+closure_returning_async_block = "warn"
 explicit_outlives_requirements = "warn"
+impl_trait_redundant_captures = "warn"
 missing_docs = "warn"
 non_ascii_idents = "deny"
-redundant-lifetimes = "warn"
-single-use-lifetimes = "warn"
-unit-bindings = "warn"
+redundant_imports = "warn"
+redundant_lifetimes = "warn"
+single_use_lifetimes = "warn"
+unit_bindings = "warn"
 unreachable_pub = "warn"
 unused_crate_dependencies = "warn"
-unused-lifetimes = "warn"
-unused-qualifications = "warn"
+unused_lifetimes = "warn"
+unused_macro_rules = "warn"
+unused_qualifications = "warn"
 
 [lints.clippy]
 pedantic = { level = "warn", priority = -1 }
+assert_is_empty = "allow"
 unnecessary_debug_formatting = "allow"
 # below lints are from clippy::restriction
 # https://rust-lang.github.io/rust-clippy/master/index.html#/?levels=allow&groups=restriction
@@ -79,6 +85,7 @@ if_then_some_else_none = "warn"
 impl_trait_in_params = "warn"
 indexing_slicing = "warn"
 infinite_loop = "warn"
+inline_trait_bounds = "warn"
 lossy_float_literal = "warn"
 map_with_unused_argument_over_ranges = "warn"
 missing_docs_in_private_items = "warn"
@@ -103,6 +110,7 @@ self_named_module_files = "warn"
 semicolon_inside_block = "warn"
 shadow_unrelated = "warn"
 str_to_string = "warn"
+string_add = "warn"
 string_lit_chars_any = "warn"
 string_slice = "warn"
 tests_outside_test_module = "warn"
