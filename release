@@ -21,12 +21,7 @@ cargo update
 cargo check
 cargo test
 
+git cliff --tag "${VERSION}" 2.0.0.b0..HEAD | head -n -3 > CHANGELOG.md
+
 jj new
-
-git tag -f -m "Version ${VERSION}" "${VERSION}"
-git cliff 2.0.0.b0..HEAD | head -n -3 > CHANGELOG.md
-git tag -d "${VERSION}"
-
-jj squash -u
-
-git tag -f -m "Version ${VERSION}" "${VERSION}"
+jj tag set -r @- "${VERSION}"
