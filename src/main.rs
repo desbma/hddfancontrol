@@ -32,7 +32,7 @@ mod sysfs;
 #[cfg(feature = "temp-log")]
 mod temp_log;
 #[cfg(feature = "temp-log")]
-use chrono::Utc;
+use jiff::Timestamp;
 #[cfg(test)]
 mod tests;
 
@@ -264,7 +264,6 @@ fn compute_fan_speed(
 
 /// Run the fan control daemon
 fn run_daemon(args: &cl::DaemonArgs) -> anyhow::Result<()> {
-    let interval = *args.interval;
     let min_fan_speed = Speed::try_from(f64::from(args.min_fan_speed_prct) / 100.0)
         .with_context(|| format!("Invalid speed {}%", args.min_fan_speed_prct))?;
     let (drives, mut drive_probers) = setup_drives(&args.drives, args.hddtemp_daemon_port)?;
@@ -334,7 +333,7 @@ fn run_daemon(args: &cl::DaemonArgs) -> anyhow::Result<()> {
                 )
                 .collect();
             logger
-                .log(Utc::now(), measures)
+                .log(Timestamp::now(), measures)
                 .context("Failed to write temp log entry")?;
         }
 
@@ -368,7 +367,7 @@ fn run_daemon(args: &cl::DaemonArgs) -> anyhow::Result<()> {
 
         // Sleep
         let elapsed = Instant::now().duration_since(start);
-        let to_wait = interval.saturating_sub(elapsed);
+        let to_wait = args.interval.saturating_sub(elapsed);
         log::debug!("Will sleep at most {to_wait:?}");
         sleep(to_wait, &exit_rx);
     }

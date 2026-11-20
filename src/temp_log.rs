@@ -8,9 +8,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use chrono::{DateTime, NaiveDate, Utc};
 use flate2::{Compression, bufread, write::GzEncoder};
 use itertools::Itertools as _;
+use jiff::{Timestamp, civil::Date, tz::Offset};
 use rev_lines::RawRevLines;
 
 use crate::probe::Temp;
@@ -41,7 +41,7 @@ impl TempMeasure {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 struct TempLog {
     /// UTC timestamp
-    time_utc: DateTime<Utc>,
+    time_utc: Timestamp,
     /// Per-device measurements
     measures: Vec<TempMeasure>,
 }
@@ -54,8 +54,8 @@ pub(crate) struct TempLogger {
     stem: String,
     /// Output file handle
     writer: BufWriter<File>,
-    /// Date of the last write (UTC), used to trigger daily rotation
-    last_date: Option<NaiveDate>,
+    /// Highest UTC date logged
+    last_date: Option<Date>,
     /// Maximum number of rotated files to keep
     max_files: Option<NonZeroUsize>,
 }
@@ -94,7 +94,7 @@ impl TempLogger {
 
     /// Read the date of the last logged entry from the JSONL file, or from
     /// the most recent rotated gzip archive if the JSONL file is empty
-    fn last_logged_date(path: &Path, stem: &str) -> anyhow::Result<NaiveDate> {
+    fn last_logged_date(path: &Path, stem: &str) -> anyhow::Result<Date> {
         let file = File::open(path)?;
         let last_entry: TempLog = if let Some(line) = RawRevLines::new(file).next().transpose()? {
             serde_json::from_slice(&line)?
@@ -111,23 +111,20 @@ impl TempLogger {
             .ok_or_else(|| anyhow::anyhow!("Rotated file {gz_path:?} is empty"))?;
             serde_json::from_str(&line)?
         };
-        Ok(last_entry.time_utc.date_naive())
+        Ok(Offset::UTC.to_datetime(last_entry.time_utc).date())
     }
 
     /// Log a set of temperature measurements, rotating daily
     pub(crate) fn log(
         &mut self,
-        time: DateTime<Utc>,
+        time: Timestamp,
         measures: Vec<TempMeasure>,
     ) -> anyhow::Result<()> {
-        let today = time.date_naive();
+        let today = Offset::UTC.to_datetime(time).date();
 
-        // Rotate if the day changed
+        // Rotate when the UTC date advances
         if self.last_date.is_some_and(|prev| today > prev) {
-            self.writer.flush()?;
             self.rotate()?;
-            self.writer =
-                BufWriter::new(File::options().create(true).append(true).open(&self.path)?);
         }
         self.last_date = self.last_date.max(Some(today));
 
@@ -137,7 +134,7 @@ impl TempLogger {
     /// Serialize and write a single JSONL line
     fn write_jsonl(
         &mut self,
-        time_utc: DateTime<Utc>,
+        time_utc: Timestamp,
         measures: Vec<TempMeasure>,
     ) -> anyhow::Result<()> {
         let entry = TempLog { time_utc, measures };
@@ -231,7 +228,7 @@ mod tests {
     }
 
     /// Parse a UTC datetime string
-    fn utc(s: &str) -> DateTime<Utc> {
+    fn utc(s: &str) -> Timestamp {
         s.parse().unwrap()
     }
 
@@ -259,7 +256,7 @@ mod tests {
 
         logger
             .log(
-                utc("2026-02-13T10:00:00Z"),
+                utc("2026-02-13T10:00:00.123456789Z"),
                 vec![
                     TempMeasure::new("drive1", Some(40.0)),
                     TempMeasure::new("drive2", None),
@@ -281,7 +278,7 @@ mod tests {
         assert_eq!(lines.len(), 2);
         assert_eq!(
             lines[0],
-            r#"{"time_utc":"2026-02-13T10:00:00Z","measures":[{"device":"drive1","temp_celcius":40.0},{"device":"drive2","temp_celcius":null}]}"#
+            r#"{"time_utc":"2026-02-13T10:00:00.123456789Z","measures":[{"device":"drive1","temp_celcius":40.0},{"device":"drive2","temp_celcius":null}]}"#
         );
         assert_eq!(
             lines[1],
@@ -592,7 +589,7 @@ mod tests {
         fs::write(&log_path, format!("{line}\n")).unwrap();
 
         let date = TempLogger::last_logged_date(&log_path, "temps").unwrap();
-        assert_eq!(date, NaiveDate::from_ymd_opt(2026, 2, 13).unwrap());
+        assert_eq!(date, Date::constant(2026, 2, 13));
     }
 
     #[test]
@@ -604,7 +601,7 @@ mod tests {
         fs::write(&log_path, format!("{line1}\n{line2}\n")).unwrap();
 
         let date = TempLogger::last_logged_date(&log_path, "temps").unwrap();
-        assert_eq!(date, NaiveDate::from_ymd_opt(2026, 2, 14).unwrap());
+        assert_eq!(date, Date::constant(2026, 2, 14));
     }
 
     #[test]
@@ -624,7 +621,7 @@ mod tests {
         gz.finish().unwrap();
 
         let date = TempLogger::last_logged_date(&log_path, "temps").unwrap();
-        assert_eq!(date, NaiveDate::from_ymd_opt(2026, 2, 12).unwrap());
+        assert_eq!(date, Date::constant(2026, 2, 12));
     }
 
     #[test]

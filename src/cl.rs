@@ -7,6 +7,7 @@ use std::{
     ops::Range,
     path::{self, PathBuf},
     str::FromStr,
+    time::Duration,
 };
 
 use clap::{ArgGroup, Parser, Subcommand};
@@ -90,6 +91,11 @@ impl FromStr for HwmonSettings {
 /// Parse percentage integer value
 fn percentage(s: &str) -> Result<u8, String> {
     clap_num::number_range(s, 0, 100)
+}
+
+/// Parse human-friendly duration
+fn duration(s: &str) -> Result<Duration, jiff::Error> {
+    jiff::fmt::friendly::SpanParser::new().parse_unsigned_duration(s)
 }
 
 /// Hddfancontrol command line arguments
@@ -193,8 +199,8 @@ pub(crate) struct DaemonArgs {
     pub min_fan_speed_prct: Percentage,
 
     /// Interval to check temperature and adjust fan speed, ie. '30s', '3min'.
-    #[arg(short, long, default_value = "20s")]
-    pub interval: humantime::Duration,
+    #[arg(short, long, default_value = "20s", value_parser = duration)]
+    pub interval: Duration,
 
     /// Number of last temperature samples to average before computing target fan speed.
     #[arg(short, long, default_value_t = NonZeroUsize::MIN)]
@@ -383,6 +389,30 @@ mod tests {
                 panic!("expected Daemon")
             }
             Command::PwmTest { .. } => panic!("expected Daemon"),
+        }
+    }
+
+    #[test]
+    fn daemon_interval() {
+        for (interval, expected) in [
+            (None, Duration::from_secs(20)),
+            (Some("30s"), Duration::from_secs(30)),
+            (Some("3min"), Duration::from_secs(180)),
+            (Some("1m30s"), Duration::from_secs(90)),
+            (Some("250ms"), Duration::from_millis(250)),
+        ] {
+            let mut args = base_args();
+            args.extend(["-p", "/sys/class/hwmon/hwmon0/pwm1:200:75"]);
+            args.extend(interval.into_iter().flat_map(|i| ["-i", i]));
+            let parsed = Args::try_parse_from(args).unwrap();
+            match parsed.command {
+                Command::Daemon(daemon) => assert_eq!(daemon.interval, expected),
+                #[cfg(feature = "generate-extras")]
+                Command::GenManPages { .. } | Command::GenShellCompletions { .. } => {
+                    panic!("expected Daemon")
+                }
+                Command::PwmTest { .. } => panic!("expected Daemon"),
+            }
         }
     }
 
